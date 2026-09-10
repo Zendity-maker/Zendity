@@ -148,7 +148,10 @@ export async function POST(req: Request) {
                     email: directorEmail.toLowerCase().trim(),
                     pinCode: pinHash,
                     role: Role.DIRECTOR,
-                    complianceScore: 100,
+                    // Ponia el score en 100 fijo al crear la sede. Fuera: el
+                    // campo tiene su default en el schema y su unico escritor
+                    // es el cron. Ver src/lib/compliance-score.ts.
+                    // complianceScore: 100,
                 },
             });
 

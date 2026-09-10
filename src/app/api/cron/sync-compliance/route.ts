@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { calculateDynamicScore } from '@/app/api/care/compliance-score/route';
-import { applyScoreEvent } from '@/lib/score-event';
+// La formula vive en el lib desde el 10-sep-2026. Un cron importando un
+// route handler era la senal de que estaba en el sitio equivocado.
+import { calculateDynamicScore } from '@/lib/compliance-score';
 import { requireCronSecret } from '@/lib/cron-auth';
 
 export const dynamic = 'force-dynamic';
@@ -50,14 +51,27 @@ export async function GET(req: Request) {
                 const { score } = await calculateDynamicScore(u.id);
                 const delta = score - u.complianceScore;
                 if (delta !== 0) {
-                    // Actualizar el score y crear ScoreEvent para alimentar la gráfica
-                    await applyScoreEvent(
-                        u.id,
-                        u.headquartersId,
-                        delta,
-                        `Recálculo diario de compliance — nueva fórmula dinámica`,
-                        'SHIFT',
-                    );
+                    /**
+                     * SET ABSOLUTO. Este cron es desde el 10-sep-2026 el ÚNICO
+                     * escritor del campo.
+                     *
+                     * Antes calculaba el delta contra el valor que había leído
+                     * al empezar el loop y luego hacía un increment sobre el
+                     * valor VIVO (applyScoreEvent). Es un read-modify-write con
+                     * base rancia: si algo escribía durante los minutos que dura
+                     * el recorrido, el resultado quedaba en target ± otro_delta.
+                     * No era idempotente y no convergía a la fórmula. Eso
+                     * explica que la fórmula diera 46 y en la base hubiera 0.
+                     *
+                     * Y ya no crea un ScoreEvent SHIFT: ese evento no era un
+                     * hecho del turno de nadie, era el rastro del propio
+                     * recálculo disfrazado de evento de desempeño, y ensuciaba
+                     * la gráfica que ve el empleado.
+                     */
+                    await prisma.user.update({
+                        where: { id: u.id },
+                        data: { complianceScore: score },
+                    });
                     diffs.push({
                         name: u.name,
                         role: u.role,

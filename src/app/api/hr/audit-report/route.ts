@@ -455,20 +455,32 @@ export async function PATCH(request: Request) {
                 // Se acota a [0,100]. `humanScore` entra del body sin validar y
                 // se escribia sin clamp: un director podia dejar a alguien en
                 // 400 o en -50.
-                data: { complianceScore: Math.max(0, Math.min(100, Math.round(finalScore))) },
+                // NO se escribe el complianceScore. Desde el 10-sep-2026 el
+                // unico escritor es el cron sync-compliance, con un SET
+                // absoluto sobre la formula de src/lib/compliance-score.ts.
+                // Aqui se guarda el HECHO; el numero lo calcula uno solo.
+                data: {},
             }),
-            // Sincronizar con EmployeeEvaluation para que Insights, HR page y
-            // el directorio muestren el score actualizado sin intervención manual
-            prisma.employeeEvaluation.create({
-                data: {
-                    headquartersId: hqId,
-                    employeeId: existing.userId,
-                    evaluatorId: invokerId,
-                    score: Math.round(finalScore),
-                    categoryScores: { auditoria_formal: Math.round(finalScore) },
-                    feedback: feedback || `Auditoría formal cerrada por dirección. Score: ${Math.round(finalScore)}/100`,
-                },
-            }),
+            /**
+             * AQUÍ ESTABA EL BUCLE QUE MANTENÍA EL NÚMERO INVERTIDO.
+             *
+             * Cerrar una auditoría creaba un EmployeeEvaluation cuyo `score` es
+             * el score que el sistema YA tenía — y la fórmula vuelve a castigar
+             * ese número por `evaluationDelta`, con peso DOBLE a la más
+             * reciente. El score bajo se convertía en "evaluación baja", que
+             * bajaba el score, que producía otra evaluación más baja.
+             *
+             * Medido el 10-sep-2026: las únicas evaluaciones de Cupey son
+             * `{"auditoria_formal": N}` — ninguna es el juicio de una persona.
+             * Yedaira tenía 55 y 34; Jediel 90 y 75. Los cuatro números son
+             * ecos de su propio score. Por eso, tras consolidar los nueve
+             * escritores y arreglar cuatro defectos de la fórmula, Yedaira
+             * seguía en 25 y Jediel en 99.
+             *
+             * Se deja de crear. Una evaluación es lo que una persona juzga de
+             * otra, y para eso está /hr/evaluate. Lo que la auditoría produce
+             * ya se guarda en PerformanceScore, con su informe y su firma.
+             */
         ]);
 
         return NextResponse.json({ success: true, performanceScore: updated, finalScore: Math.round(finalScore) });

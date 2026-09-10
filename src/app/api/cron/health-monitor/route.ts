@@ -169,7 +169,18 @@ export async function GET(req: Request) {
                     notificationsFixed = result.count;
                 } catch { /* silenciar */ }
 
-                // ── C. complianceScore fuera de rango → AUTO-CORRECCIÓN ─
+                /**
+                 * C. complianceScore fuera de rango.
+                 *
+                 * Era el NOVENO escritor del campo y nadie lo tenía en la
+                 * lista. Desde el 10-sep-2026 el único escritor es el cron
+                 * `sync-compliance`, que hace un SET absoluto ya acotado — así
+                 * que esto no debería corregir nada nunca.
+                 *
+                 * Se deja como detector: si algún día `scoresFixed` sale
+                 * distinto de 0, es que apareció un escritor nuevo. No es una
+                 * red de seguridad, es una alarma.
+                 */
                 let scoresFixed = 0;
                 try {
                     scoresFixed = await prisma.$executeRaw`

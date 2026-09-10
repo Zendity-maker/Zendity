@@ -72,8 +72,22 @@ export async function applyScoreEvent(
         // numero estaba igual o mas bajo. El evento se sigue guardando —es
         // lo que alimenta extraDelta— pero ya no mueve un numero que se va
         // a sobrescribir.
-        const SOLO_REGISTRO: ScoreCategory[] = ['MISSION', 'ACADEMY', 'PHOTO', 'VITALS'];
-        const mueveScore = !SOLO_REGISTRO.includes(category);
+        /**
+         * DESDE EL 10-sep-2026, TODAS. Este helper ya no escribe el score.
+         *
+         * El razonamiento de arriba —que escribir aquí lo cuenta dos veces y el
+         * recálculo de las 03:30 lo borra esa misma noche— valía igual para las
+         * once categorías, no solo para cuatro. Se aplicó a cuatro porque
+         * fueron las cuatro que alguien notó.
+         *
+         * El único escritor es ahora el cron `sync-compliance`, con un SET
+         * absoluto (ver src/lib/compliance-score.ts). Este helper hace lo que
+         * su nombre dice: guarda el ScoreEvent, que es la huella de que algo
+         * pasó y con qué peso. La fórmula lo consume por `extraDelta`.
+         *
+         * Los once callers siguen funcionando sin tocar una línea.
+         */
+        const mueveScore = false;
 
         // 2. Aplicar delta
         if (!mueveScore) {

@@ -61,7 +61,11 @@ export async function GET() {
                 facility: user.headquarters.name,
                 evaluationsCount: user.evalsReceived.length,
                 performanceScore: finalScore,
-                complianceScore: complianceScore,
+                // NO se escribe el complianceScore. Desde el 10-sep-2026 el
+                // unico escritor es el cron sync-compliance, con un SET
+                // absoluto sobre la formula de src/lib/compliance-score.ts.
+                // Aqui se guarda el HECHO; el numero lo calcula uno solo.
+                // complianceScore: complianceScore,
                 avgEvalScore: avgEvalScore
             };
         });

@@ -70,7 +70,11 @@ export async function GET(req: Request) {
                     }),
                     prisma.user.update({
                         where: { id: incident.employeeId },
-                        data: { complianceScore: newScore }
+                // NO se escribe el complianceScore. Desde el 10-sep-2026 el
+                // unico escritor es el cron sync-compliance, con un SET
+                // absoluto sobre la formula de src/lib/compliance-score.ts.
+                // Aqui se guarda el HECHO; el numero lo calcula uno solo.
+                        data: {}
                     })
                 ]);
 
