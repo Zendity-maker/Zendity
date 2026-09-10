@@ -631,11 +631,18 @@ export default function SupervisorMissionControlPage() {
     };
 
     // Sprint R — Void/descartar ticket
-    const handleVoidTicket = async () => {
+    /**
+     * Cerrar una alerta son DOS cosas, no una.
+     *
+     * Hasta hoy el unico boton decia "Descartar" y exigia motivo. Quien habia
+     * ATENDIDO la alerta no tenia donde decirlo, asi que la dejaba ahi: 28
+     * alertas clinicas sin cerrar y siete caidas, algunas de junio.
+     */
+    const handleVoidTicket = async (accion: 'ATENDIDO' | 'DESCARTADO' = 'DESCARTADO') => {
         if (!voidingTicket || !user) return;
         const reason = voidReason.trim();
-        if (reason.length < 10) {
-            setToast({ msg: 'El motivo debe tener al menos 10 caracteres', type: 'err' });
+        if (accion === 'DESCARTADO' && reason.length < 10) {
+            setToast({ msg: 'Para descartar hace falta un motivo de al menos 10 caracteres', type: 'err' });
             return;
         }
         setIsVoiding(true);
@@ -648,12 +655,13 @@ export default function SupervisorMissionControlPage() {
                     headquartersId: hqId,
                     sourceType: voidingTicket.sourceType,
                     sourceId: voidingTicket.sourceId,
+                    accion,
                     reason,
                 }),
             });
             const data = await res.json();
             if (data.success) {
-                setToast({ msg: 'Ticket descartado', type: 'ok' });
+                setToast({ msg: accion === 'ATENDIDO' ? 'Marcado como atendido' : 'Descartado', type: 'ok' });
                 setVoidingTicket(null);
                 setVoidReason("");
                 fetchLiveData();
@@ -1596,7 +1604,7 @@ export default function SupervisorMissionControlPage() {
                                                             onClick={() => { setVoidingTicket(ticket); setVoidReason(""); }}
                                                             className="w-full text-rose-600 hover:text-rose-700 hover:bg-rose-50 font-bold py-1.5 rounded-lg transition-all text-[11px] uppercase tracking-widest"
                                                         >
-                                                            Descartar
+                                                            Cerrar
                                                         </button>
                                                     </div>
                                                 );
@@ -2277,7 +2285,7 @@ export default function SupervisorMissionControlPage() {
                     <div className="bg-white rounded-[2rem] p-7 max-w-md w-full shadow-2xl border border-slate-200">
                         <div className="flex justify-between items-center mb-5">
                             <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                                <AlertTriangle className="w-5 h-5 text-rose-500" /> Descartar ticket
+                                <AlertTriangle className="w-5 h-5 text-rose-500" /> Cerrar este aviso
                             </h3>
                             <button onClick={() => { setVoidingTicket(null); setVoidReason(""); }} className="text-slate-400 hover:text-slate-600 w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center text-xl">×</button>
                         </div>
@@ -2285,6 +2293,26 @@ export default function SupervisorMissionControlPage() {
                             <p className="font-bold text-slate-800 text-sm mb-1 leading-tight">{voidingTicket.title}</p>
                             <p className="text-xs text-slate-600 font-semibold">Residente: {voidingTicket.patientName}</p>
                         </div>
+                        {/* ATENDIDO primero, y sin exigir nada. Es lo que pasa
+                            casi siempre: la supervisora leyó, hizo algo, y quiere
+                            decirlo. Antes su única salida era "descartar" —que
+                            suena a que no valía nada— y por eso quedaron 28
+                            alertas y siete caídas sin cerrar. */}
+                        <button
+                            onClick={() => handleVoidTicket('ATENDIDO')}
+                            disabled={isVoiding}
+                            className="w-full mb-5 px-5 py-3.5 bg-teal-700 hover:bg-teal-800 disabled:bg-slate-300 text-white font-black rounded-xl text-sm transition-colors"
+                        >
+                            {isVoiding ? 'Guardando…' : 'Ya lo atendí — cerrar'}
+                        </button>
+
+                        <div className="border-t border-slate-200 pt-4">
+                            <p className="text-xs font-bold text-slate-500 mb-3 leading-snug">
+                                ¿O no era real? Descartar una alerta clínica <strong>sin haber
+                                actuado</strong> sí necesita quedar explicado.
+                            </p>
+                        </div>
+
                         <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">
                             Motivo del descarte <span className="text-rose-600">*</span>
                         </label>
@@ -2308,7 +2336,7 @@ export default function SupervisorMissionControlPage() {
                                 Cancelar
                             </button>
                             <button
-                                onClick={handleVoidTicket}
+                                onClick={() => handleVoidTicket('DESCARTADO')}
                                 disabled={isVoiding || voidReason.trim().length < 10}
                                 className="flex-[2] px-5 py-3 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-black rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
                             >
