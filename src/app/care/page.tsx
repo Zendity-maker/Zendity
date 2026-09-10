@@ -1984,6 +1984,19 @@ export default function ZendityCareTabletPage() {
                     ...activePatient,
                     posturalChanges: [data.rotation, ...(activePatient.posturalChanges || [])]
                 });
+
+                /**
+                 * La rotación quedó registrada: se cierra también la tarea que el
+                 * supervisor había despachado para este residente, si la hay.
+                 *
+                 * Sin esto la cuidadora rota, la alerta del supervisor se apaga
+                 * —eso lo hace la rotación—, pero la TAREA se queda colgando hasta
+                 * que vence y cuenta como fallada. Es decir: hizo el trabajo y el
+                 * sistema se lo apunta en contra.
+                 */
+                const tareaDeRotacion = fastActions.find((fa: any) =>
+                    (fa.description || '').includes(`[ROTAR:${activePatient.id}]`));
+                if (tareaDeRotacion) completeFastAction(tareaDeRotacion.id);
             } else {
                 avisoError(` Error Clínico: ${data.error}`);
             }
@@ -2408,14 +2421,35 @@ export default function ZendityCareTabletPage() {
 
     // Parsea los marcadores de una nota/tarea para mostrarla limpia:
     // "[NOTA][Residente: Fulano] dale Tylenol" → { isNote, patientName, text }
-    const parseTaskDescription = (raw: string): { isNote: boolean; patientName: string | null; text: string } => {
+    const parseTaskDescription = (raw: string): { isNote: boolean; patientName: string | null; text: string; rotarA: string | null } => {
         let text = raw || '';
         let isNote = false;
         let patientName: string | null = null;
         if (text.startsWith('[NOTA]')) { isNote = true; text = text.slice('[NOTA]'.length); }
         const resMatch = text.match(/^\s*\[Residente:\s*([^\]]+)\]\s*/);
         if (resMatch) { patientName = resMatch[1].trim(); text = text.slice(resMatch[0].length); }
-        return { isNote, patientName, text: text.trim() };
+        // [ROTAR:<patientId>] — el supervisor mando una rotacion de UPP. No basta
+        // con marcar la tarea: lo que apaga la alerta es la rotacion registrada.
+        const rot = text.match(/\[ROTAR:([^\]]+)\]/);
+        const rotarA = rot ? rot[1].trim() : null;
+        if (rot) text = text.replace(rot[0], '');
+        return { isNote, patientName, text: text.trim(), rotarA };
+    };
+
+    /**
+     * Abre la tarjeta del residente en el modo de rotacion.
+     *
+     * Es el ultimo tramo de la cadena: el supervisor despacha "rotar a X", la
+     * cuidadora abre y rota. Si en vez de esto solo pudiera pulsar "Atendi
+     * esta", la tarea se cerraria y la alerta seguiria encendida — que es
+     * exactamente de lo que se quejo Andres.
+     */
+    const irARotar = (patientId: string) => {
+        const p = patients.find((x: any) => x.id === patientId);
+        if (!p) { avisoOk('Ese residente no está en tu grupo ahora mismo.'); return; }
+        setActivePatient(p);
+        setModalType('LOG');
+        setInboxOpen(false);
     };
 
     // =========================================================
@@ -3354,9 +3388,19 @@ export default function ZendityCareTabletPage() {
                             <button onClick={() => setInboxOpen(true)} className="flex-1 md:flex-none bg-white/20 hover:bg-white/30 px-5 py-3.5 rounded-xl font-black active:scale-95 transition text-base min-h-[56px] flex items-center justify-center">
                                 Ver todas
                             </button>
-                            <button onClick={() => completeFastAction(fastActions[0].id)} className={`flex-1 md:flex-none bg-white px-6 py-3.5 rounded-xl font-black active:scale-95 shadow-sm transition text-base min-h-[56px] flex items-center justify-center ${fastActions.length > 2 ? 'text-rose-700' : (fastActions.length > 1 ? 'text-amber-700' : 'text-emerald-700')}`}>
-                                ✓ Atendí esta
-                            </button>
+                            {/* Si la tarea es una rotacion, el boton lleva a HACERLA.
+                                "Atendi esta" cerraria la tarea y dejaria la alerta
+                                del supervisor encendida, porque lo que la apaga es
+                                la rotacion registrada, no la tarea marcada. */}
+                            {first.rotarA ? (
+                                <button onClick={() => irARotar(first.rotarA!)} className="flex-1 md:flex-none bg-white text-orange-700 px-6 py-3.5 rounded-xl font-black active:scale-95 shadow-sm transition text-base min-h-[56px] flex items-center justify-center">
+                                    Ir a rotar
+                                </button>
+                            ) : (
+                                <button onClick={() => completeFastAction(fastActions[0].id)} className={`flex-1 md:flex-none bg-white px-6 py-3.5 rounded-xl font-black active:scale-95 shadow-sm transition text-base min-h-[56px] flex items-center justify-center ${fastActions.length > 2 ? 'text-rose-700' : (fastActions.length > 1 ? 'text-amber-700' : 'text-emerald-700')}`}>
+                                    ✓ Atendí esta
+                                </button>
+                            )}
                         </div>
                     </div>
                 );
@@ -3384,12 +3428,21 @@ export default function ZendityCareTabletPage() {
                                             )}
                                         </div>
                                         <p className="text-sm text-slate-800 font-medium leading-relaxed whitespace-pre-wrap">{parsed.text}</p>
-                                        <button
-                                            onClick={async () => { await completeFastAction(fa.id); }}
-                                            className="mt-3 w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-black text-sm rounded-xl active:scale-95 transition"
-                                        >
-                                            ✓ Marcar como atendida
-                                        </button>
+                                        {parsed.rotarA ? (
+                                            <button
+                                                onClick={() => irARotar(parsed.rotarA!)}
+                                                className="mt-3 w-full py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-black text-sm rounded-xl active:scale-95 transition"
+                                            >
+                                                Ir a rotar
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={async () => { await completeFastAction(fa.id); }}
+                                                className="mt-3 w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-black text-sm rounded-xl active:scale-95 transition"
+                                            >
+                                                ✓ Marcar como atendida
+                                            </button>
+                                        )}
                                     </div>
                                 );
                             })}

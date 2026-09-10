@@ -720,7 +720,21 @@ export default function SupervisorMissionControlPage() {
                 caregiverId,
                 sourceType: dispatchingTicket.sourceType,
                 sourceId: dispatchingTicket.sourceType === 'ZENDI_GROUP' ? dispatchingTicket.items.map((i: any) => i.id) : dispatchingTicket.sourceId,
-                description: `[${dispatchingTicket.id}] Triage: ${dispatchingTicket.title} - ${dispatchingTicket.description}`.substring(0, 800)
+                /**
+                 * Para una rotacion de UPP se marca el residente en la propia
+                 * descripcion. FastActionAssignment no tiene columna patientId,
+                 * y anadirla es un cambio de schema en produccion que hay que
+                 * pedir; esto funciona hoy y se sustituye cuando se pida.
+                 *
+                 * Sin esta marca la cuidadora recibe "rotar a X" y su unico
+                 * boton es "Atendi esta", que cierra la TAREA pero no registra
+                 * la ROTACION — asi que la alerta del supervisor se queda
+                 * encendida y parece que el sistema ignora lo que ella hizo.
+                 */
+                description: (dispatchingTicket.sourceType === 'UPP_SLA'
+                    ? `[${dispatchingTicket.id}][ROTAR:${dispatchingTicket.patientIdParaRotar ?? dispatchingTicket.sourceId}] ${dispatchingTicket.title} - ${dispatchingTicket.description}`
+                    : `[${dispatchingTicket.id}] Triage: ${dispatchingTicket.title} - ${dispatchingTicket.description}`
+                ).substring(0, 800)
             };
             const res = await fetch("/api/care/supervisor/dispatch", {
                 method: "POST",
@@ -1567,14 +1581,35 @@ export default function SupervisorMissionControlPage() {
                                                                 </button>
                                                             </>
                                                         ) : esRotacionUPP ? (
-                                                            /* Lleva directo a registrar la rotacion, que es
-                                                               lo unico que apaga esta alerta. */
-                                                            <Link
-                                                                href={`/care/nursing?patientId=${ticket.patientIdParaRotar ?? ticket.sourceId}`}
-                                                                className="flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-colors"
-                                                            >
-                                                                <Siren className="w-4 h-4" /> Registrar rotación
-                                                            </Link>
+                                                            /**
+                                                             * LA ROTACIÓN LA HACE QUIEN ESTÁ CON EL RESIDENTE.
+                                                             *
+                                                             * Antes esta alerta ofrecía UNA sola salida: un enlace
+                                                             * para que la supervisora fuera a registrarla ella.
+                                                             * Pero girar a alguien en la cama es un acto de cuido
+                                                             * que hace la cuidadora — y registrar una rotación que
+                                                             * no hiciste es escribir en el expediente algo que no
+                                                             * pasó como dice que pasó.
+                                                             *
+                                                             * Ahora despachar va primero. El enlace se queda de
+                                                             * segundo porque en este hogar las supervisoras SÍ
+                                                             * rotan: 3,256 rotaciones entre las dos en 90 días.
+                                                             * Cuando está en piso y la hace ella, lo registra ahí.
+                                                             */
+                                                            <>
+                                                                <button
+                                                                    onClick={() => setDispatchingTicket(ticket)}
+                                                                    className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-[1rem] transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 text-sm"
+                                                                >
+                                                                    <Send className="w-4 h-4" /> Despachar a la cuidadora
+                                                                </button>
+                                                                <Link
+                                                                    href={`/care/nursing?patientId=${ticket.patientIdParaRotar ?? ticket.sourceId}`}
+                                                                    className="w-full flex items-center justify-center gap-2 bg-white hover:bg-teal-50 text-teal-700 border border-teal-300 font-bold py-2 rounded-[1rem] transition-all active:scale-95 text-xs"
+                                                                >
+                                                                    <Siren className="w-3.5 h-3.5" /> La hice yo — registrarla
+                                                                </Link>
+                                                            </>
                                                         ) : isFamilyComplaint ? (
                                                             <button
                                                                 onClick={() => setDispatchingTicket(ticket)}
