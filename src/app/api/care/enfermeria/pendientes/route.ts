@@ -23,7 +23,7 @@ import { requireRole } from '@/lib/api-auth';
 import { HORAS_PARA_EXIGIR_EFECTO } from '@/lib/prn';
 import { PUEDEN_REVISAR_CAMBIO } from '@/lib/cambios-de-condicion';
 import { DIAS_SIN_CURACION, DIAS_SIN_VALORACION, ULCERA_ABIERTA } from '@/lib/upp';
-import { HORAS_PARA_REVISAR_CAMBIO, pasoElCompromiso, horasEsperando } from '@/lib/cambios-de-condicion';
+import { HORAS_PARA_REVISAR_CAMBIO, pasoElCompromiso, horasEsperando, detectarPatrones, etiquetaArea } from '@/lib/cambios-de-condicion';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,7 +77,10 @@ export async function GET() {
             // hay. "6 pendientes" y "uno lleva cinco dias" no son el mismo aviso.
             prisma.cambioDeCondicion.findMany({
                 where: { headquartersId: hqId, revisadoAt: null },
-                select: { reportadoAt: true },
+                select: {
+                    reportadoAt: true, area: true, patientId: true,
+                    patient: { select: { name: true, roomNumber: true, colorGroup: true } },
+                },
                 orderBy: { reportadoAt: 'asc' },
             }),
             prisma.shiftHandover.count({ where: { headquartersId: hqId, status: 'PENDING' } }),
@@ -157,6 +160,8 @@ export async function GET() {
 
         const ahoraMs = Date.now();
         const vencidos = cambios.filter(c => pasoElCompromiso(c.reportadoAt)).length;
+        // Un patron no espera las 48 horas. Ver detectarPatrones.
+        const patrones = detectarPatrones(cambios as any);
         const horasDelMasViejo = cambios.length > 0 ? horasEsperando(cambios[0].reportadoAt) : 0;
         const sinEvaluarCaida = riesgoCaida.filter(p => p.fallRiskAssessments.length === 0).length;
         const caidaVencida = riesgoCaida.filter(p => {
@@ -185,6 +190,24 @@ export async function GET() {
                 detalle: 'Se administró por razón necesaria y falta decir qué pasó.',
                 total: prnSinRespuesta, urgencia: 'ALTA', href: '/care',
             },
+            /**
+             * EL PATRON VA PRIMERO Y NO ESPERA EL PLAZO.
+             *
+             * Once residentes con lo mismo el mismo dia no es una cola que se
+             * atiende en 48 horas: es algo que esta pasando ahora. La linea dice
+             * lo que comparten —grupo, planta— porque ahi es por donde se
+             * empieza a buscar, no en los once expedientes.
+             */
+            ...patrones.map(p => ({
+                codigo: `PATRON_${p.area}`,
+                titulo: `${p.residentes.length} residentes con lo mismo en ${etiquetaArea(p.area).toLowerCase()}`,
+                detalle: p.enComun
+                    ? `${p.enComun}. Eso no son ${p.residentes.length} casos sueltos.`
+                    : `En menos de ${HORAS_PARA_REVISAR_CAMBIO} horas. Míralo junto, no uno por uno.`,
+                total: p.residentes.length,
+                urgencia: 'ALTA' as const,
+                href: '/care/cambios',
+            })),
             {
                 codigo: 'CAMBIOS_PISO',
                 titulo: vencidos > 0

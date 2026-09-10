@@ -34,6 +34,17 @@ interface Cambio {
 
 export default function CambiosDelPisoPage() {
     const [cambios, setCambios] = useState<Cambio[]>([]);
+    /**
+     * Los patrones van ARRIBA DEL TODO, antes que la lista.
+     *
+     * El 10-sep-2026 once residentes del mismo piso salieron con piquiña el
+     * mismo día. En la lista eran once líneas iguales, y once líneas iguales se
+     * leen como once cosas pequeñas. El patrón es otro aviso, no un contador.
+     */
+    const [patrones, setPatrones] = useState<{
+        area: string; areaEtiqueta: string; cuantos: number; enComun: string | null;
+        residentes: { nombre: string; habitacion: string | null }[];
+    }[]>([]);
     const [cargando, setCargando] = useState(true);
     const [abierto, setAbierto] = useState<string | null>(null);
     const [resultado, setResultado] = useState<string | null>(null);
@@ -57,6 +68,7 @@ export default function CambiosDelPisoPage() {
             const res = await fetch('/api/care/cambio-condicion');
             const data = await res.json();
             if (data.success) setCambios(data.cambios);
+            setPatrones(data.patrones ?? []);
         } catch { /* la pantalla se queda como está */ }
         finally { setCargando(false); }
     }, []);
@@ -109,6 +121,30 @@ export default function CambiosDelPisoPage() {
                         Lo que el personal notó y todavía no es una emergencia. Lo más viejo primero.
                     </p>
                 </div>
+
+                {/* La banda del patrón. Ver detectarPatrones en
+                    src/lib/cambios-de-condicion.ts — el umbral son tres, y en el
+                    histórico del hogar tres no había pasado nunca. */}
+                {!cargando && patrones.map(p => (
+                    <div key={p.area} className="mb-4 rounded-3xl border-2 border-rose-300 bg-rose-50 p-5">
+                        <p className="font-black text-rose-900 text-lg leading-tight">
+                            {p.cuantos} residentes con lo mismo en {p.areaEtiqueta.toLowerCase()}
+                        </p>
+                        {p.enComun && (
+                            <p className="text-sm font-bold text-rose-800 mt-1">{p.enComun}.</p>
+                        )}
+                        <p className="text-[13px] text-rose-800/80 mt-2 leading-snug">
+                            Eso no son {p.cuantos} casos sueltos. Míralo junto antes de ir uno por uno.
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 mt-3">
+                            {p.residentes.map(r => (
+                                <span key={r.nombre} className="text-xs font-bold px-2.5 py-1 rounded-lg bg-white border border-rose-200 text-rose-900">
+                                    {r.nombre}{r.habitacion ? ` · ${r.habitacion}` : ''}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                ))}
 
                 {cargando ? (
                     <div className="flex items-center gap-3 text-slate-400 py-16 justify-center">

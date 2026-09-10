@@ -15,6 +15,7 @@ import { notifyRoles } from '@/lib/notifications';
 import {
     esAreaValida, etiquetaArea, etiquetaResultado,
     PUEDEN_REPORTAR_CAMBIO, PUEDEN_REVISAR_CAMBIO,
+    detectarPatrones,
 } from '@/lib/cambios-de-condicion';
 
 export const dynamic = 'force-dynamic';
@@ -112,7 +113,10 @@ export async function GET(req: Request) {
                 id: true, area: true, descripcion: true, reportadoAt: true,
                 reportadoPorId: true, revisadoAt: true, revisadoPorId: true,
                 resultado: true, respuesta: true,
-                patient: { select: { id: true, name: true, roomNumber: true } },
+                patientId: true,
+                // colorGroup para el detector de patrones: "todos del grupo BLUE"
+                // es la pista, no el número.
+                patient: { select: { id: true, name: true, roomNumber: true, colorGroup: true } },
             },
             orderBy: { reportadoAt: historialDe ? 'desc' : 'asc' },
             take: 100,
@@ -126,8 +130,25 @@ export async function GET(req: Request) {
             : [];
         const nombre = new Map(personas.map(p => [p.id, p.name ?? 'Personal']));
 
+        /**
+         * Los patrones se calculan aquí, no en la pantalla: el mismo detector
+         * lo usan los pendientes de enfermería y el reporte de dirección, y una
+         * regla clínica repetida en tres sitios acaba divergiendo en tres.
+         *
+         * Solo sobre lo que está SIN revisar (historialDe trae el historial de
+         * un residente, y ahí un patrón no significa nada).
+         */
+        const patrones = historialDe ? [] : detectarPatrones(cambios as any);
+
         return NextResponse.json({
             success: true,
+            patrones: patrones.map(p => ({
+                area: p.area,
+                areaEtiqueta: etiquetaArea(p.area),
+                cuantos: p.residentes.length,
+                enComun: p.enComun,
+                residentes: p.residentes,
+            })),
             cambios: cambios.map(c => ({
                 id: c.id,
                 area: c.area,

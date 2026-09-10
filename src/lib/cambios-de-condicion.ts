@@ -230,3 +230,94 @@ export function horasEsperando(reportadoAt: Date, ahora = new Date()): number {
 export function pasoElCompromiso(reportadoAt: Date, ahora = new Date()): boolean {
     return horasEsperando(reportadoAt, ahora) > HORAS_PARA_REVISAR_CAMBIO;
 }
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────
+ * CUANDO NO ES UNO, ES UN PATRÓN.
+ *
+ * El 10-sep-2026, a las 14:44, Joaneliz reportó "piquiña y enrojecimiento" en
+ * ONCE residentes distintos en dos minutos. Los once del segundo piso. Los once
+ * del grupo BLUE.
+ *
+ * El sistema lo guardó como once líneas iguales en una lista, y once líneas
+ * iguales se leen como once cosas pequeñas. Nadie las habría juntado hasta que
+ * alguien se parara delante de la pantalla y lo notara con el ojo.
+ *
+ * Once personas con lo mismo el mismo día en la misma planta no son once
+ * observaciones: es sarna, o un detergente nuevo, o algo de la lavandería, o
+ * un producto de limpieza. Cuál sea lo dice enfermería. Que HAY algo lo puede
+ * decir el sistema, y ese aviso no puede esperar 48 horas.
+ *
+ * EL UMBRAL SON TRES, y no es un número inventado. Sobre los 28 cambios del
+ * histórico: 17 fueron de un solo residente en su área, dos veces coincidieron
+ * dos, y de tres para arriba NO HABÍA PASADO NUNCA. La primera vez que este
+ * detector se dispara es hoy. Así se ve una alarma que sirve: rara, y cuando
+ * suena, pasa algo.
+ * ─────────────────────────────────────────────────────────────────────────
+ */
+export const RESIDENTES_PARA_SER_PATRON = 3;
+
+export interface PatronDeCambios {
+    area: string;
+    residentes: { nombre: string; habitacion: string | null; grupo: string | null }[];
+    /** Lo que comparten, si comparten algo. Es por donde se empieza a buscar. */
+    enComun: string | null;
+    desde: Date;
+}
+
+interface CambioParaPatron {
+    area: string;
+    patientId: string;
+    reportadoAt: Date;
+    patient: { name: string; roomNumber: string | null; colorGroup: string | null };
+}
+
+/**
+ * Devuelve las áreas donde coinciden RESIDENTES_PARA_SER_PATRON o más
+ * residentes distintos dentro de la ventana.
+ *
+ * `enComun` es la mitad del valor del aviso: "once residentes" es un número,
+ * "once residentes, todos del grupo BLUE, todos en el segundo piso" es una
+ * pista. Se mira el grupo de color y el prefijo de la habitación, que en este
+ * hogar es la planta.
+ */
+export function detectarPatrones(
+    cambios: CambioParaPatron[],
+    ahora = new Date(),
+): PatronDeCambios[] {
+    const ini = ahora.getTime() - HORAS_PARA_REVISAR_CAMBIO * 3_600_000;
+    const recientes = cambios.filter(c => c.reportadoAt.getTime() >= ini);
+
+    const porArea = new Map<string, CambioParaPatron[]>();
+    recientes.forEach(c => porArea.set(c.area, [...(porArea.get(c.area) ?? []), c]));
+
+    const patrones: PatronDeCambios[] = [];
+    for (const [area, lista] of porArea) {
+        const porResidente = new Map<string, CambioParaPatron>();
+        lista.forEach(c => { if (!porResidente.has(c.patientId)) porResidente.set(c.patientId, c); });
+        if (porResidente.size < RESIDENTES_PARA_SER_PATRON) continue;
+
+        const gente = [...porResidente.values()];
+        const residentes = gente.map(c => ({
+            nombre: c.patient.name.trim(),
+            habitacion: c.patient.roomNumber,
+            grupo: c.patient.colorGroup,
+        }));
+
+        const grupos = new Set(residentes.map(r => r.grupo).filter(Boolean));
+        // "2-05" -> "2". Si todos comparten prefijo, comparten planta.
+        const plantas = new Set(residentes.map(r => (r.habitacion ?? '').split('-')[0]).filter(Boolean));
+
+        const pistas: string[] = [];
+        if (grupos.size === 1 && residentes.length > 1) pistas.push(`todos del grupo ${[...grupos][0]}`);
+        if (plantas.size === 1 && residentes.length > 1) pistas.push(`todos en la planta ${[...plantas][0]}`);
+
+        patrones.push({
+            area,
+            residentes,
+            enComun: pistas.length > 0 ? pistas.join(', ') : null,
+            desde: gente.reduce((min, c) => c.reportadoAt < min ? c.reportadoAt : min, gente[0].reportadoAt),
+        });
+    }
+    return patrones.sort((a, b) => b.residentes.length - a.residentes.length);
+}

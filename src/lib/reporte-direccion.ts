@@ -27,7 +27,7 @@ import { prisma } from '@/lib/prisma';
 import type { ReporteSemanal, BloqueReporte, LineaReporte } from '@/lib/reporte-enfermeria';
 import { construirReporte } from '@/lib/reporte-enfermeria';
 import { construirReporteSupervision } from '@/lib/reporte-supervision';
-import { HORAS_PARA_REVISAR_CAMBIO, pasoElCompromiso, horasEsperando } from '@/lib/cambios-de-condicion';
+import { HORAS_PARA_REVISAR_CAMBIO, pasoElCompromiso, horasEsperando, detectarPatrones, etiquetaArea } from '@/lib/cambios-de-condicion';
 
 /** Medicamentos cuyo hueco no admite espera. */
 const ALTO_RIESGO = /warfarin|coumadin|heparin|apixaban|eliquis|rivaroxaban|xarelto|clopidogrel|plavix|insulin|lantus|humalog|humulin|novolog|levotiroxina|levothyroxine|synthroid|digoxin|litio|lithium|fenitoina|phenytoin/i;
@@ -72,7 +72,10 @@ export async function construirReporteDireccion(sedeId: string, sedeNombre: stri
         // Lo que el piso reporto y nadie ha mirado. Ver HORAS_PARA_REVISAR_CAMBIO.
         prisma.cambioDeCondicion.findMany({
             where: { headquartersId: sedeId, revisadoAt: null },
-            select: { reportadoAt: true, area: true, patient: { select: { name: true } } },
+            select: {
+                reportadoAt: true, area: true, patientId: true,
+                patient: { select: { name: true, roomNumber: true, colorGroup: true } },
+            },
             orderBy: { reportadoAt: 'asc' },
         }),
     ]);
@@ -99,6 +102,22 @@ export async function construirReporteDireccion(sedeId: string, sedeNombre: stri
      * Este bloque es la consecuencia del compromiso de 48 horas. Sin algo que
      * llegue a direccion, un compromiso es una intencion.
      */
+    /**
+     * Antes que el plazo: un PATRON. Once residentes con lo mismo el mismo dia
+     * no es una cola atrasada, es algo que esta pasando. Ver detectarPatrones.
+     */
+    const patrones = detectarPatrones(cambiosSinRevisar as any);
+    patrones.forEach(pat => {
+        recs.push({
+            que: `Mirar juntos los ${pat.residentes.length} residentes con ${etiquetaArea(pat.area).toLowerCase()}`,
+            porque: pat.enComun
+                ? `${pat.enComun}. Eso no son ${pat.residentes.length} casos sueltos: ${pat.residentes.slice(0, 4).map(r => r.nombre).join(', ')}${pat.residentes.length > 4 ? '…' : ''}`
+                : `${pat.residentes.length} en menos de ${HORAS_PARA_REVISAR_CAMBIO} horas.`,
+            quien: 'Enfermería, hoy',
+            orden: -2,
+        });
+    });
+
     const cambiosVencidos = cambiosSinRevisar.filter(c => pasoElCompromiso(c.reportadoAt));
     if (cambiosVencidos.length > 0) {
         const masViejo = Math.floor(horasEsperando(cambiosVencidos[0].reportadoAt) / 24);
