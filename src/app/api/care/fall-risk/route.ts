@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
+import { construirEvaluacion, proximaRevision, leerEvaluacion, type Respuestas } from '@/lib/downton';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,7 +53,7 @@ export async function GET(req: Request) {
                     fallRiskAssessments: {
                         orderBy: { evaluatedAt: 'desc' },
                         take: 1,
-                        select: { riskLevel: true, evaluatedAt: true, factors: true },
+                        select: { riskLevel: true, evaluatedAt: true, factors: true, nextReviewAt: true },
                     },
                     fallIncidents: {
                         where: { incidentDate: { gte: hace90 } },
@@ -65,15 +66,28 @@ export async function GET(req: Request) {
 
             return NextResponse.json({
                 success: true,
-                residentes: residentes.map(p => ({
-                    id: p.id,
-                    nombre: p.name.trim(),
-                    habitacion: p.roomNumber,
-                    nivel: p.fallRiskAssessments[0]?.riskLevel ?? null,   // null = sin evaluar
-                    evaluadoEl: p.fallRiskAssessments[0]?.evaluatedAt ?? null,
-                    caidas90d: p.fallIncidents.length,
-                    ultimaCaida: p.fallIncidents[0]?.incidentDate ?? null,
-                })),
+                residentes: residentes.map(p => {
+                    const ev = p.fallRiskAssessments[0];
+                    const dw = leerEvaluacion(ev?.factors);
+                    return {
+                        id: p.id,
+                        nombre: p.name.trim(),
+                        habitacion: p.roomNumber,
+                        nivel: ev?.riskLevel ?? null,               // null = nadie lo ha evaluado
+                        evaluadoEl: ev?.evaluatedAt ?? null,
+                        proximaRevision: ev?.nextReviewAt ?? null,
+                        // Vencida = pasó la fecha de revisión. Se separa de
+                        // "sin evaluar": una es seguimiento, la otra es que
+                        // nunca se miró.
+                        vencida: !!ev?.nextReviewAt && ev.nextReviewAt.getTime() < Date.now(),
+                        // Solo si la evaluación es Downton de verdad. Las
+                        // viejas guardaban texto plano ("Post-caída: …") y no
+                        // tienen puntaje.
+                        puntaje: dw?.puntaje ?? null,
+                        caidas90d: p.fallIncidents.length,
+                        ultimaCaida: p.fallIncidents[0]?.incidentDate ?? null,
+                    };
+                }),
             });
         }
 
@@ -109,5 +123,77 @@ export async function GET(req: Request) {
     } catch (err: any) {
         console.error('[fall-risk GET]', err);
         return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    }
+}
+
+/**
+ * POST /api/care/fall-risk — registrar una evaluación de riesgo de caída.
+ *
+ * Hasta el 10-sep-2026 esto no existía. La ÚNICA forma de que un residente
+ * tuviera evaluación era caerse: /api/care/incidents creaba una como efecto
+ * secundario de la caída. Por eso 28 de los 32 activos no tenían ninguna, y
+ * los 4 que sí eran exactamente los 4 que se habían caído. Una "prevención de
+ * caídas" que solo clasifica después del hecho no previene nada.
+ *
+ * Quién puede: enfermería, supervisión y dirección. Decisión de Andrés y Celia
+ * el 10-sep-2026 — repartir las 28 entre tres personas en tres o cuatro días.
+ */
+export async function POST(req: Request) {
+    try {
+        const auth = await requireRole(['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN']);
+        if (auth instanceof NextResponse) return auth;
+
+        const { patientId, respuestas, nota } = await req.json();
+        if (!patientId || typeof respuestas !== 'object' || respuestas === null) {
+            return NextResponse.json({ success: false, error: 'Falta el residente o las respuestas' }, { status: 400 });
+        }
+
+        // Y de SU sede, y ACTIVO. Evaluar a quien ya no está es trabajo perdido
+        // y ensucia el conteo de pendientes.
+        const paciente = await prisma.patient.findFirst({
+            where: { id: patientId, headquartersId: auth.headquartersId, status: 'ACTIVE' },
+            select: { id: true, name: true },
+        });
+        if (!paciente) {
+            return NextResponse.json({ success: false, error: 'Residente no encontrado o inactivo en tu sede' }, { status: 404 });
+        }
+
+        const evaluacion = construirEvaluacion(respuestas as Respuestas, typeof nota === 'string' ? nota : undefined);
+
+        const guardada = await prisma.fallRiskAssessment.create({
+            data: {
+                patientId,
+                evaluatorId: auth.id,
+                riskLevel: evaluacion.nivel as any,
+                // morseScore se queda NULL a proposito: esto es Downton. Ver
+                // src/lib/downton.ts — el puntaje va dentro de factors.
+                factors: JSON.stringify(evaluacion),
+                nextReviewAt: proximaRevision(),
+            },
+        });
+
+        /**
+         * downtonRisk deja de significar "ya se cayó".
+         *
+         * Ese booleano se ponía en true tras cualquier caída, y la pantalla de
+         * inicio lo enseña como "Alto riesgo caída". Decía una cosa queriendo
+         * decir otra. Desde ahora lo dice la evaluación, que es de lo que
+         * siempre debió salir.
+         */
+        await prisma.patient.update({
+            where: { id: patientId },
+            data: { downtonRisk: evaluacion.nivel === 'HIGH' },
+        });
+
+        return NextResponse.json({
+            success: true,
+            id: guardada.id,
+            puntaje: evaluacion.puntaje,
+            nivel: evaluacion.nivel,
+            proximaRevision: guardada.nextReviewAt,
+        });
+    } catch (err: any) {
+        console.error('[fall-risk POST]', err);
+        return NextResponse.json({ success: false, error: 'No se pudo guardar la evaluación' }, { status: 500 });
     }
 }

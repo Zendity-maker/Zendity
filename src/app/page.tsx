@@ -594,7 +594,14 @@ export default function InsightsDashboard() {
               <MetricCard surface="soft" tone="indigo"  value={residentStats.active}      label="Activos"       caption="En residencia" />
               <MetricCard surface="soft" tone="warning" value={residentStats.hospital}    label="Hospital"      caption="Traslado temporal" />
               <MetricCard surface="soft" tone="info"    value={residentStats.leave}       label="Licencia"      caption="Permiso familiar" />
-              <MetricCard surface="soft" tone="danger"  value={residentStats.downtonRisk} label="Downton Risk"  caption="Alto riesgo caída" />
+              {/* Decia "Downton Risk / Alto riesgo caida" y contaba un booleano
+                  que se ponia en true tras CUALQUIER caida. O sea, decia "alto
+                  riesgo" queriendo decir "ya se cayo".
+                  Desde el 10-sep-2026 ese booleano lo escribe la evaluacion de
+                  Downton (POST /api/care/fall-risk), que es de donde siempre
+                  debio salir. El nombre en pantalla deja de ser jerga: quien
+                  mira el panel no tiene por que saber que es Downton. */}
+              <MetricCard surface="soft" tone="danger"  value={residentStats.downtonRisk} label="Riesgo de caída" caption="Evaluados en riesgo alto" />
             </div>
           </div>
 

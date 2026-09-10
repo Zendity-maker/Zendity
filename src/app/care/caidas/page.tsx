@@ -27,6 +27,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Plus, ShieldAlert, CalendarClock, ChevronDown } from "lucide-react";
 import RegistrarIncidente from "@/components/care/RegistrarIncidente";
+import EvaluarRiesgoCaida from "@/components/care/EvaluarRiesgoCaida";
 
 interface Incidente {
     id: string;
@@ -46,6 +47,9 @@ interface EnRiesgo {
     habitacion: string | null;
     nivel: 'HIGH' | 'MODERATE' | 'LOW' | null;   // null = nadie lo ha evaluado
     evaluadoEl: string | null;
+    proximaRevision: string | null;
+    vencida: boolean;
+    puntaje: number | null;
     caidas90d: number;
     ultimaCaida: string | null;
 }
@@ -93,6 +97,7 @@ export default function CaidasPage() {
     const [abierto, setAbierto] = useState(false);
     // Por defecto solo se abren los dos grupos que piden trabajo.
     const [verTodos, setVerTodos] = useState(false);
+    const [evaluando, setEvaluando] = useState<EnRiesgo | null>(null);
 
     const cargar = useCallback(async () => {
         try {
@@ -165,6 +170,27 @@ export default function CaidasPage() {
                         ))}
                     </div>
 
+                    {/* El avance de la tanda. Con 28 por delante repartidas entre
+                        tres personas, saber cuántas faltan es la mitad del trabajo. */}
+                    {(() => {
+                        const faltan = enRiesgo.filter(r => r.nivel === null).length;
+                        const hechas = enRiesgo.length - faltan;
+                        return faltan > 0 ? (
+                            <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                                <div className="flex items-center justify-between gap-3 mb-2">
+                                    <p className="text-sm font-black text-slate-700">
+                                        {hechas} de {enRiesgo.length} evaluados
+                                    </p>
+                                    <p className="text-xs font-bold text-slate-500">faltan {faltan}</p>
+                                </div>
+                                <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                                    <div className="h-full bg-teal-600 rounded-full transition-all"
+                                        style={{ width: `${Math.round(100 * hechas / enRiesgo.length)}%` }} />
+                                </div>
+                            </div>
+                        ) : null;
+                    })()}
+
                     <div className="space-y-4">
                         {NIVELES
                             // Sin evaluar y Alto siempre; los otros dos solo si se piden.
@@ -179,24 +205,25 @@ export default function CaidasPage() {
                                             {n.texto} · {gente.length}
                                         </p>
                                         <div className="flex flex-wrap gap-2">
-                                            {gente.map(r => {
-                                                const vencida = r.evaluadoEl && diasDesde(r.evaluadoEl) > VENCE_A_LOS_DIAS;
-                                                return (
-                                                    <span key={r.id}
-                                                        className={`text-xs font-bold px-2.5 py-1.5 rounded-lg border ${n.chip}`}>
-                                                        {r.nombre}
-                                                        {r.habitacion && <span className="opacity-60"> · {r.habitacion}</span>}
-                                                        {r.caidas90d > 0 && (
-                                                            <span className="opacity-80"> · {r.caidas90d} caída{r.caidas90d === 1 ? '' : 's'} en 90 días</span>
-                                                        )}
-                                                        {/* Una evaluación de hace medio año no describe
-                                                            a nadie. Decirlo es más útil que el nivel. */}
-                                                        {vencida && (
-                                                            <span className="opacity-60"> · evaluado hace {diasDesde(r.evaluadoEl!)} días</span>
-                                                        )}
-                                                    </span>
-                                                );
-                                            })}
+                                            {/* Cada nombre es un botón: se toca y se evalúa.
+                                                Son 28 evaluaciones repartidas entre tres personas
+                                                en tres o cuatro días — cada paso de más se
+                                                multiplica por 28. */}
+                                            {gente.map(r => (
+                                                <button key={r.id} onClick={() => setEvaluando(r)}
+                                                    className={`text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all hover:shadow-sm active:scale-[0.97] ${n.chip}`}>
+                                                    {r.nombre}
+                                                    {r.habitacion && <span className="opacity-60"> · {r.habitacion}</span>}
+                                                    {r.puntaje !== null && <span className="opacity-80"> · {r.puntaje} pts</span>}
+                                                    {r.caidas90d > 0 && (
+                                                        <span className="opacity-80"> · {r.caidas90d} caída{r.caidas90d === 1 ? '' : 's'} en 90 días</span>
+                                                    )}
+                                                    {/* Vencida sale del nextReviewAt guardado, no de
+                                                        una cuenta de días aquí: la frecuencia la
+                                                        decide la escala, no la pantalla. */}
+                                                    {r.vencida && <span className="opacity-60"> · toca repetirla</span>}
+                                                </button>
+                                            ))}
                                         </div>
                                     </div>
                                 );
@@ -255,6 +282,14 @@ export default function CaidasPage() {
                         );
                     })}
                 </div>
+            )}
+
+            {evaluando && (
+                <EvaluarRiesgoCaida
+                    residente={{ id: evaluando.id, nombre: evaluando.nombre, habitacion: evaluando.habitacion }}
+                    onCerrar={() => setEvaluando(null)}
+                    onGuardado={() => { setEvaluando(null); cargar(); }}
+                />
             )}
 
             {abierto && (

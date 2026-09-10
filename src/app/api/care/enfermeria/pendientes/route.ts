@@ -51,7 +51,7 @@ export async function GET() {
         const limiteValoracion = new Date(ahora - DIAS_SIN_VALORACION * 86400000);
         const limitePRN = new Date(ahora - HORAS_PARA_EXIGIR_EFECTO * 3600000);
 
-        const [ulceras, prnSinRespuesta, cambios, relevos, rotacion, planes] = await Promise.all([
+        const [ulceras, prnSinRespuesta, cambios, relevos, rotacion, planes, riesgoCaida] = await Promise.all([
             // Úlceras abiertas: sin curación reciente, o de alguien que ya no está.
             prisma.pressureUlcer.findMany({
                 where: { patient: { headquartersId: hqId }, ...ULCERA_ABIERTA },
@@ -90,6 +90,23 @@ export async function GET() {
             prisma.patient.findMany({
                 where: { headquartersId: hqId, status: 'ACTIVE' },
                 select: { lifePlans: { select: { status: true, emailSentAt: true, nextReview: true } } },
+            }),
+            /**
+             * Riesgo de caida: sin evaluar nunca, o con la evaluacion vencida.
+             *
+             * Hasta el 10-sep-2026 la unica forma de tener evaluacion era
+             * caerse —se creaba sola como efecto secundario de la caida— y por
+             * eso 28 de 32 activos no tenian ninguna. Ahora hay formulario, y
+             * este es el aviso que lo pide: al ingreso y cada 6 meses.
+             */
+            prisma.patient.findMany({
+                where: { headquartersId: hqId, status: 'ACTIVE' },
+                select: {
+                    fallRiskAssessments: {
+                        orderBy: { evaluatedAt: 'desc' }, take: 1,
+                        select: { nextReviewAt: true },
+                    },
+                },
             }),
         ]);
 
@@ -131,6 +148,13 @@ export async function GET() {
             return !!(aprobado.nextReview && aprobado.nextReview < new Date());
         }).length;
 
+        const ahoraMs = Date.now();
+        const sinEvaluarCaida = riesgoCaida.filter(p => p.fallRiskAssessments.length === 0).length;
+        const caidaVencida = riesgoCaida.filter(p => {
+            const rev = p.fallRiskAssessments[0]?.nextReviewAt;
+            return !!rev && rev.getTime() < ahoraMs;
+        }).length;
+
         const pendientes: Pendiente[] = [
             {
                 codigo: 'ROTACION_VENCIDA', titulo: 'Rotaciones vencidas',
@@ -166,6 +190,20 @@ export async function GET() {
                 codigo: 'PAI_PENDIENTE', titulo: 'Planes de cuido sin resolver',
                 detalle: 'Falta firmarlos, hacerlos, enviarlos o revisarlos.',
                 total: paiPendientes, urgencia: 'BAJA', href: '/cuidadores',
+            },
+            {
+                codigo: 'RIESGO_CAIDA_PENDIENTE',
+                titulo: sinEvaluarCaida > 0 && caidaVencida === 0
+                    ? 'Residentes sin evaluar el riesgo de caída'
+                    : 'Riesgo de caída sin evaluar o vencido',
+                detalle: sinEvaluarCaida > 0
+                    ? `${sinEvaluarCaida} nunca se han evaluado. Se hace al ingreso y se repite cada 6 meses.`
+                    : 'Pasaron los 6 meses desde la última evaluación.',
+                total: sinEvaluarCaida + caidaVencida,
+                // ALTA mientras haya gente sin evaluar NUNCA: eso no es
+                // seguimiento atrasado, es que nadie los ha mirado.
+                urgencia: sinEvaluarCaida > 0 ? 'ALTA' : 'MEDIA',
+                href: '/care/caidas',
             },
         ];
 
