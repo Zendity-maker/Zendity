@@ -13,6 +13,46 @@ interface Employee {
     photoUrl?: string;
 }
 
+
+/**
+ * LAS RÚBRICAS, POR PUESTO.
+ *
+ * Estaban escritas a mano dentro del JSX, en tres bloques con `role === '...'`.
+ * Consecuencia medida el 10-sep-2026: para OCHO de los roles del sistema
+ * —SUPERVISOR, KITCHEN, SOCIAL_WORKER, THERAPIST, CLEANING, COORDINATOR,
+ * HR_MANAGER, BEAUTY_SPECIALIST— la pantalla no dibujaba NINGUNA pregunta. El
+ * formulario se enviaba vacío igual, y el score de esa persona pasaba a ser su
+ * porcentaje de Academy y nada más.
+ *
+ * Aquí abajo se ve de un vistazo quién tiene rúbrica y quién no, que es la
+ * mitad del problema: en el JSX no se veía.
+ *
+ * Lo que falta lo tiene que escribir el hogar, no yo. Un puesto sin rúbrica
+ * NO se puede evaluar desde esta pantalla — antes sí se podía, y salía un
+ * número.
+ */
+interface Pregunta { id: string; label: string; desc: string }
+
+const RUBRICAS: Record<string, Pregunta[]> = {
+    NURSE: [
+        { id: 'seguridad_clinica', label: 'Seguridad Clínica (eMAR & Downton)', desc: 'Cumplimiento en la administración correcta y segura de medicamentos.' },
+        { id: 'higiene', label: 'Protocolos de Higiene y Planta', desc: 'Correcto lavado de manos, desinfección de áreas y presentación del Residente.' },
+        { id: 'empatia', label: 'Trato y Empatía al Residente', desc: 'Comunicación asertiva con el envejeciente durante los cambios posturales/baños.' },
+    ],
+    ADMIN: [
+        { id: 'cumplimiento_df', label: 'Cumplimiento Departamento Familia', desc: 'Expedientes sin vencer, carpetas firmadas y auditorías cero-papeles al día.' },
+        { id: 'liderazgo', label: 'Liderazgo Staff Operacional', desc: 'Manejo de equipo y control de ausentismo del personal base.' },
+    ],
+    MAINTENANCE: [
+        { id: 'sla_resolution', label: 'Cumplimiento de SLA (Tiempos de Resolución)', desc: 'Velocidad y eficacia cerrando tickets de averías críticas reportadas por el Action Hub.' },
+        { id: 'prevencion_riesgos', label: 'Prevención de Riesgos Estructurales', desc: 'Detección proactiva de peligros ambientales (pisos mojados, cables expuestos, iluminación fundida).' },
+    ],
+};
+RUBRICAS.CAREGIVER = RUBRICAS.NURSE;
+RUBRICAS.DIRECTOR = RUBRICAS.ADMIN;
+
+const rubricaDe = (rol: string): Pregunta[] => RUBRICAS[rol] ?? [];
+
 export default function HREvaluatePage() {
     const { user } = useAuth();
     const router = useRouter();
@@ -20,6 +60,23 @@ export default function HREvaluatePage() {
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [selectedEmp, setSelectedEmp] = useState<Employee | null>(null);
     const [scores, setScores] = useState<Record<string, number>>({});
+
+    /**
+     * Las preguntas del puesto seleccionado, y el estado ARRANCADO EN 100.
+     *
+     * Antes `scores` empezaba en {} y los sliders pintaban 100 con `|| 100`:
+     * lo que el evaluador VEÍA y lo que se ENVIABA eran cosas distintas. Si no
+     * tocaba ningún slider, el payload iba vacío y el promedio se calculaba
+     * sobre cero categorías. Ahora lo que se ve es lo que se manda.
+     */
+    const preguntas = selectedEmp ? rubricaDe(selectedEmp.role) : [];
+
+    useEffect(() => {
+        if (!selectedEmp) return;
+        const inicial: Record<string, number> = {};
+        rubricaDe(selectedEmp.role).forEach(q => { inicial[q.id] = 100; });
+        setScores(inicial);
+    }, [selectedEmp]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [successMsg, setSuccessMsg] = useState<{ title: string, msg: string, isPenalized: boolean } | null>(null);
@@ -182,76 +239,34 @@ export default function HREvaluatePage() {
 
                                 <div className="p-6 md:p-8 space-y-8">
 
-                                    {/* Preguntas de Enfermería/Cuidadores */}
-                                    {(selectedEmp.role === 'NURSE' || selectedEmp.role === 'CAREGIVER') && (
-                                        <>
-                                            <QuestionRow
-                                                id="seguridad_clinica"
-                                                label="Seguridad Clínica (eMAR & Downton)"
-                                                desc="Cumplimiento en la administración correcta y segura de medicamentos."
-                                                value={scores['seguridad_clinica'] || 100}
-                                                onChange={(val) => handleScoreChange('seguridad_clinica', val)}
-                                            />
-                                            <QuestionRow
-                                                id="higiene"
-                                                label="Protocolos de Higiene y Planta"
-                                                desc="Correcto lavado de manos, desinfección de áreas y presentación del Residente."
-                                                value={scores['higiene'] || 100}
-                                                onChange={(val) => handleScoreChange('higiene', val)}
-                                            />
-                                            <QuestionRow
-                                                id="empatia"
-                                                label="Trato y Empatía al Residente"
-                                                desc="Comunicación asertiva con el envejeciente durante los cambios posturales/baños."
-                                                value={scores['empatia'] || 100}
-                                                onChange={(val) => handleScoreChange('empatia', val)}
-                                            />
-                                        </>
-                                    )}
-
-                                    {/* Preguntas de Administrativos / Directores */}
-                                    {(selectedEmp.role === 'ADMIN' || selectedEmp.role === 'DIRECTOR') && (
-                                        <>
-                                            <QuestionRow
-                                                id="cumplimiento_df"
-                                                label="Cumplimiento Departamento Familia"
-                                                desc="Expedientes sin vencer, carpetas firmadas y auditorías cero-papeles al día."
-                                                value={scores['cumplimiento_df'] || 100}
-                                                onChange={(val) => handleScoreChange('cumplimiento_df', val)}
-                                            />
-                                            <QuestionRow
-                                                id="liderazgo"
-                                                label="Liderazgo Staff Operacional"
-                                                desc="Manejo de equipo y control de ausentismo del personal base."
-                                                value={scores['liderazgo'] || 100}
-                                                onChange={(val) => handleScoreChange('liderazgo', val)}
-                                            />
-                                        </>
-                                    )}
-
-                                    {/* Preguntas de Mantenimiento (Technical SLAs) */}
-                                    {selectedEmp.role === 'MAINTENANCE' && (
-                                        <>
-                                            <QuestionRow
-                                                id="sla_resolution"
-                                                label="Cumplimiento de SLA (Tiempos de Resolución)"
-                                                desc="Velocidad y eficacia cerrando tickets de averías críticas reportadas por el Action Hub."
-                                                value={scores['sla_resolution'] || 100}
-                                                onChange={(val) => handleScoreChange('sla_resolution', val)}
-                                            />
-                                            <QuestionRow
-                                                id="prevencion_riesgos"
-                                                label="Prevención de Riesgos Estructurales"
-                                                desc="Detección proactiva de peligros ambientales (pisos mojados, cables expuestos, iluminación fundida)."
-                                                value={scores['prevencion_riesgos'] || 100}
-                                                onChange={(val) => handleScoreChange('prevencion_riesgos', val)}
-                                            />
-                                        </>
-                                    )}
+                                    {preguntas.length === 0 ? (
+                                        /* Antes esto era un formulario en blanco que se podía
+                                           enviar igual. Un puesto sin rúbrica no se evalúa aquí. */
+                                        <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 px-5 py-4">
+                                            <p className="font-black text-amber-900">No hay rúbrica para este puesto.</p>
+                                            <p className="text-sm text-amber-800 mt-1 leading-snug">
+                                                Zéndity no tiene preguntas definidas para {selectedEmp.role}. Antes el
+                                                formulario salía vacío y se podía guardar igual — y el score de la
+                                                persona acababa siendo su porcentaje de Academy y nada más.
+                                                Escribe la rúbrica y se añade en un minuto.
+                                            </p>
+                                        </div>
+                                    ) : preguntas.map(q => (
+                                        <QuestionRow
+                                            key={q.id}
+                                            id={q.id}
+                                            label={q.label}
+                                            desc={q.desc}
+                                            /* ?? y no ||: cero es falsy, así que arrastrar el
+                                               slider a 0 lo devolvía visualmente a 100. */
+                                            value={scores[q.id] ?? 100}
+                                            onChange={(val) => handleScoreChange(q.id, val)}
+                                        />
+                                    ))}
 
                                     <div className="pt-6 mt-6 border-t border-slate-100 flex justify-between items-center">
                                         <p className="text-xs text-slate-500 max-w-xs">Tus inputs afectarán el Cumplimiento Anual y podrían causar bloqueos de turno según la política de Zendity.</p>
-                                        <button onClick={handleSubmit} disabled={submitting} className={`bg-slate-900 hover:bg-black text-white font-bold px-8 py-3.5 rounded-xl shadow-lg transition-all ${submitting ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-teal-500/20 active:scale-95'}`}>
+                                        <button onClick={handleSubmit} disabled={submitting || preguntas.length === 0} className={`bg-slate-900 hover:bg-black text-white font-bold px-8 py-3.5 rounded-xl shadow-lg transition-all ${submitting || preguntas.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-teal-500/20 active:scale-95'}`}>
                                             {submitting ? 'Evaluando...' : 'Guardar y Certificar'}
                                         </button>
                                     </div>

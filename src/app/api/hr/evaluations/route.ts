@@ -25,11 +25,12 @@ export async function POST(req: Request) {
         // Ownership: el empleado evaluado debe pertenecer a la sede del evaluador.
         const employee = await prisma.user.findFirst({
             where: { id: employeeId, headquartersId: hqId },
-            select: { id: true },
+            select: { id: true, role: true },
         });
         if (!employee) {
             return NextResponse.json({ success: false, error: "Empleado no encontrado" }, { status: 404 });
         }
+        const empleadoRol = employee.role;
 
         /**
          * NADIE SE EVALUA A SI MISMO.
@@ -43,6 +44,33 @@ export async function POST(req: Request) {
          * Lo de la jerarquia queda pendiente y avisado. Lo de uno mismo se
          * cierra aqui, que es lo barato y lo evidente.
          */
+        /**
+         * JERARQUÍA. Una evaluación va hacia abajo, nunca hacia arriba ni de
+         * lado.
+         *
+         * La comprobación de arriba solo mira que sean de la misma sede, así
+         * que una supervisora podía evaluar a su DIRECTOR — y esta ruta movía
+         * el score. En Cupey eso es Zuleyka o Mariangelie evaluando a Celia.
+         *
+         * El orden es el del hogar, no un organigrama teórico: piso, luego
+         * supervisión, luego dirección. Quien no está en la escala (cocina,
+         * mantenimiento, trabajo social) lo evalúa supervisión o dirección.
+         */
+        const RANGO: Record<string, number> = {
+            CAREGIVER: 1, NURSE: 1, KITCHEN: 1, MAINTENANCE: 1, CLEANING: 1,
+            SOCIAL_WORKER: 1, THERAPIST: 1, BEAUTY_SPECIALIST: 1, COORDINATOR: 1,
+            SUPERVISOR: 2, HR_MANAGER: 3, ADMIN: 3, DIRECTOR: 3,
+            CLINICAL_DIRECTOR: 3, HQ_OWNER: 4, SUPER_ADMIN: 4,
+        };
+        const rangoEvaluador = RANGO[auth.role] ?? 0;
+        const rangoEmpleado = RANGO[empleadoRol] ?? 0;
+        if (rangoEmpleado >= rangoEvaluador) {
+            return NextResponse.json({
+                success: false,
+                error: 'Solo puedes evaluar a alguien por debajo de tu puesto.',
+            }, { status: 403 });
+        }
+
         if (employeeId === evaluatorId) {
             return NextResponse.json({
                 success: false,

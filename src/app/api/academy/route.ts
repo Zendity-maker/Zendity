@@ -5,6 +5,7 @@ import { requireRole, requireSession } from '@/lib/api-auth';
 import { applyScoreEvent } from '@/lib/score-event';
 import { notifyUser, notifyRoles } from '@/lib/notifications';
 import { logError, logWarn } from '@/lib/logger';
+import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
 
 const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'KITCHEN', 'MAINTENANCE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 const SUPERVISORY_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
@@ -224,10 +225,22 @@ export async function POST(req: Request) {
             unblocked = true;
         }
 
-        // 4. Notificación al empleado con delta REAL.
-        const scoreMessage = realDelta > 0
-            ? `Tu Z-Score subió +${realDelta} puntos. ¡Sigue aprendiendo!`
-            : `Ya estás en el máximo de Z-Score (100). ¡Excelente!`;
+        /**
+         * 4. Notificación al empleado. SIN HABLAR DEL SCORE.
+         *
+         * Decía "Tu Z-Score subió +N" o, si no subía, "Ya estás en el máximo de
+         * Z-Score (100)". Dos problemas:
+         *
+         *   - `realDelta` es 0 desde que applyScoreEvent dejó de escribir el
+         *     campo (10-sep-2026), así que TODO el mundo recibía el mensaje del
+         *     máximo. Ya era matemáticamente cero desde el 01-sep por el tope.
+         *   - Y el score está oculto: decírselo por notificación es la octava
+         *     fuga del mismo número.
+         *
+         * El curso completado ya es la buena noticia. No hace falta un número
+         * detrás, y menos uno que no es verdad.
+         */
+        const scoreMessage = '¡Bien hecho!';
         const unblockMessage = unblocked
             ? ' Además, tu acceso a turnos fue restablecido.'
             : '';
@@ -253,8 +266,10 @@ export async function POST(req: Request) {
         return NextResponse.json({
             success: true,
             enrollment,
-            newComplianceScore: scoreEvt?.scoreAfter ?? null,
-            delta: realDelta,
+            // El score sale de la respuesta: esta ruta la llama la pantalla de
+            // Academy, que es del propio empleado. Ver src/lib/z-score-visible.ts.
+            newComplianceScore: Z_SCORE_VISIBLE ? (scoreEvt?.scoreAfter ?? null) : null,
+            delta: Z_SCORE_VISIBLE ? realDelta : null,
             unblocked,
         });
 
