@@ -107,3 +107,5 @@ public/academy/_backup_old/
 !scripts/normalizar-temperatura-a-fahrenheit.ts
 # Correo de orientacion al piso sobre el boton "Algo cambio en el residente"
 !scripts/orientacion-boton-cambios.ts
+# Cierra los avisos del panel del supervisor de mas de 30 dias
+!scripts/cerrar-avisos-viejos-del-panel.ts
