@@ -7,6 +7,7 @@ import { round2 } from '@/lib/payment-math';
 import { getProfitabilitySeries, summarizeProfitability, calculateBreakEven } from '@/lib/profitability';
 import { getGrowthFunnel } from '@/lib/growth';
 import { logError } from '@/lib/logger';
+import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
 
 export const dynamic = 'force-dynamic';
 
@@ -229,9 +230,11 @@ export async function GET(_req: Request) {
                 : null;
 
             // ── Calidad + Equipo ─────────────────────────────────────────
-            const avgCompliance = clinicalStaff.length > 0
+            // A un socio no se le manda un promedio de un numero que sabemos
+            // invertido. Va null y la pantalla omite la tarjeta.
+            const avgCompliance = Z_SCORE_VISIBLE && clinicalStaff.length > 0
                 ? Math.round(clinicalStaff.reduce((s, e) => s + (e.complianceScore || 0), 0) / clinicalStaff.length)
-                : 0;
+                : null;
             const ratioStaffResidente = billable.length > 0 ? round2(staffAll / billable.length) : 0;
 
             // ── Rentabilidad (Fase 3) ────────────────────────────────────

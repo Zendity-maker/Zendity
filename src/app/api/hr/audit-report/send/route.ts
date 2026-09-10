@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import sgMail from '@sendgrid/mail';
+import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
 
 export const dynamic = 'force-dynamic';
 
@@ -104,10 +105,10 @@ export async function POST(req: Request) {
       </p>
 
       <div style="display:flex;gap:12px;margin-bottom:24px;">
-        <div style="flex:1;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:16px;">
+        ${Z_SCORE_VISIBLE ? `<div style="flex:1;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:16px;">
           <div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#64748B;">Score actual</div>
           <div style="font-size:28px;font-weight:900;color:#0F172A;margin-top:4px;">${Math.round(finalScore)}<span style="font-size:14px;color:#94A3B8;font-weight:700;">/100</span></div>
-        </div>
+        </div>` : ''}
         <div style="flex:1;background:${reco.bg};border:1px solid ${reco.bg};border-radius:10px;padding:16px;">
           <div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:${reco.color};opacity:0.8;">Recomendación</div>
           <div style="font-size:14px;font-weight:900;color:${reco.color};margin-top:6px;letter-spacing:1px;">${reco.label}</div>

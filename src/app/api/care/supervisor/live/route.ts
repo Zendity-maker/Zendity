@@ -6,6 +6,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { logError } from '@/lib/logger';
+import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
 
 const SUPERVISOR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
@@ -642,7 +643,12 @@ export async function GET(req: Request) {
                 role: s.caregiver!.role,
                 complianceScore: (s.caregiver as any).complianceScore ?? null,
             }))
-            .sort((a, b) => (a.complianceScore ?? 999) - (b.complianceScore ?? 999));
+            // El ORDEN sobrevivia a la bandera: la lista salia de peor a mejor
+            // segun el numero invertido, asi que las que mas documentan
+            // encabezaban algo que se lee como lista de problemas. Por nombre.
+            .sort((a, b) => Z_SCORE_VISIBLE
+                ? (a.complianceScore ?? 999) - (b.complianceScore ?? 999)
+                : String(a.name ?? '').localeCompare(String(b.name ?? ''), 'es'));
 
         // — Rondas del día: X/3 por turno actual (INICIO/MEDIO/CIERRE) —
         const roundsSummary = {

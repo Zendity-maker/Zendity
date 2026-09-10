@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from 'next/link';
+import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
 
 type StaffMember = {
     id: string;
@@ -175,11 +176,16 @@ export default function HRDirectoryPage() {
                                         {staff.evaluationsCount} Registros
                                     </td>
                                     <td className="px-6 py-4 text-center">
+                                        {/* Es el mismo complianceScore con otro nombre.
+                                            Esta pantalla nunca importo la bandera. */}
                                         <div className="flex justify-center">
-                                            <span className={`px-3 py-1.5 rounded-lg border font-black text-sm flex items-center gap-1.5 ${getScoreColor(staff.performanceScore)}`}>
-                                                {staff.performanceScore >= 90 ? '' : staff.performanceScore >= 75 ? '' : ''}
-                                                {staff.performanceScore} / 100
-                                            </span>
+                                            {Z_SCORE_VISIBLE ? (
+                                                <span className={`px-3 py-1.5 rounded-lg border font-black text-sm flex items-center gap-1.5 ${getScoreColor(staff.performanceScore)}`}>
+                                                    {staff.performanceScore} / 100
+                                                </span>
+                                            ) : (
+                                                <span className="text-[11px] text-slate-400 font-medium">En revisión</span>
+                                            )}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-center">

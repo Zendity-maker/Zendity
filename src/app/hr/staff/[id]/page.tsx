@@ -488,7 +488,12 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                                     </span>
                                 )}
                             </div>
-                            {scoreHistory && (
+                            {/* FUGA DE LA BANDERA. Se tapo el numero grande y quedo
+                                TODA su historia: grafica de 13 semanas, rango, chips
+                                de puntos ganados/perdidos y libro de movimientos.
+                                Quien abria el perfil seguia leyendo el score, solo
+                                que en forma de curva. */}
+                            {Z_SCORE_VISIBLE && scoreHistory && (
                                 <div className="flex flex-wrap gap-1.5">
                                     <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold">
                                         +{scoreHistory.summary.totalPositive} ganados
@@ -505,7 +510,12 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                             )}
                         </div>
 
-                        {/* Derecha: la historia del número */}
+                        {/* Derecha: la historia del número.
+                            Toda la columna va detrás de la bandera. Tapar el número
+                            grande y dejar la curva de 13 semanas, el rango y el libro
+                            de movimientos —con su "72 → 64 pts" en cada línea— es no
+                            haberlo tapado. */}
+                        {Z_SCORE_VISIBLE && (
                         <div className="flex-1 min-w-0 lg:border-l lg:border-slate-100 lg:pl-8 flex flex-col gap-4">
                             <div className="flex items-baseline justify-between gap-3">
                                 <h3 className="text-sm font-black text-slate-700">Últimas 13 semanas</h3>
@@ -608,6 +618,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                             </div>
                         )}
                         </div>
+                        )}
                     </div>
 
                     {/* MÉTRICAS DE RRHH — venían del perfil duplicado de corporate.

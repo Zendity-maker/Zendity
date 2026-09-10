@@ -47,6 +47,7 @@ interface MedDelResidente {
 }
 import { Toaster, toast } from 'sonner';
 import { aFahrenheit } from '@/lib/vitals-thresholds';
+import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
 
 /**
  * Ahora, en el formato de <input type="datetime-local"> (hora local).
@@ -532,8 +533,13 @@ export default function ZendityCareTabletPage() {
         return () => document.removeEventListener('mousedown', handler);
     }, [scorePanelOpen]);
 
-    // Cargar Z-Score propio al montar
+    // Cargar Z-Score propio al montar.
+    //
+    // El apagado del 09-sep-2026 NO cubrio esta pantalla: se taparon las de
+    // RRHH y direccion, y la cuidadora siguio viendo su propio numero en la
+    // tableta todos los dias. Ver src/lib/z-score-visible.ts.
     useEffect(() => {
+        if (!Z_SCORE_VISIBLE) return;
         if (!user?.id) return;
         fetch('/api/care/my-score')
             .then(r => r.json())

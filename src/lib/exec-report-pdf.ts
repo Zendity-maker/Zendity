@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf';
+import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
 
 export type ExecReportData = {
     hqName: string;
@@ -291,9 +292,14 @@ export function generateExecReportPDF(d: ExecReportData): void {
             ly += 5;
         });
     };
-    renderStaffList('TOP PERFORMERS', d.personal.topStaff, marginX, [16, 185, 129]);
-    renderStaffList('A SEGUIR', d.personal.bottomStaff, marginX + halfW + 4, [239, 68, 68]);
-    y += 9 + Math.max(d.personal.topStaff.length, d.personal.bottomStaff.length, 1) * 5 + 4;
+    // Dos listas de personas con nombre y apellido, ordenadas por el score
+    // invertido: los que mas documentan encabezaban "A SEGUIR". Un PDF que se
+    // descarga y circula no se puede desdecir. Ver src/lib/z-score-visible.ts.
+    if (Z_SCORE_VISIBLE) {
+        renderStaffList('TOP PERFORMERS', d.personal.topStaff, marginX, [16, 185, 129]);
+        renderStaffList('A SEGUIR', d.personal.bottomStaff, marginX + halfW + 4, [239, 68, 68]);
+        y += 9 + Math.max(d.personal.topStaff.length, d.personal.bottomStaff.length, 1) * 5 + 4;
+    }
 
     /**
      * ─── Cierre del mes ──────────────────────────────────────────────

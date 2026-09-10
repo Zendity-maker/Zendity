@@ -31,6 +31,25 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: "Empleado no encontrado" }, { status: 404 });
         }
 
+        /**
+         * NADIE SE EVALUA A SI MISMO.
+         *
+         * No estaba bloqueado, y esta ruta ESCRIBE el complianceScore
+         * directamente: bastaba una llamada con el propio employeeId para
+         * ponerse en 100. Las dos supervisoras de Cupey pueden llamarla, y
+         * tambien sobre su DIRECTOR — la comprobacion de arriba solo mira que
+         * sean de la misma sede, no que haya jerarquia.
+         *
+         * Lo de la jerarquia queda pendiente y avisado. Lo de uno mismo se
+         * cierra aqui, que es lo barato y lo evidente.
+         */
+        if (employeeId === evaluatorId) {
+            return NextResponse.json({
+                success: false,
+                error: 'No puedes evaluarte a ti mismo.',
+            }, { status: 403 });
+        }
+
         // Formacion continua: la unica categoria que NO la pone el evaluador.
         //
         // Se calcula sola porque es el unico dato objetivo de la evaluacion —
@@ -51,7 +70,22 @@ export async function POST(req: Request) {
         };
 
         // 1. Calcular el Score Global Promedio
-        const scores: number[] = Object.values(categoriasFinales);
+        /**
+         * Los valores vienen del body y se promediaban sin validar. Un numero
+         * fuera de [0,100] —o un texto que Number() convierte en algo raro—
+         * entraba tal cual al score. Se acota cada categoria antes de promediar
+         * y se descarta lo que no sea un numero.
+         */
+        const scores: number[] = Object.values(categoriasFinales)
+            .map(v => Number(v))
+            .filter(v => Number.isFinite(v))
+            .map(v => Math.max(0, Math.min(100, v)));
+        if (scores.length === 0) {
+            return NextResponse.json({
+                success: false,
+                error: 'La evaluación no trae ninguna categoría con puntaje.',
+            }, { status: 400 });
+        }
         const globalScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
 
         // 2. Transacción Segura: Guardar Evaluación y Actualizar Empleado
@@ -66,11 +100,20 @@ export async function POST(req: Request) {
                     feedback
                 }
             }),
+            /**
+             * REEMPLAZABA EL SCORE ENTERO. Una evaluacion podia llevar a alguien
+             * de 100 a 0 en una sola llamada, y sin dejar ScoreEvent: la grafica
+             * de historial que ve el empleado contradecia el numero de arriba.
+             * En produccion ya hay 30 reescrituras asi, invisibles.
+             *
+             * Se deja de escribir el campo desde aqui. La evaluacion se guarda
+             * —que es el hecho real, con su autor y su fecha— y el score lo
+             * calcula quien tenga que calcularlo, una sola vez, leyendo esta
+             * fila como una entrada mas. Ver src/lib/z-score-visible.ts.
+             */
             prisma.user.update({
                 where: { id: employeeId },
-                data: {
-                    complianceScore: globalScore // El score global dinámico reemplaza su métrica actual
-                }
+                data: {},
             })
         ]);
 

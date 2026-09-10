@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { Role } from '@prisma/client';
 import { requireRole } from '@/lib/api-auth';
+import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
 
 export async function GET(req: Request, { params }: any) {
     try {
@@ -27,7 +28,15 @@ export async function GET(req: Request, { params }: any) {
         let kpis: Record<string, any> = {};
 
         // Base Trust Score is direct from User
-        const trustScore = user.complianceScore || 100;
+        /**
+         * `trustScore` es el complianceScore con otro nombre — el tercer alias
+         * que le encontramos, despues de "performanceScore" y "Z-Score".
+         *
+         * Y el `|| 100` es un fallo aparte: 0 es falsy, asi que a Yedaira —que
+         * tiene el score en 0— este endpoint le devolvia 100. El operador
+         * correcto para un numero que puede ser cero es ??, no ||.
+         */
+        const trustScore = Z_SCORE_VISIBLE ? (user.complianceScore ?? 100) : null;
 
         // ============================================
         // ============================================
@@ -204,22 +213,41 @@ export async function GET(req: Request, { params }: any) {
                 where: { type: 'INFRASTRUCTURE', status: 'RESOLVED', startTime: { gte: sevenDaysAgo } }
             });
 
+            /**
+             * TRES DE ESTOS CUATRO ERAN INVENTADOS.
+             *
+             * `resolutionTimeHours: 3.5` llevaba el comentario "Mocked SLA" al
+             * lado. `qualityCheckRate: 98` y `preventiveCompliance: 100` no
+             * tocaban la base: eran constantes escritas a mano que se pintaban
+             * como si fueran medidas de esta persona.
+             *
+             * Es el anti-patron 3 de CLAUDE.md —datos mock en produccion, que
+             * el commit 5739e8a elimino y dice no reintroducir— y ademas la
+             * decision de Andres y Celia del 10-sep-2026 fue explicita: "que la
+             * app deje de fingir que los mide".
+             *
+             * Queda lo unico real: los tickets de infraestructura resueltos.
+             */
             kpis = {
-                trustScore,
-                resolutionTimeHours: 3.5, // Mocked SLA
                 workOrdersVolume: resolvedTickets,
-                qualityCheckRate: 98,
-                preventiveCompliance: 100
+                sinMedir: 'Zéndity no recoge todavía el trabajo de mantenimiento. Lo único que se registra son los tickets de infraestructura resueltos.',
             };
         }
         // ============================================
         // OTROS ROLES (Fallback genérico)
         // ============================================
         else {
+            /**
+             * Aqui caen KITCHEN y SOCIAL_WORKER, y los dos numeros eran
+             * inventados: `activityPoints: 85` y `attendanceRate: 98` son
+             * constantes, iguales para todo el mundo y para siempre.
+             *
+             * Medido el 09-sep-2026: esos roles no dejan NI UN registro en la
+             * base. La app no puede medirlos, y decirlo es mas util que
+             * ensenar un 85 que no significa nada.
+             */
             kpis = {
-                trustScore,
-                activityPoints: 85,
-                attendanceRate: 98
+                sinMedir: 'Zéndity no recoge todavía el trabajo de este puesto. No hay métricas que mostrar — se evalúa por observación y conversación.',
             };
         }
 
@@ -230,7 +258,9 @@ export async function GET(req: Request, { params }: any) {
                 id: user.id,
                 name: user.name,
                 role: user.role,
-                complianceScore: user.complianceScore
+                // El score se oculto el 09-sep-2026 y este endpoint lo seguia
+                // devolviendo. Ver src/lib/z-score-visible.ts.
+                complianceScore: Z_SCORE_VISIBLE ? user.complianceScore : null,
             },
             kpis,
             period: "Últimos 7 Días"

@@ -452,7 +452,10 @@ export async function PATCH(request: Request) {
             }),
             prisma.user.update({
                 where: { id: existing.userId },
-                data: { complianceScore: Math.round(finalScore) },
+                // Se acota a [0,100]. `humanScore` entra del body sin validar y
+                // se escribia sin clamp: un director podia dejar a alguien en
+                // 400 o en -50.
+                data: { complianceScore: Math.max(0, Math.min(100, Math.round(finalScore))) },
             }),
             // Sincronizar con EmployeeEvaluation para que Insights, HR page y
             // el directorio muestren el score actualizado sin intervención manual
