@@ -45,6 +45,15 @@ interface Toma {
     entera?: boolean;
     /** cuanto bajar antes de disparar, en px */
     bajar?: number;
+    /**
+     * Hora fija del reloj del navegador, ISO local. Ej: '2026-09-11T02:30:00'.
+     *
+     * Hace falta para fotografiar el turno de NOCHE: la tableta decide el modo
+     * nocturno con `new Date().getHours()` del cliente (src/app/care/page.tsx:841),
+     * asi que a las cinco de la tarde esa pantalla no existe. Sin esto, las 13
+     * cuidadoras no tienen ni una foto de la pantalla que usan de madrugada.
+     */
+    reloj?: string;
 }
 
 const TOMAS: Toma[] = [
@@ -77,9 +86,37 @@ const TOMAS: Toma[] = [
     //   Una tarjeta de residente entera (Rosa Medina, 204), que es la unidad de trabajo del turno: baño listo, 2/3 comidas, rotación al día, meds pendientes c
     { nombre: "care-turno-entregar", ruta: '/capturas/care-turno', ancho: 1400, alto: 1000, esperar: "text=Cierre de turno", clics: ["text=Entregar Turno"] },
     //   El asistente de cierre: los tres pasos (lees y firmas, lo lee el supervisor, entra el próximo turno), el "Estado Limpio" de pendientes, el resumen de 
+    { nombre: "cierre-paso-2-reporte", ruta: '/capturas/care-turno', ancho: 1400, alto: 1100, esperar: "text=Paso 2", recortar: 'div.bg-slate-50.rounded-\\[2rem\\]:has(h3:has-text("Paso 2"))', clics: ["text=Entregar Turno"] },
+    //   El paso que de verdad manda: los cuatro contadores del turno (Meds, Baños,
+    //   Comidas, Vitales), el reporte que Zendi propone —y que se puede
+    //   corregir— y la casilla "He leido y confirmo que este reporte es
+    //   correcto", que es la UNICA puerta que desbloquea la firma.
+    { nombre: "cierre-paso-3-firma", ruta: '/capturas/care-turno', ancho: 1400, alto: 1400, esperar: "text=Paso 3", recortar: 'div.md\\:w-1\\/2.bg-white:has(h3:has-text("Paso 3"))', clics: ["text=Entregar Turno", "text=He leído y confirmo"] },
+    //   La columna derecha del asistente, de arriba abajo: el reporte con la
+    //   casilla ya marcada, el recuadro punteado donde se firma CON EL DEDO, la
+    //   frase que se certifica al firmar y el boton verde. No hay PIN en ninguna
+    //   parte — la firma es un trazo.
     { nombre: "care-turno-ausente", ruta: '/capturas/care-turno', ancho: 1400, alto: 900, esperar: "text=En Hospital", recortar: "div.grid.grid-cols-2.gap-3 > div:nth-child(4)" },
     //   Pedro Santana (103) trasladado: sigue en el censo con el sello "🚑 En Hospital" y el botón "Registrar Retorno al Piso", y su tarjeta ya no pide medicam
     { nombre: "care-turno-notas", ruta: '/capturas/care-turno', ancho: 1400, alto: 900, esperar: "text=Notas y tareas pendientes", clics: ["text=Ver todas"] },
+    { nombre: "noche-rondas", ruta: '/capturas/care-turno', ancho: 1400, alto: 1100, esperar: "text=Night Rounds Mode", reloj: '2026-09-11T02:30:00' },
+    //   LA PANTALLA DE LAS 2 DE LA MAÑANA, que no existia en ninguna foto. La
+    //   tableta cambia SOLA de modo a las 10 de la noche y vuelve a las 6: el
+    //   banner "Night Rounds Mode" con la hora local del turno, y debajo las
+    //   tarjetas de la noche con el plazo de rotacion de cada residente.
+    { nombre: "noche-tarjeta", ruta: '/capturas/care-turno', ancho: 1400, alto: 1100, esperar: "text=Night Rounds Mode", recortar: 'div.rounded-\\[20px\\]:has-text("Rosa Medina")', reloj: '2026-09-11T02:30:00' },
+    //   Una tarjeta de la noche entera, que es la unidad de trabajo de madrugada:
+    //   los botones grandes de Pañal Seco y los dos cambios, y el de rotacion
+    //   postural con su plazo de dos horas.
+    { nombre: "zendi-propone", ruta: '/capturas/care-turno', ancho: 1400, alto: 1100, esperar: "text=Zendi propone", recortar: 'div.fixed > div.bg-white.rounded-xl', clics: [
+        'button:has-text("Trasladar ER") >> nth=0',
+        { escribir: "lo encontre con la espalda roja y se quejaba al acostarse", en: 'textarea' },
+        'button:has(svg.lucide-sparkles) >> nth=0',
+    ] },
+    //   LO UNICO DE ZENDI QUE UNA CUIDADORA TOCA. Escribe con sus palabras, pulsa
+    //   la estrella, y Zendi propone una version al lado — con dos botones:
+    //   "Usar esta version" y "Dejar lo mio". Debajo, la linea que importa:
+    //   "Leela antes de aceptarla. Lo que se guarde va firmado con tu nombre".
     { nombre: "caidas-protocolo-tableta", ruta: '/capturas/care-turno', ancho: 1400, alto: 1100, esperar: "text=Protocolo de Caída", recortar: 'div.fixed > div.bg-white.rounded-xl', clics: ['button:has-text("Alerta Caída") >> nth=0'] },
     //   LA FOTO QUE FALTABA: el modal que abre la cuidadora al pulsar "Alerta
     //   Caida". Las TRES preguntas que deciden la gravedad del expediente
@@ -263,6 +300,8 @@ async function main() {
         pag.on('pageerror', e => avisos.push(`pageerror: ${e.message}`));
         await pag.setViewportSize({ width: t.ancho ?? 1100, height: t.alto ?? 900 });
         try {
+            // El reloj se fija ANTES de navegar: la pantalla lee la hora al montar.
+            if (t.reloj) await pag.clock.setFixedTime(new Date(t.reloj));
             await pag.goto(BASE + t.ruta, { waitUntil: 'networkidle', timeout: 30_000 });
             /**
              * LOS CLICS VAN ANTES DE ESPERAR, no al reves.

@@ -309,6 +309,18 @@ instalar({
     // '/api/notifications'. El andamio casa por `includes`, y la campana y el
     // poll de visitas comparten prefijo. Si la lista ganara, el poll de
     // FAMILY_VISIT dispararía un toast por cada notificación encima de la foto.
+    /**
+     * LO QUE ZENDI PROPONE AL PULSAR LA ESTRELLA.
+     *
+     * Es lo unico de Zendi que una cuidadora toca de verdad, y no habia foto de
+     * ello. El texto de la respuesta es lo que la pantalla pinta en el recuadro
+     * teal "Zendi propone" — tiene que ser DISTINTO de lo que se escribio, o el
+     * componente no enseña el panel (ver ZendiAssist.tsx:103).
+     */
+    '/api/ai/shadow': {
+        success: true,
+        formattedText: 'Se observa enrojecimiento en la region sacra, sin herida abierta ni exudado. El residente refiere molestia al recostarse sobre la espalda. Se notifica a enfermeria y se deja constancia para la proxima ronda.',
+    },
     '/api/notifications/unread': { success: true, notifications: [] },
     '/api/notifications/mark-read': { success: true },
     '/api/notifications': {
