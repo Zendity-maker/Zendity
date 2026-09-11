@@ -154,14 +154,26 @@ export async function GET(req: Request) {
                 orderBy: { administeredAt: 'asc' }
             }),
             // Meds omitidos
+            //
+            // MISMO FALLO QUE EN shift-closure-report.ts, en el segundo sitio:
+            // filtraba por `administeredAt` sobre filas cuyo estado NO es
+            // ADMINISTERED, y meds/bulk escribe null en ese campo justo
+            // entonces (meds/bulk/route.ts:218). La consulta no podia devolver
+            // nada, asi que la auditoria de turno del supervisor tambien decia
+            // siempre "cero omisiones".
+            //
+            // Se filtra por `createdAt`, que es cuando se registro la omision.
+            // Y se selecciona tambien, porque `administeredAt` viene nulo en
+            // estas filas y la pantalla necesita una hora que enseñar.
             prisma.medicationAdministration.findMany({
                 where: {
                     administeredById: caregiverId,
-                    administeredAt: { gte: shiftStart, lte: shiftEnd },
+                    createdAt: { gte: shiftStart, lte: shiftEnd },
                     status: { in: ['OMITTED', 'REFUSED', 'HELD'] },
                     patientMedication: { patientId: { in: patientIds } }
                 },
                 select: {
+                    createdAt: true,
                     administeredAt: true,
                     status: true,
                     notes: true,
@@ -298,7 +310,12 @@ export async function GET(req: Request) {
             medsOmitted.filter(m => m.patientMedication?.patientId === pid).forEach(m => {
                 const med = m.patientMedication?.medication;
                 entries.push({
-                    time: m.administeredAt ?? new Date(),
+                    // `administeredAt` viene NULO en una omision — eso es lo que
+                    // hacia imposible la consulta de arriba. Aqui el `?? new Date()`
+                    // ponia la hora de AHORA en la linea de tiempo del turno, o
+                    // sea que una omision de las 8am habria aparecido a la hora
+                    // de mirar la auditoria. `createdAt` es cuando se registro.
+                    time: m.administeredAt ?? m.createdAt,
                     type: 'MED_OMIT',
                     label: `⚠️ Medicamento ${m.status === 'REFUSED' ? 'rehusado' : 'omitido'}`,
                     detail: `${med?.name || 'Desconocido'} — ${m.notes || 'Sin justificación registrada'}`,
