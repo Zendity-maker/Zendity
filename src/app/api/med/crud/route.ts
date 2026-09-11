@@ -132,6 +132,56 @@ export async function POST(req: Request) {
                 data: { action: 'ADDED', patientMedicationId: updatedMed.id, authorId, reason }
             });
         }
+        /**
+         * AUTORIZAR UN BORRADOR DEL INGRESO.
+         *
+         * La admision deja la receta en DRAFT / isActive:false a proposito: es
+         * una barrera clinica, alguien tiene que mirarla antes de que llegue a
+         * la tableta. El problema no era la barrera, era donde estaba: la unica
+         * pantalla que autorizaba —/corporate/care/triage/emar— no esta en el
+         * menu de nadie y firmaba con un usuario inventado ("SUPERVISOR-MD-01").
+         * Asi que los borradores no se autorizaban: se volvian a teclear a mano
+         * en Zendity Med, que es la mitad del "hay que repetir cosas en
+         * diferentes lugares" que describe Celia. Y el que no se reteclea se
+         * queda: el Baclofen 10mg de Carlos Varona lleva ahi desde su ingreso.
+         *
+         * Ahora se autoriza desde la misma pantalla donde se trabaja, con el
+         * usuario de verdad de la sesion y su razon escrita.
+         */
+        else if (action === 'AUTHORIZED') {
+            if (!patientMedicationId) {
+                return NextResponse.json({ success: false, error: "patientMedicationId requerido." }, { status: 400 });
+            }
+            const borrador = await prisma.patientMedication.findFirst({
+                where: { id: patientMedicationId, status: 'DRAFT', patient: { headquartersId: invokerHqId } },
+                select: { id: true },
+            });
+            if (!borrador) {
+                return NextResponse.json({ success: false, error: "Borrador no encontrado en tu sede — puede que ya esté autorizado." }, { status: 404 });
+            }
+            // La misma guarda que en ADDED: una pauta semanal sin dia no toca nunca.
+            if (frecuencia === 'SEMANAL' && dias.length === 0) {
+                return NextResponse.json({ success: false, error: "Marca al menos un día de la semana." }, { status: 400 });
+            }
+            updatedMed = await prisma.patientMedication.update({
+                where: { id: patientMedicationId },
+                data: {
+                    ...(typeof scheduleTimes === 'string' && scheduleTimes.trim()
+                        ? { scheduleTimes } : {}),
+                    ...(prepDuration ? { prepDuration } : {}),
+                    // Aqui SI se escribe siempre la frecuencia: una receta que
+                    // empieza a vivir no puede quedar a medias.
+                    frequency: frecuencia,
+                    scheduleDays: dias,
+                    ...(medico !== null ? { prescribedBy: medico } : {}),
+                    isActive: true,
+                    status: 'ACTIVE',
+                }
+            });
+            await prisma.medicationAuditLog.create({
+                data: { action: 'VERIFIED_BY_NURSE', patientMedicationId: updatedMed.id, authorId, reason }
+            });
+        }
         else if (action === 'MODIFIED') {
             if (!patientMedicationId) {
                 return NextResponse.json({ success: false, error: "patientMedicationId requerido." }, { status: 400 });
@@ -200,7 +250,7 @@ export async function POST(req: Request) {
                 data: { action: 'DISCONTINUED', patientMedicationId: patientMedicationId, authorId, reason }
             });
         } else {
-            return NextResponse.json({ success: false, error: "Acción inválida (use ADDED, MODIFIED o DISCONTINUED)." }, { status: 400 });
+            return NextResponse.json({ success: false, error: "Acción inválida (use ADDED, AUTHORIZED, MODIFIED o DISCONTINUED)." }, { status: 400 });
         }
 
         return NextResponse.json({ success: true, record: updatedMed });

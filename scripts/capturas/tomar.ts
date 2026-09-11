@@ -154,6 +154,20 @@ const TOMAS: Toma[] = [
     //   El selector de dias abierto, ANTES de marcar ninguno: las siete letras y el
     //   aviso ambar "Marca al menos un dia, o quedara como todos los dias". Es la
     //   unica trampa del paso, y por eso se fotografia sola.
+    // ── /med — Zendity Med (el eMAR cronico)
+    { nombre: "med-borrador-sin-autorizar", ruta: '/capturas/med', ancho: 1400, alto: 950, esperar: "text=Del ingreso, sin autorizar", recortar: 'div.bg-white.rounded-3xl:has-text("Luis Ortega")' },
+    //   La tarjeta de un residente con las dos cosas a la vez: la receta viva
+    //   arriba y, debajo, el recuadro ambar "Del ingreso, sin autorizar" con el
+    //   boton "Revisar y autorizar". Es lo que antes no se veia en ningun sitio.
+    { nombre: "med-receta-semanal", ruta: '/capturas/med', ancho: 1400, alto: 950, esperar: "text=Solo Viernes", recortar: 'div.bg-white.rounded-3xl:has-text("Rosa Medina")' },
+    //   La tarjeta de Rosa: la etiqueta ambar "Solo Viernes" bajo el alendronato,
+    //   y la trazodona descontinuada que YA NO aparece.
+    { nombre: "med-autorizar-modal", ruta: '/capturas/med', ancho: 1400, alto: 1000, esperar: "text=Autorizar la receta del ingreso", recortar: "div.fixed > div.bg-white", clics: ['button:has-text("Revisar y autorizar")'] },
+    //   El modal de autorizar: el aviso de que esto la pone en la tableta, cada
+    //   cuando, la hora, y la razon obligatoria que queda firmada.
+    { nombre: "med-editar-receta", ruta: '/capturas/med', ancho: 1400, alto: 1000, esperar: "text=Editar la receta", recortar: "div.fixed > div.bg-white", clics: ['div.bg-white.rounded-3xl:has-text("Rosa Medina") button:has-text("Editar receta")'] },
+    //   El modal de editar, abierto sobre una receta DIARIA: los tres campos
+    //   —cada cuando, hora, razon— rellenos con lo que la receta tiene de verdad.
     //   El Inventario Farmacológico: cómo se añade un medicamento y se le marcan los horarios de distribución (05:00 AM … 10:00 PM, PRN). Es el paso que deja 
     // ── /academy
     { nombre: "academy-entrada", ruta: '/capturas/academy-curso', ancho: 1440, alto: 900, esperar: "text=Centro de Formación" },

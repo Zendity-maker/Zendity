@@ -7,7 +7,7 @@ import { useActiveHq } from "@/contexts/ActiveHqContext";
 import TaskAssignmentButton from "@/components/TaskAssignmentButton";
 
 interface Medication { id: string; name: string; dosage: string; }
-interface Patient { id: string; name: string; roomNumber: string; colorGroup: string; medications: any[]; }
+interface Patient { id: string; name: string; roomNumber: string; colorGroup: string; medications: any[]; borradores?: any[]; }
 
 export default function ZendityMedPage() {
     const { user } = useAuth();
@@ -19,7 +19,7 @@ export default function ZendityMedPage() {
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedMed, setSelectedMed] = useState<any>(null);
     const [crudReason, setCrudReason] = useState("");
-    const [crudAction, setCrudAction] = useState<"MODIFIED" | "DISCONTINUED" | null>(null);
+    const [crudAction, setCrudAction] = useState<"MODIFIED" | "DISCONTINUED" | "AUTHORIZED" | null>(null);
     /**
      * LO QUE SE ESTA EDITANDO DE UNA RECETA VIVA.
      *
@@ -85,11 +85,27 @@ export default function ZendityMedPage() {
                 // para que la enfermera pueda añadir el PRIMER medicamento).
                 // Si no, hacemos fallback al groupBy histórico sobre data.
                 if (Array.isArray(data.patients)) {
+                    /**
+                     * LOS BORRADORES DEL INGRESO NO PUEDEN QUEDAR INVISIBLES.
+                     *
+                     * Esta pantalla filtraba `isActive !== false` y con eso
+                     * escondia DOS cosas muy distintas: las descontinuadas (bien)
+                     * y los borradores que deja una admision (mal). La unica
+                     * pantalla que los mostraba —/corporate/care/triage/emar— no
+                     * esta en el menu de nadie. Medido el 11-sep-2026: el
+                     * Baclofen 10mg de Carlos Varona, capturado en su ingreso,
+                     * llevaba ahi sin autorizar y sin aparecer en ninguna parte.
+                     * Un medicamento que nadie da y que nada señala.
+                     */
                     setPatients(
-                        data.patients.map((p: any) => ({
-                            ...p,
-                            medications: (p.medications || []).filter((m: any) => m.isActive !== false),
-                        }))
+                        data.patients.map((p: any) => {
+                            const todas = p.medications || [];
+                            return {
+                                ...p,
+                                medications: todas.filter((m: any) => m.isActive !== false && m.status !== 'DRAFT'),
+                                borradores: todas.filter((m: any) => m.status === 'DRAFT'),
+                            };
+                        })
                     );
                 } else {
                     const grouped = data.data.reduce((acc: any, curr: any) => {
@@ -113,7 +129,7 @@ export default function ZendityMedPage() {
 
     const handleCrudSubmit = async () => {
         if (!crudReason) { alert("Obligatorio justificar el cambio (Auditoría HIPAA)."); return; }
-        if (crudAction === 'MODIFIED') {
+        if (crudAction === 'MODIFIED' || crudAction === 'AUTHORIZED') {
             // Las mismas dos guardas que al añadir. Una pauta semanal sin día no
             // toca nunca, y una hora que no parsea no llega a la tableta.
             if (editForm.frequency === 'SEMANAL' && editForm.scheduleDays.length === 0) {
@@ -131,7 +147,7 @@ export default function ZendityMedPage() {
                 body: JSON.stringify({
                     action: crudAction,
                     patientMedicationId: selectedMed.id,
-                    ...(crudAction === 'MODIFIED' ? {
+                    ...(crudAction === 'MODIFIED' || crudAction === 'AUTHORIZED' ? {
                         scheduleTimes: editForm.scheduleTimes,
                         frequency: editForm.frequency,
                         scheduleDays: editForm.scheduleDays,
@@ -154,7 +170,7 @@ export default function ZendityMedPage() {
         }
     };
 
-    const openCruModal = (med: any, action: "MODIFIED" | "DISCONTINUED") => {
+    const openCruModal = (med: any, action: "MODIFIED" | "DISCONTINUED" | "AUTHORIZED") => {
         setSelectedMed(med);
         setCrudAction(action);
         setEditForm({
@@ -264,9 +280,16 @@ export default function ZendityMedPage() {
                                         <div key={m.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl group relative">
                                             <div className="flex justify-between items-start mb-1">
                                                 <p className="font-black text-slate-800 text-sm">{m.medication.name}</p>
-                                                <span className="text-xs font-bold bg-white text-slate-500 px-2 py-0.5 rounded shadow-sm border border-slate-200">{m.scheduleTime}</span>
+                                                {/* `scheduleTime` en singular no existe en el modelo:
+                                                    este chip salia VACIO en las 307 recetas vivas. */}
+                                                <span className="text-xs font-bold bg-white text-slate-500 px-2 py-0.5 rounded shadow-sm border border-slate-200">{m.scheduleTimes}</span>
                                             </div>
                                             <p className="text-xs text-slate-500 font-medium">{m.medication.dosage}</p>
+                                            {m.frequency === 'SEMANAL' && m.scheduleDays?.length > 0 && (
+                                                <p className="text-[11px] font-black text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 mt-1 inline-block uppercase tracking-wide">
+                                                    Solo {m.scheduleDays.map((n: number) => DIAS[n]?.largo).join(', ')}
+                                                </p>
+                                            )}
 
                                             {/* Action Hover for AUDIT CRUD */}
                                             <div className="absolute inset-0 bg-slate-900/90 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-sm">
@@ -275,6 +298,30 @@ export default function ZendityMedPage() {
                                             </div>
                                         </div>
                                     ))
+                                )}
+                                {(p.borradores ?? []).length > 0 && (
+                                    <div className="rounded-xl border-2 border-amber-300 bg-amber-50 p-3 space-y-2">
+                                        <p className="text-[11px] font-black text-amber-900 uppercase tracking-widest">
+                                            Del ingreso, sin autorizar
+                                        </p>
+                                        <p className="text-[11px] font-medium text-amber-800 leading-snug">
+                                            Se capturaron en la admisión y NO llegan a la tableta hasta que se autoricen aquí.
+                                        </p>
+                                        {(p.borradores ?? []).map((m: any) => (
+                                            <div key={m.id} className="bg-white rounded-lg border border-amber-200 p-2.5">
+                                                <p className="font-black text-slate-800 text-sm">{m.medication.name}</p>
+                                                <p className="text-[11px] text-slate-500 font-medium">
+                                                    {m.medication.dosage} · {m.scheduleTimes}
+                                                </p>
+                                                <button
+                                                    onClick={() => openCruModal(m, 'AUTHORIZED')}
+                                                    className="mt-2 w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-black text-xs rounded-lg transition-colors uppercase tracking-widest"
+                                                >
+                                                    Revisar y autorizar
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
                                 )}
                                 <button
                                     onClick={() => {
@@ -302,12 +349,20 @@ export default function ZendityMedPage() {
                 <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
                     <div className="bg-white rounded-xl w-full max-w-md shadow-2xl p-8 animate-in zoom-in-95">
                         <h3 className="text-2xl font-black text-slate-900 mb-1">
-                            {crudAction === 'MODIFIED' ? 'Editar la receta' : 'Descontinuar Récord'}
+                            {crudAction === 'DISCONTINUED' ? 'Descontinuar Récord'
+                                : crudAction === 'AUTHORIZED' ? 'Autorizar la receta del ingreso'
+                                    : 'Editar la receta'}
                         </h3>
                         <p className="text-sm font-medium text-slate-500 mb-6 border-b border-slate-100 pb-4">Auditoría Estricta: Fármaco <strong className="text-slate-800">{selectedMed.medication.name}</strong></p>
 
                         <div className="space-y-4">
-                            {crudAction === 'MODIFIED' && (
+                            {crudAction === 'AUTHORIZED' && (
+                                <p className="text-[13px] font-medium text-amber-900 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                                    Esto la pone en la tableta. Comprueba la hora y los días antes de firmar.
+                                </p>
+                            )}
+
+                            {(crudAction === 'MODIFIED' || crudAction === 'AUTHORIZED') && (
                                 <>
                                     {/* Los mismos tres campos que al añadir, y por la misma razon:
                                         si el modal no los pregunta, la API no los recibe y la pauta
