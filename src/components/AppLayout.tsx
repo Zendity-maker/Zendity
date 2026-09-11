@@ -24,11 +24,17 @@ import {
 import { UserIcon } from "@heroicons/react/24/outline";
 
 const clinicalNavigation = [
-    { name: 'Insights', href: '/', icon: LineChart },
+    // onlyRoles = los mismos que aterrizan en "/" segun el guard de
+    // AuthContext (NURSE, SUPERVISOR, DIRECTOR y los que caen al else).
+    // Sin esto, la cuidadora veia "Insights" en su menu y al tocarlo la
+    // rebotaba a /care/hub. Un enlace visible no puede terminar en un muro.
+    { name: 'Insights', href: '/', icon: LineChart, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'HR_MANAGER', 'SUPER_ADMIN'] },
     // Sprint P.4 — /intake deprecado. Redirige a /corporate/patients/intake.
     // El item del sidebar se retiró para evitar confusión con "Admisión de
     // Residentes" (wizard maestro) en la sección Área Clínica / Médica.
-    { name: 'Med & Zoning', href: '/med', icon: Pill },
+    // Igual que arriba: /med no esta en la lista de rutas que el guard le
+    // permite a CAREGIVER, asi que el enlace la rebotaba.
+    { name: 'Med & Zoning', href: '/med', icon: Pill, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN'] },
     { name: 'Zendity Care (Tablets)', href: '/care', icon: Smartphone },
     { name: 'Vitales', href: '/care/vitals', icon: Activity },
     { name: 'Triage & Supervisión', href: '/care/supervisor', icon: ShieldAlert },
@@ -66,6 +72,11 @@ const clinicalNavigation = [
      * visible nunca termine en un muro. El del eMAR incluye SOCIAL_WORKER
      * porque /api/emar los deja leer.
      */
+    // SOCIAL_WORKER no esta en TRABAJAN_EN_CORPORATIVO, asi que recibe ESTE
+    // menu — y aqui no habia ningun enlace a su propia pantalla. Llegaba a su
+    // dashboard solo por el redirect del login: si navegaba a "Expedientes",
+    // que es el unico enlace suyo que si aparecia, no tenia forma de volver.
+    { name: 'Trabajo Social', href: '/corporate/social', icon: Users, onlyRoles: ['SOCIAL_WORKER'] },
     { name: 'Expedientes', href: '/corporate/medical/patients', icon: Users, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SOCIAL_WORKER'] },
     { name: 'Auditoría eMAR', href: '/corporate/medical/emar', icon: Pill, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SOCIAL_WORKER'] },
     { name: 'Catálogo Farmacia', href: '/corporate/medical/catalog', icon: Package, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'] },
