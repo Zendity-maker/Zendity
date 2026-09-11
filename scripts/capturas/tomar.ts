@@ -168,6 +168,35 @@ const TOMAS: Toma[] = [
     { nombre: "med-editar-receta", ruta: '/capturas/med', ancho: 1400, alto: 1000, esperar: "text=Editar la receta", recortar: "div.fixed > div.bg-white", clics: ['div.bg-white.rounded-3xl:has-text("Rosa Medina") button:has-text("Editar receta")'] },
     //   El modal de editar, abierto sobre una receta DIARIA: los tres campos
     //   —cada cuando, hora, razon— rellenos con lo que la receta tiene de verdad.
+    // ── /maintenance — Planta Fisica
+    { nombre: "mantenimiento-cola", ruta: '/capturas/mantenimiento', ancho: 1280, alto: 820, esperar: "text=Cola de Trabajo" },
+    //   El tablero entero: la barra lateral con los tres contadores (pendientes, en
+    //   progreso, resueltos hoy) y las tres columnas del kanban con algo dentro de
+    //   cada una. Enseña el recorrido completo de un aviso.
+    { nombre: "mantenimiento-aviso-nuevo", ruta: '/capturas/mantenimiento', ancho: 1280, alto: 820, esperar: "text=Inodoro corriendo", recortar: 'div.bg-white.rounded-2xl:has-text("Inodoro corriendo")' },
+    //   Un aviso nuevo solo: la hora, la pastilla naranja con el sitio exacto
+    //   ("Baño · Hab. 204"), lo que pasa, y el boton "Iniciar".
+    { nombre: "mantenimiento-resuelto", ruta: '/capturas/mantenimiento', ancho: 1280, alto: 820, esperar: "text=Resuelto en", recortar: 'div.bg-white.rounded-2xl:has-text("Resuelto en")' },
+    //   Un aviso ya cerrado: el titulo tachado y la linea verde "Resuelto en 45 min".
+    //   Ese minutaje es lo que el hogar enseña cuando alguien pregunta si se atienden.
+    // ── /corporate/social — Trabajo Social
+    { nombre: "social-panel", ruta: '/capturas/social', ancho: 1440, alto: 900, esperar: "text=Tareas Pendientes" },
+    //   El panel entero: las cuatro medidas de arriba y la tabla de tareas con sus
+    //   prioridades de colores.
+    { nombre: "social-tareas", ruta: '/capturas/social', ancho: 1440, alto: 900, esperar: "text=Tareas Pendientes", recortar: 'div.bg-white.rounded-2xl:has(h2:has-text("Tareas Pendientes"))' },
+    //   La tabla sola. Las dos cosas que hay que saber leer: la chispita violeta
+    //   —eso lo propuso Zendi, no una persona— y la fecha en rojo con "(vencida)".
+    { nombre: "social-beneficios", ruta: '/capturas/social', ancho: 1440, alto: 900, esperar: "text=Beneficios por Vencer", recortar: 'div.bg-white.rounded-2xl:has(h2:has-text("Beneficios por Vencer"))' },
+    //   Beneficios por vencer con su cuenta atras en dias: rojo a 15 dias o menos,
+    //   ambar por encima.
+    // ── /corporate — el panel de direccion
+    { nombre: "director-briefing", ruta: '/capturas/director', ancho: 1440, alto: 1000, esperar: "text=Zendi Director Briefing", recortar: 'div.rounded-xl.shadow-sm:has(h2:text-is("Zendi Director Briefing"))' },
+    //   LA PIEZA PRINCIPAL del panel: el briefing de la mañana. El resumen en una
+    //   frase y debajo los avisos con su prioridad de color —CRITICA, ALTA,
+    //   MEDIA—, cada uno con lo que hay que hacer y el enlace a donde se hace.
+    { nombre: "director-panel", ruta: '/capturas/director', ancho: 1440, alto: 1000, esperar: "text=Dashboard Gerencial" },
+    //   La pantalla entrando por arriba: el titulo, el selector de sede y el
+    //   briefing empezando. Es lo que la directora ve al abrir por la mañana.
     //   El Inventario Farmacológico: cómo se añade un medicamento y se le marcan los horarios de distribución (05:00 AM … 10:00 PM, PRN). Es el paso que deja 
     // ── /academy
     { nombre: "academy-entrada", ruta: '/capturas/academy-curso', ancho: 1440, alto: 900, esperar: "text=Centro de Formación" },

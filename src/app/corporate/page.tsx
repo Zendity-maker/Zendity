@@ -432,9 +432,16 @@ export default function CorporateDashboardPage() {
             const res = await fetch("/api/care/messages");
             const data = await res.json();
             if (data.success) {
-                setInboxThreads(data.threads);
+                // `?? []` y no `data.threads` a secas: una respuesta con success
+                // pero sin el campo deja `inboxThreads` en undefined, y dos
+                // lineas mas abajo `.some()` se lleva el panel ENTERO por
+                // delante — pantalla en blanco para la directora. Es el mismo
+                // fallo que dejo la tableta de la cuidadora en blanco por un
+                // `pendientes` que no venia.
+                const hilos = data.threads ?? [];
+                setInboxThreads(hilos);
                 if (activeThread) {
-                    const updated = data.threads.find((t: any) => t.patient.id === activeThread.patient.id);
+                    const updated = hilos.find((t: any) => t.patient.id === activeThread.patient.id);
                     if (updated) setActiveThread(updated);
                 }
             }

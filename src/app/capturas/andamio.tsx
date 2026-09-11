@@ -38,11 +38,26 @@ export const SESION = {
         role: 'SUPERVISOR',
         headquartersId: 'demo-hq',
         headquartersName: 'Hogar Demostración',
-        photoUrl: null,
-        secondaryRoles: [],
+        photoUrl: null as string | null,
+        secondaryRoles: [] as string[],
     },
     expires: '2099-01-01T00:00:00.000Z',
 };
+
+/**
+ * La sesión que se está sirviendo ahora mismo.
+ *
+ * Varias pantallas PINTAN a quien las abre —el panel de mantenimiento saluda por
+ * nombre en la barra lateral, el de dirección enseña el rol— y con una sesión
+ * de SUPERVISOR fija la foto sale diciendo algo que no es. `instalar` acepta un
+ * segundo argumento para cambiarla por curso.
+ */
+let sesionActual: typeof SESION = SESION;
+
+/** Devuelve una sesión con lo que se le cambie encima de la de por defecto. */
+export function comoSi(usuario: Partial<typeof SESION['user']>) {
+    return { ...SESION, user: { ...SESION.user, ...usuario } };
+}
 
 /**
  * Sirve las respuestas de API sin que salga una sola petición de red.
@@ -50,8 +65,9 @@ export const SESION = {
  * Se instala en el módulo, no en un efecto: las pantallas piden sus datos en el
  * primer `useEffect`, y un parche que llega después no llega.
  */
-export function instalar(rutas: Record<string, unknown>) {
+export function instalar(rutas: Record<string, unknown>, sesion: typeof SESION = SESION) {
     if (typeof window === 'undefined') return;
+    sesionActual = sesion;
     // EN PRODUCCION NO SE PARCHEA NADA.
     //
     // `instalar()` corre al cargar el modulo, antes de que <Andamio> pueda
@@ -61,9 +77,10 @@ export function instalar(rutas: Record<string, unknown>) {
     // blanco. La guarda tiene que estar en los dos sitios.
     if (!SOLO_EN_DESARROLLO) return;
     const w = window as any;
-    if (w.__andamioPuesto) { w.__andamioRutas = rutas; return; }
+    if (w.__andamioPuesto) { w.__andamioRutas = rutas; w.__andamioSesion = sesion; return; }
     w.__andamioPuesto = true;
     w.__andamioRutas = rutas;
+    w.__andamioSesion = sesion;
     const original = w.fetch.bind(w);
 
     const json = (dato: unknown) => new Response(JSON.stringify(dato), {
@@ -87,7 +104,7 @@ export function instalar(rutas: Record<string, unknown>) {
         // anidado: `useAuth()` vive en el layout raíz, por encima de esta
         // página, y lee el proveedor de arriba. Si ese no tiene sesión, la
         // pantalla no sabe en qué sede está y se queda esperando para siempre.
-        if (url.includes('/api/auth/session')) return json(SESION);
+        if (url.includes('/api/auth/session')) return json(w.__andamioSesion ?? SESION);
         if (url.includes('/api/auth/')) return json({});
 
         const tabla = w.__andamioRutas as Record<string, unknown>;
@@ -108,6 +125,7 @@ export function instalar(rutas: Record<string, unknown>) {
             messages: [], notifications: [], alerts: [], tasks: [], logs: [],
             patients: [], residentes: [], staff: [], users: [], schedules: [],
             incidents: [], history: [], eventos: [], pendientes: [], pendings: [],
+            threads: [], chips: {}, totals: {}, series: {}, deltas: {},
             total: 0, count: 0,
         });
     };
@@ -118,7 +136,7 @@ export function Andamio({ children, ancho = 1100 }: { children: React.ReactNode;
     const [listo] = useState(true);
     if (!SOLO_EN_DESARROLLO || !listo) return null;
     return (
-        <SessionProvider session={SESION as any}>
+        <SessionProvider session={sesionActual as any}>
             {/* El indicador de desarrollo de Next se cuela en la esquina de
                 todas las capturas. No es parte de la app que ve el personal. */}
             <style>{`nextjs-portal, [data-nextjs-toast], #__next-build-watcher { display: none !important; }`}</style>
