@@ -89,13 +89,13 @@ PREGUNTAS:
 P: ¿Cuál es la señal más útil para distinguir el envejecimiento normal de algo que debe reportarse?
 a) La edad del residente
 b) Si el residente se queja o no
-*c) La velocidad del cambio: lo brusco se reporta, lo gradual es esperable
+*c) La velocidad: lo brusco se reporta
 d) Si el cambio es visible a simple vista
 EXPLICACION: El envejecimiento normal es gradual — se mide en meses o años. Un cambio que aparece en horas o días es un aviso, sin importar la edad ni si el residente se queja. Muchos adultos mayores no reportan molestias, así que esperar la queja es esperar demasiado.
 
 P: Una residente de 88 años duerme menos horas seguidas que antes y se despierta varias veces. ¿Qué haces?
 a) Lo reporto de inmediato como cambio brusco
-*b) Es un cambio normal del envejecimiento; lo registro en su bitácora y observo si empeora
+*b) Es un cambio normal; lo registro y observo
 c) Le pido que se quede en cama más tiempo
 d) No hago nada, no tiene importancia
 EXPLICACION: El sueño más ligero y fragmentado es un cambio normal de la edad. No es una emergencia, pero registrarlo importa: si más adelante empeora bruscamente, ese registro es lo que permite ver el patrón.
@@ -154,14 +154,14 @@ La dignidad no es un valor abstracto. Es esto: tratar a un adulto como adulto, a
 PREGUNTAS:
 P: Un residente tarda 20 minutos en vestirse solo. Tienes prisa porque faltan residentes por atender. ¿Qué haces?
 a) Lo visto yo para ganar tiempo, es lo práctico
-*b) Dejo que se vista solo y organizo mi turno contando con ese tiempo
+*b) Dejo que se vista solo y cuento con ese tiempo
 c) Lo visto yo y anoto que él no puede vestirse
 d) Le digo que se apure
 EXPLICACION: Hacer por él lo que todavía puede hacer solo acelera su pérdida de autonomía — es dependencia inducida por el cuidado. El tiempo que tarda no es tiempo perdido: es capacidad que conserva. La organización del turno debe contar con eso.
 
 P: ¿Qué son las ABVD?
 a) Los medicamentos básicos que todo residente recibe
-*b) Las seis actividades básicas de la vida diaria que miden la autonomía del residente
+*b) Las seis actividades básicas del día
 c) El protocolo de baño diario
 d) Las visitas de la familia
 EXPLICACION: Comer, bañarse, vestirse, usar el baño, trasladarse y continencia. Son la referencia estándar para medir cuánta ayuda necesita una persona, y cambian con el tiempo — por eso el registro diario importa.
@@ -225,18 +225,18 @@ Esto no es burocracia. Tiene tres razones concretas:
 
 PREGUNTAS:
 P: Notas que un residente tiene la piel del talón enrojecida. ¿Cómo lo reportas?
-a) "Tiene una úlcera por presión en el talón"
-*b) "Piel enrojecida en el talón derecho, no recupera color al presionar. Observado hoy en el baño de la mañana"
-c) Espero a ver si mejora sola antes de decir algo
-d) Le aplico crema y lo anoto como resuelto
-EXPLICACION: Describir lo que se ve —sin nombrar un diagnóstico— es lo que le corresponde al cuidador y lo que hace útil el reporte. Nombrarlo "úlcera" es un diagnóstico que le toca a la enfermera. Esperar o tratar por cuenta propia retrasa la atención.
+a) "Tiene una úlcera por presión grado 1 en el talón derecho"
+*b) "Piel enrojecida en el talón derecho, no recupera color al presionar"
+c) Espero a ver si mejora sola antes de decir algo al respecto
+d) Le aplico crema hidratante y lo anoto como resuelto en la bitácora
+EXPLICACION: Y con el momento: "observado hoy en el baño de la mañana". Describir lo que se ve —sin nombrar un diagnóstico— es lo que le corresponde al cuidador y lo que hace útil el reporte. Nombrarlo "úlcera" le toca a la enfermera; esperar o tratar por cuenta propia retrasa la atención.
 
 P: ¿Quién decide el tratamiento de una herida en un residente?
-a) El cuidador que la encontró
-b) El supervisor de turno
-*c) La enfermera de home care o el médico; el hogar ejecuta y documenta ese plan
+a) El cuidador que la encontró primero
+b) El supervisor de turno en ese momento
+*c) La enfermera de home care
 d) La familia del residente
-EXPLICACION: El hogar de envejecientes hace continuidad del plan clínico, no lo establece. El cuidador ejecuta la indicación, la documenta y reporta los cambios — ese es su rol en la cadena, y es un rol crítico.
+EXPLICACION: O el médico. El hogar hace continuidad del plan clínico, no lo establece: ejecuta la indicación, la documenta y reporta los cambios. Es un rol crítico, y es ese.
 
 P: La enfermera de home care indicó cambiar de posición a doña Ana cada dos horas. Hoy la ves cómoda, dormida y con la piel sin señales. ¿Qué haces?
 *a) Cumplo la rotación como está indicada y lo documento en el momento
@@ -305,7 +305,7 @@ d) Le pregunto si quiere que reporte la caída
 EXPLICACION: Nunca se mueve a alguien tras una caída hasta descartar lesión. Una fractura de cadera o lesión cervical puede empeorar irreversiblemente al moverlo, y muchas lesiones no duelen en los primeros minutos. Que el residente diga estar bien no cambia el protocolo.
 
 P: El plan de un residente indica traslado entre dos personas, pero tu compañera está ocupada y él quiere ir al baño ahora. ¿Qué haces?
-*a) Espero a la segunda persona y acompaño al residente mientras tanto
+*a) Espero a la segunda persona y lo acompaño
 b) Lo traslado sola con cuidado, es una urgencia
 c) Le digo que aguante hasta el próximo turno
 d) Lo traslado sola y lo reporto después
@@ -369,16 +369,16 @@ PREGUNTAS:
 P: Un residente con demencia insiste en que tiene que ir a trabajar. ¿Qué haces?
 a) Le explico que está retirado y que ya no trabaja
 b) Le sigo la corriente y le digo que lo llevo al trabajo
-*c) Redirijo la conversación sin discutir: le pregunto por su trabajo y lo acompaño a otra actividad
+*c) Redirijo sin discutir: le pregunto por su trabajo
 d) Lo ignoro hasta que se le olvide
 EXPLICACION: Corregir la realidad de una persona con demencia genera angustia sin ningún beneficio. Redirigir —reconocer lo que siente y llevar la conversación a otro lugar— calma sin engañar ni confrontar.
 
 P: La hija de un residente te pregunta por qué su mamá está tomando un medicamento nuevo. ¿Qué respondes?
 a) Le explico para qué sirve ese medicamento
 b) Le digo que no sé nada de eso
-*c) Le digo que esa información la maneja la enfermera y que le paso el mensaje para que se comunique con ella
+*c) Le digo que eso lo maneja la enfermera
 d) Le muestro el expediente para que lo lea
-EXPLICACION: La información clínica le corresponde a la enfermera o al director, no al cuidador — y mostrar el expediente además viola la confidencialidad. Canalizar la pregunta con honestidad responde a la familia sin salirte de tu rol.
+EXPLICACION: Y le paso el mensaje para que se comunique con ella. La información clínica le corresponde a la enfermera o al director, no al cuidador — y mostrar el expediente además viola la confidencialidad. Canalizarla con honestidad responde a la familia sin salirte de tu rol.
 
 P: Entras al cuarto de doña Carmen, de 91 años, para abrirle la cortina. ¿Cómo le hablas?
 a) "Abuelita, buenos días, ya amaneció"
@@ -441,15 +441,15 @@ Un residente que ayer conversaba normal y hoy no sabe dónde está **se reporta 
 PREGUNTAS:
 P: Un residente con demencia leve, que ayer conversaba con normalidad, hoy está confuso, no reconoce el lugar y habla incoherencias. ¿Qué haces?
 a) Es la progresión normal de su demencia, lo anoto en la bitácora
-*b) Lo reporto de inmediato: un cambio brusco no es la demencia avanzando, puede ser una causa tratable
+*b) Lo reporto de inmediato: un cambio brusco no es la demencia
 c) Espero unos días a ver si se estabiliza
 d) Le explico dónde está hasta que lo entienda
 EXPLICACION: La demencia avanza en meses o años, nunca de un día para otro. Un cambio brusco sugiere delirium, que suele tener causa tratable — infección urinaria, deshidratación, dolor o un medicamento nuevo. Reportarlo a tiempo puede evitar una hospitalización.
 
 P: ¿Qué capacidad conserva una persona con demencia avanzada, aunque ya no reconozca a nadie?
-a) La memoria de nombres
-*b) La capacidad de percibir el estado de ánimo de quien la atiende
-c) La orientación en el tiempo
+a) La memoria de nombres y fechas
+*b) Percibir tu estado de ánimo
+c) La orientación en el tiempo y el espacio
 d) La capacidad de tomar decisiones complejas
 EXPLICACION: La percepción emocional se conserva hasta etapas muy avanzadas. Aunque no entienda tus palabras, la persona nota si estás apurada, molesta o tranquila — por eso el tono con el que te acercas cambia el resultado del cuidado.
 
@@ -508,14 +508,14 @@ PREGUNTAS:
 P: Un residente con demencia se resiste con fuerza al baño, algo que antes aceptaba sin problema. ¿Cuál es tu primer paso?
 a) Insisto con firmeza, la higiene no es opcional
 b) Lo dejo sin bañar y lo anoto
-*c) Busco el desencadenante: si le duele algo, si tiene frío, si el ambiente lo abruma
+*c) Busco el desencadenante: dolor, frío, ruido
 d) Pido a otra persona que lo intente
 EXPLICACION: Un cambio de conducta suele tener causa. Alguien que antes aceptaba el baño y ahora se resiste puede tener dolor, sentir frío, o estar abrumado por el ruido. Revisar lo básico resuelve la mayoría de estas situaciones sin confrontación.
 
 P: ¿Qué es el síndrome vespertino?
-a) Una enfermedad distinta del Alzheimer
-*b) El patrón de mayor agitación al caer la tarde, frecuente en personas con demencia
-c) La somnolencia después del almuerzo
+a) Una enfermedad distinta del Alzheimer y la demencia
+*b) El patrón de agitación al atardecer
+c) La somnolencia después del almuerzo y la cena
 d) La dificultad para dormir de noche
 EXPLICACION: Muchas personas con demencia se agitan más al atardecer, cuando cambia la luz y aumenta el movimiento del cambio de turno. Es un patrón conocido y anticiparlo —bajando estímulos y encendiendo luces antes— reduce los episodios.
 
@@ -586,10 +586,10 @@ EXPLICACION: La acusación no es sobre ti: el cerebro llena el vacío de un obje
 
 P: Un residente pregunta repetidamente por su esposa, que falleció hace años. ¿Qué haces?
 a) Le explico con delicadeza que ella falleció
-*b) Valido el sentimiento y redirijo: "Se nota que la quiere mucho, cuénteme de ella"
+*b) Valido el sentimiento y redirijo
 c) Le digo que ella viene más tarde
 d) Cambio de tema bruscamente
-EXPLICACION: Darle la noticia lo obliga a vivir el duelo como si fuera nuevo, hoy y cada vez que pregunte. Validar el sentimiento responde a lo que realmente expresa —añoranza— sin mentirle ni lastimarlo.
+EXPLICACION: "Se nota que la quiere mucho, cuénteme de ella". Darle la noticia lo obliga a vivir el duelo como si fuera nuevo, hoy y cada vez que pregunte; validar el sentimiento responde a lo que de verdad expresa —añoranza— sin mentirle ni lastimarlo.
 
 P: Una compañera lleva diez minutos enseñándole el calendario a un residente para probarle que hoy no es domingo. Él está cada vez más alterado. ¿Qué le dices a ella?
 a) Que siga, así se va orientando poco a poco
@@ -647,14 +647,14 @@ PREGUNTAS:
 P: Un residente con demencia camina hacia la puerta de salida diciendo que se va a su casa. ¿Qué haces?
 a) Me paro frente a la puerta para bloquearle el paso
 b) Lo llevo a su habitación y cierro la puerta
-*c) Camino con él unos pasos, valido lo que dice y lo redirijo con una invitación
+*c) Camino con él unos pasos y lo redirijo
 d) Le explico que esta es su casa ahora
 EXPLICACION: Bloquear o encerrar aumenta la agitación y el riesgo de forcejeo. Acompañarlo y redirigir con algo concreto —un café, una actividad— desactiva el episodio sin confrontación. El intento se reporta siempre a supervisión.
 
 P: Un residente muy inquieto parece necesitar sujeción para que no se lastime. ¿Qué haces?
 a) Uso una sábana para sujetarlo a la silla mientras se calma
 b) Lo encierro en su habitación por su seguridad
-*c) Lo reporto a supervisión: las sujeciones no se deciden en el piso
+*c) Lo reporto: las sujeciones no se deciden aquí
 d) Le pido a un compañero que lo sostenga
 EXPLICACION: Las sujeciones físicas causan lesiones, agitación y pérdida de movilidad, y su uso está estrictamente regulado. Nunca se improvisan en el piso: la situación se reporta para que la evalúe quien corresponde.
 
@@ -717,16 +717,16 @@ PREGUNTAS:
 P: La hija de una residente con demencia avanzada te pregunta llorando cuánto tiempo le queda así. ¿Qué respondes?
 a) Le doy mi opinión basada en lo que he visto en otros residentes
 b) Le digo que nadie sabe y cambio de tema
-*c) Le digo con honestidad que esa pregunta la maneja el director o la enfermera, y le ofrezco pasar el mensaje
+*c) Le digo que esa pregunta la maneja el director o la enfermera
 d) Le explico las etapas de la demencia
-EXPLICACION: El pronóstico es información clínica que no le corresponde al cuidador, por más humana que sea la pregunta. Canalizarla con honestidad y calidez responde a la familia sin salirte de tu rol ni arriesgar una respuesta equivocada.
+EXPLICACION: Y le ofrezco pasar el mensaje. El pronóstico es información clínica que no le corresponde al cuidador, por más humana que sea la pregunta: canalizarla con honestidad y calidez responde a la familia sin arriesgar una respuesta equivocada.
 
 P: ¿Por qué importa tanto mantener la rutina de un residente con demencia?
 a) Porque facilita el trabajo del personal
-*b) Porque para un cerebro que ya no puede anticipar, la repetición reduce la ansiedad
+*b) Porque la repetición reduce la ansiedad
 c) Porque lo exige el reglamento
 d) Porque ayuda a que recupere la memoria
-EXPLICACION: La rutina es una de las intervenciones más efectivas disponibles en el piso. Cuando las cosas ocurren siempre igual, la persona no necesita anticipar lo que no puede — y eso baja la ansiedad y las conductas difíciles.
+EXPLICACION: Para un cerebro que ya no puede anticipar, esa repetición es tratamiento: cuando las cosas ocurren siempre igual, la persona no necesita adivinar lo que viene. Es de las intervenciones más efectivas que hay en el piso, y no cuesta nada.
 
 P: Una residente con demencia avanzada se asusta cada tarde en el baño y dice que "hay alguien ahí". ¿Qué revisas?
 *a) El espejo y la luz del baño
@@ -793,13 +793,13 @@ Si falta cualquiera de las cuatro, no empieces.
 PREGUNTAS:
 P: Un residente con asistencia de dos personas te dice que hoy se siente fuerte y que puede levantarse contigo sola. ¿Qué haces?
 a) Lo ayudo sola, él conoce su cuerpo mejor que nadie
-*b) Espero a un segundo compañero: el nivel de asistencia viene del plan, no del ánimo del día
+*b) Espero a un segundo compañero
 c) Lo dejo intentarlo solo mientras yo observo
 d) Le digo que no puede levantarse hoy
-EXPLICACION: El nivel de asistencia lo establece la evaluación, no cómo se sienta el residente esa mañana. Bajarlo por su cuenta es la forma más común de que ocurra una caída con lesión. Si notas que su capacidad mejoró, se reporta para que se reevalúe.
+EXPLICACION: El nivel de asistencia viene del plan, no del ánimo del día: lo establece la evaluación, no cómo se sienta el residente esa mañana. Bajarlo por tu cuenta es la forma más común de que ocurra una caída con lesión. Si notas que su capacidad mejoró, se reporta para que se reevalúe.
 
 P: ¿Cuál es la causa más frecuente de lesión de espalda en el personal de cuidado?
-a) Estar mucho tiempo de pie
+a) Estar mucho tiempo de pie durante el turno
 *b) Transferencias mal hechas, repetidas muchas veces
 c) Cargar suministros
 d) Trabajar turnos largos
@@ -851,14 +851,14 @@ La regla que resume todo: **usa las piernas, nunca la espalda**.
 PREGUNTAS:
 P: Vas a levantar a un residente desde una silla. ¿Cuál es la posición correcta?
 a) Piernas rectas, doblo la cintura para alcanzarlo
-*b) Pies separados, rodillas dobladas, espalda recta, el residente pegado a mi cuerpo
+*b) Pies separados, rodillas dobladas, espalda recta
 c) Me paro de lado y giro la cintura para moverlo
 d) Estiro los brazos para no invadir su espacio
-EXPLICACION: La fuerza sale de las piernas. Doblar la cintura o girar el torso con peso encima es exactamente el mecanismo que lesiona los discos, y sostener la carga lejos del cuerpo multiplica el peso efectivo sobre la espalda.
+EXPLICACION: Y el residente pegado a tu cuerpo. La fuerza sale de las piernas: doblar la cintura o girar el torso con peso encima es exactamente el mecanismo que lesiona los discos, y sostener la carga lejos del cuerpo multiplica el peso sobre la espalda.
 
 P: Necesitas girar a un residente hacia la cama mientras lo sostienes. ¿Qué haces?
 a) Giro la cintura manteniendo los pies fijos
-*b) Muevo los pies para girar todo el cuerpo a la vez
+*b) Muevo los pies, no la cintura
 c) Le pido que gire él solo
 d) Lo suelto un momento para reacomodarme
 EXPLICACION: Girar la cintura con peso encima es uno de los movimientos más lesivos que existen. Reposicionar los pies mantiene el torso alineado y distribuye el esfuerzo en las piernas.
@@ -914,7 +914,7 @@ LECTURA:
 PREGUNTAS:
 P: Durante una transferencia el residente pierde fuerza y empieza a caerse. ¿Qué haces?
 a) Lo sostengo con toda mi fuerza para que no toque el piso
-*b) Lo acerco a mi cuerpo, le protejo la cabeza y lo bajo al piso de forma controlada
+*b) Lo acerco a mi cuerpo, le protejo la cabeza y lo bajo
 c) Me quito para que no me arrastre
 d) Lo suelto y pido ayuda
 EXPLICACION: Intentar sostener el peso completo suele terminar con los dos en el piso y con una lesión de espalda. Bajarlo de forma controlada protegiendo la cabeza es la técnica correcta, y toda caída se reporta aunque no se vea daño.
@@ -922,9 +922,9 @@ EXPLICACION: Intentar sostener el peso completo suele terminar con los dos en el
 P: ¿Dónde se sujeta a un residente durante una transferencia asistida?
 a) Por debajo de las axilas
 b) Por las manos, halando hacia arriba
-*c) Por el cinturón de marcha, si su plan lo indica
+*c) Por el cinturón de marcha
 d) Por la ropa
-EXPLICACION: Halar por las axilas puede dislocar hombros —una lesión frecuente y evitable— y halar por las manos no da control. El cinturón de marcha reparte la fuerza sobre la cintura y te deja guiar sin cargar.
+EXPLICACION: Si su plan lo indica. Halar por las axilas puede dislocar hombros —una lesión frecuente y evitable— y halar por las manos no da control; el cinturón reparte la fuerza sobre la cintura y te deja guiar sin cargar.
 
 P: Sientas al residente al borde de la cama con los pies en el piso. Vas atrasada y quieres pararlo de una vez. ¿Qué haces?
 *a) Espero unos segundos y le pregunto si siente mareo
@@ -973,14 +973,14 @@ Por eso: **nunca arrastres. Levanta o usa sábana de deslizamiento**, y siempre 
 PREGUNTAS:
 P: Vas a subir a un residente que resbaló hacia los pies de la cama. ¿Cómo lo haces?
 a) Lo halo por debajo de los brazos hasta la cabecera
-*b) Con otra persona, levantándolo con una sábana de deslizamiento en vez de arrastrarlo
+*b) Con otra persona y una sábana de deslizamiento
 c) Lo halo por las piernas
 d) Le pido que se empuje solo
-EXPLICACION: Arrastrar produce cizallamiento: la piel se queda pegada a la sábana mientras el hueso se desplaza, desgarrando el tejido por dentro sin señal visible por fuera. Levantar entre dos con sábana evita ese daño.
+EXPLICACION: Levantándolo, no arrastrándolo. Arrastrar produce cizallamiento: la piel se queda pegada a la sábana mientras el hueso se desplaza, desgarrando el tejido por dentro sin señal visible por fuera.
 
 P: Al reposicionar ves una zona enrojecida en el sacro que no se aclara al presionarla. ¿Qué haces?
 a) Le doy masaje en la zona para activar la circulación
-*b) Alivio la presión de esa zona, lo documento y lo reporto
+*b) Alivio la presión, lo documento y lo reporto
 c) Le aplico una crema que tengo disponible
 d) Espero al próximo turno a ver si mejora
 EXPLICACION: El enrojecimiento que no cede al presionar indica que la circulación ya está comprometida. Nunca se da masaje sobre esa zona —aumenta el daño— ni se aplica nada por cuenta propia: se alivia la presión, se documenta y lo evalúa la enfermera.
@@ -1119,10 +1119,10 @@ EXPLICACION: La negativa suele esconder frío, dolor, vergüenza o necesidad de 
 
 P: ¿Cómo compruebas la temperatura del agua antes de bañar a un residente?
 a) Con la mano, como en casa
-*b) En el antebrazo, porque su piel siente menos y se quema más fácil
+*b) En el antebrazo, que siente más
 c) Le pregunto a él si está bien
 d) Uso siempre la misma posición del grifo
-EXPLICACION: La piel del adulto mayor es más delgada y su sensibilidad térmica está disminuida, así que puede quemarse sin retirarse a tiempo. El antebrazo es más sensible que la mano y da una lectura más confiable.
+EXPLICACION: Su piel siente menos y se quema más fácil: es más delgada y su sensibilidad térmica está disminuida, así que puede quemarse sin retirarse a tiempo. El antebrazo da una lectura más confiable que la mano.
 
 P: Vas a bañar a una residente con demencia avanzada. La puerta del cuarto está abierta y ella casi no habla. ¿Qué haces?
 a) Entro directo, con demencia no se entera de esas cosas
@@ -1178,10 +1178,10 @@ Esa es la señal más temprana y la más importante que vas a encontrar.
 PREGUNTAS:
 P: Presionas una zona enrojecida en el talón y el color no cambia. ¿Qué significa y qué haces?
 a) Es irritación normal del roce, la vigilo mañana
-*b) La circulación está comprometida: alivio la presión, documento y reporto
+*b) Alivio la presión, documento y reporto
 c) Le doy masaje para reactivar la circulación
 d) Le aplico crema hidratante y sigo
-EXPLICACION: Si el enrojecimiento no cede al presionar, el tejido ya no está recibiendo circulación adecuada. Es la señal más temprana de daño por presión. El masaje empeora el daño y aplicar productos por cuenta propia altera la evolución que la enfermera necesita ver.
+EXPLICACION: Significa que la circulación ya está comprometida — es la señal más temprana de daño por presión. El masaje lo empeora, y aplicar productos por cuenta propia altera la evolución que la enfermera necesita ver.
 
 P: La enfermera dejó un apósito en una lesión y al bañar al residente notas que está algo despegado. ¿Qué haces?
 a) Lo retiro y pongo uno nuevo
@@ -1238,7 +1238,7 @@ El manejo de la incontinencia es donde más dignidad se pierde y donde más piel
 
 PREGUNTAS:
 P: ¿En qué dirección se realiza la limpieza perineal y por qué?
-*a) De adelante hacia atrás, para no arrastrar bacterias hacia la uretra
+*a) De adelante hacia atrás, siempre
 b) De atrás hacia adelante, es más cómodo
 c) En círculos, para cubrir mejor
 d) La dirección no importa si se usa jabón
@@ -1246,7 +1246,7 @@ EXPLICACION: Limpiar hacia atrás evita llevar bacterias intestinales hacia la u
 
 P: Al cambiar a una residente ves enrojecimiento brillante y difuso en toda la zona del pañal. ¿Qué es y qué haces?
 a) Es una úlcera por presión, alivio la presión de la cadera
-*b) Parece dermatitis por incontinencia: lo documento y lo reporto para que la enfermera indique el manejo
+*b) Parece dermatitis por incontinencia: lo documento y lo reporto
 c) Le aplico la crema que uso con otros residentes
 d) Le dejo el área destapada toda la noche
 EXPLICACION: El enrojecimiento difuso y brillante en toda la zona sugiere daño químico por humedad, distinto de la úlcera por presión, que es localizada sobre una prominencia ósea. Distinguirlo importa, pero el manejo lo indica la enfermera — no se aplican productos de otros residentes.
@@ -1310,16 +1310,16 @@ PREGUNTAS:
 P: Terminas de asistir a un residente con guantes puestos y vas a atender al siguiente. ¿Qué haces?
 a) Mantengo los mismos guantes, no toqué nada sucio
 b) Me echo gel de alcohol sobre los guantes
-*c) Me quito los guantes, me lavo las manos y me pongo un par nuevo
+*c) Me los quito, me lavo y me pongo otros
 d) Me cambio solo el guante de la mano dominante
 EXPLICACION: Los guantes usados transportan microorganismos igual que las manos, con el agravante de la falsa sensación de limpieza. Un residente, un par — y el lavado de manos después de quitárselos es obligatorio, no opcional.
 
 P: Un residente tiene diarrea. ¿Basta con usar gel de alcohol entre contactos?
-a) Sí, el gel elimina todo
-*b) No: ante diarrea hay que lavarse con agua y jabón, que arrastran el organismo
-c) Sí, si uso doble cantidad
-d) Solo si no toqué al residente
-EXPLICACION: El gel de alcohol no es efectivo contra varios organismos que causan diarrea, entre ellos los que producen brotes en facilidades. El lavado con agua y jabón los arrastra mecánicamente, que es lo único que funciona en ese caso.
+a) Sí, el gel de alcohol elimina todo
+*b) No: ante diarrea, agua y jabón
+c) Sí, si uso el doble de cantidad
+d) Solo si no toqué al residente directamente
+EXPLICACION: El agua y el jabón arrastran el organismo; el gel de alcohol no es efectivo contra varios de los que causan diarrea, incluidos los que producen brotes en facilidades. Arrastrarlo es lo único que funciona ahí.
 
 P: Una compañera te dice que con doña Carmen no hace falta ponerse guantes para el cambio, porque "ella no tiene nada". ¿Qué haces?
 *a) Me pongo guantes igual: las precauciones estándar son con todos, siempre
@@ -1368,17 +1368,17 @@ LECTURA:
 PREGUNTAS:
 P: Un residente diabético tiene las uñas de los pies largas. ¿Qué haces?
 a) Se las corto con cuidado, es parte del cuidado personal
-*b) Lo reporto: las uñas de un residente diabético no las corta el cuidador
+*b) Lo reporto: eso no lo corta el cuidador
 c) Le pido a la familia que traiga un cortaúñas
 d) Se las limo yo para no cortar
-EXPLICACION: En un pie diabético la circulación y la sensibilidad están comprometidas: un corte mínimo puede convertirse en una úlcera que no cierra y terminar en una complicación grave. Ese cuidado le corresponde a personal capacitado y se gestiona reportándolo.
+EXPLICACION: Y menos en un diabético. En ese pie la circulación y la sensibilidad están comprometidas: un corte mínimo puede convertirse en una úlcera que no cierra y terminar en una complicación grave. Ese cuidado le toca a personal capacitado.
 
 P: ¿Por qué la higiene bucal es especialmente importante en el adulto mayor?
 a) Solo por estética y aliento
-*b) Porque las bacterias de la boca aspiradas al pulmón pueden causar neumonía
+*b) Porque una boca sucia causa neumonía
 c) Porque lo exige el reglamento
 d) Porque evita que se caigan los dientes
-EXPLICACION: La neumonía por aspiración es una de las principales causas de hospitalización en esta población, y una boca en mal estado multiplica el riesgo. Además el dolor bucal reduce el apetito, lo que arrastra pérdida de peso y debilidad.
+EXPLICACION: Las bacterias de la boca, aspiradas al pulmón. La neumonía por aspiración es una de las principales causas de hospitalización en esta población, y una boca en mal estado multiplica el riesgo. Y el dolor bucal además reduce el apetito, lo que arrastra pérdida de peso.
 
 P: Al acostar a una residente le retiras la dentadura postiza. ¿Qué haces con ella y con su boca?
 a) La envuelvo en una servilleta y la dejo en la mesa de noche
@@ -1442,13 +1442,13 @@ PREGUNTAS:
 P: Un residente con dieta blanda te pide un pedazo de carne del menú regular, insistiendo en que puede masticarla. ¿Qué haces?
 a) Se lo doy cortado en trozos pequeños
 b) Se lo doy, él conoce su capacidad
-*c) Le explico que su dieta la indicó su evaluación y reporto que la está reclamando
+*c) Le explico que su dieta la indicó su evaluación
 d) Le digo que no y no lo menciono a nadie
-EXPLICACION: La consistencia de la dieta no es una preferencia: alguien determinó que esa persona no puede manejar otra textura sin riesgo de aspiración. Dar algo fuera de la dieta indicada es una de las formas más frecuentes de causar una neumonía por aspiración. Si la reclama, se reporta para reevaluación.
+EXPLICACION: Y reporto que la está reclamando, para que se reevalúe. La consistencia no es una preferencia: alguien determinó que esa persona no puede manejar otra textura sin riesgo de aspiración, y dar algo fuera de la dieta es de las formas más frecuentes de causar una neumonía.
 
 P: ¿Por qué los adultos mayores se deshidratan con tanta facilidad?
 a) Porque toman menos agua a propósito
-*b) Porque la sensación de sed disminuye con la edad y el cuerpo deja de avisar
+*b) Porque la sed deja de avisar
 c) Porque sudan más
 d) Porque los medicamentos siempre deshidratan
 EXPLICACION: El mecanismo de la sed se debilita con la edad, así que la persona puede estar deshidratada sin sentir ninguna necesidad de tomar agua. Por eso el líquido se ofrece de forma activa durante todo el turno, sin esperar a que lo pidan.
@@ -1504,17 +1504,17 @@ LECTURA:
 PREGUNTAS:
 P: Vas a asistir a comer a un residente encamado. ¿Cuál es la posición correcta?
 a) Acostado de lado, para que sea más cómodo
-*b) Sentado a 90 grados con la barbilla ligeramente hacia abajo, y así 30 minutos después
+*b) Sentado a 90 grados, con la barbilla algo baja
 c) Semisentado con la cabeza hacia atrás para que pase mejor
 d) Como esté, si solo son unas cucharadas
-EXPLICACION: Con la cabeza hacia atrás la vía respiratoria queda abierta y la comida entra directo al pulmón. Sentado derecho con la barbilla algo baja se cierra esa vía. Los 30 minutos posteriores evitan que el contenido regrese y se aspire.
+EXPLICACION: Y así 30 minutos después de comer. Con la cabeza hacia atrás la vía respiratoria queda abierta y la comida entra directo al pulmón; sentado derecho con la barbilla algo baja se cierra esa vía. Los 30 minutos evitan que el contenido regrese y se aspire.
 
 P: Al terminar de comer notas que el residente tiene comida acumulada en el cachete. ¿Qué significa?
 a) Que come despacio, es normal
-*b) Es señal de dificultad para tragar: se limpia la boca y se reporta
+*b) Es señal de dificultad para tragar
 c) Que no le gustó la comida
 d) Que necesita bocados más grandes
-EXPLICACION: La comida retenida indica que el residente no está tragando bien, y ya acostado puede aspirarla. Es una de las señales tempranas de disfagia y se reporta para que se evalúe la consistencia de su dieta.
+EXPLICACION: Se le limpia la boca y se reporta. La comida retenida indica que no está tragando bien, y ya acostado puede aspirarla: es de las señales tempranas de disfagia, y se reporta para que se evalúe la consistencia de su dieta.
 
 P: Una residente puede sostener la cuchara, pero tarda y se ensucia. Te faltan cuatro bandejas más. ¿Qué haces?
 a) Le quito la cuchara y la alimento yo, que es más rápido
@@ -1568,13 +1568,13 @@ PREGUNTAS:
 P: Un residente tose cada vez que toma agua, pero come sólidos sin problema. ¿Qué haces?
 a) Le doy el agua más despacio y no lo reporto
 b) Le suspendo el agua hasta que mejore
-*c) Lo reporto: la tos con líquidos es señal de disfagia y puede requerir espesantes
+*c) Lo reporto: la tos con líquidos es señal de disfagia
 d) Le doy el agua con pajilla para que pase más rápido
 EXPLICACION: El líquido delgado es lo que más fácil se cuela a la vía respiratoria, por eso muchas personas tosen con agua antes que con sólidos. La tos al beber es la señal más importante de disfagia y quien indica el espesante es la evaluación, no el cuidador.
 
 P: Un residente con líquidos espesados te pide agua normal porque tiene mucha sed. ¿Qué haces?
 a) Le doy un vaso pequeño, la sed es real
-*b) Le ofrezco agua espesada: la indicación aplica a todo líquido, sin excepciones
+*b) Le ofrezco agua espesada, sin excepciones
 c) Le doy agua normal con pajilla
 d) Le doy hielo en vez de agua
 EXPLICACION: Si tiene líquidos espesados es porque el líquido delgado se le cuela a la vía respiratoria. Eso incluye agua, jugo, café y sopa — y el hielo derretido también. Una sola excepción puede causar una neumonía por aspiración.
@@ -1643,7 +1643,7 @@ EXPLICACION: Si tose con fuerza y puede hablar, la obstrucción es parcial y su 
 P: Un residente se agarra el cuello, no puede hablar ni toser y se está poniendo morado. ¿Qué haces primero?
 a) Le doy agua
 b) Lo acuesto para revisarle la boca
-*c) Pido ayuda a gritos para que llamen al 911 y empiezo compresiones abdominales
+*c) Pido ayuda a gritos y empiezo compresiones
 d) Espero unos segundos a ver si tose
 EXPLICACION: No poder toser ni hablar indica obstrucción completa: sin aire, el daño cerebral empieza en minutos. Se pide ayuda y se actúa simultáneamente con compresiones hacia adentro y hacia arriba, sin esperar.
 
@@ -1709,14 +1709,14 @@ Y recuerda: una confusión nueva en un residente siempre se reporta. Puede ser d
 PREGUNTAS:
 P: Una residente que siempre está orientada hoy amanece confusa y somnolienta, y su orina está muy oscura. ¿Qué haces?
 a) La dejo descansar, seguramente durmió mal
-*b) Lo reporto de inmediato: puede ser deshidratación o una infección urinaria
+*b) Lo reporto de inmediato, sin esperar
 c) Le doy mucha agua de golpe y espero
 d) Lo anoto para el próximo cambio de turno
 EXPLICACION: En el adulto mayor la deshidratación y la infección urinaria se manifiestan primero como confusión, no como sed o ardor. Ambas son tratables si se detectan pronto, y ambas terminan en hospitalización si se dejan pasar un turno más.
 
 P: ¿Cuál es la razón más frecuente por la que un residente toma menos líquido de lo que necesita?
 a) Que no le gusta el agua
-*b) Que toma menos a propósito para no ir tanto al baño o no tener que pedir ayuda
+*b) Que toma menos a propósito
 c) Que ya tomó suficiente
 d) Que el vaso es muy pequeño
 EXPLICACION: Es un cálculo consciente y muy común: prefieren la sed a la incomodidad de pedir ayuda o al miedo de no llegar a tiempo. Por eso ofrecer el baño con regularidad hace tanto por la hidratación como ofrecer el vaso.
@@ -1792,17 +1792,17 @@ Estos no son ideales bonitos: son derechos, y violarlos tiene consecuencias lega
 PREGUNTAS:
 P: Un residente se niega a bajar al comedor y quiere comer en su cuarto. ¿Qué haces?
 a) Lo bajo igual, la rutina es la rutina
-*b) Respeto su decisión, se lo llevo al cuarto y lo documento
+*b) Respeto su decisión y lo documento
 c) Le digo que si no baja no come
 d) Lo dejo sin comer hasta que cambie de opinión
-EXPLICACION: Decidir sobre su cuidado es un derecho, y comer en su cuarto no pone en riesgo a nadie. Se respeta y se documenta. Si la negativa a bajar se vuelve un patrón, eso sí se reporta — puede indicar depresión o un conflicto con otro residente.
+EXPLICACION: Y se lo llevo al cuarto. Decidir sobre su cuidado es un derecho, y comer arriba no pone en riesgo a nadie. Si la negativa a bajar se vuelve un patrón, eso sí se reporta: puede indicar depresión o un conflicto con otro residente.
 
 P: ¿Qué significa en la práctica el derecho a la privacidad?
 a) Que el residente puede cerrar su puerta cuando quiera
-*b) Tocar y esperar respuesta antes de entrar, no revisar sus cosas, y no hablar de él delante de otros
+*b) Tocar y esperar respuesta antes de entrar
 c) Que la familia no puede recibir información
 d) Que no se documenta lo que ocurre en su cuarto
-EXPLICACION: La privacidad no es solo la puerta: incluye su cuerpo durante el cuidado, sus pertenencias, sus conversaciones y su información. Hablar de un residente en el pasillo o delante de otro es una violación tan real como entrar sin tocar.
+EXPLICACION: Y no revisar sus cosas, y no hablar de él delante de otros. La privacidad no es solo la puerta: incluye su cuerpo durante el cuidado, sus pertenencias, sus conversaciones y su información. Hablar de un residente en el pasillo es una violación tan real como entrar sin tocar.
 
 P: Doña Rosa se tarda escogiendo qué ponerse y tú vas atrasada con la ronda. ¿Qué haces?
 a) Escojo yo la ropa, es más rápido y ella no nota la diferencia
@@ -1857,14 +1857,14 @@ La forma de hablarle a un adulto mayor comunica, antes que cualquier contenido, 
 PREGUNTAS:
 P: Una residente tiene dificultad para oír. ¿Cómo te comunicas?
 a) Le hablo más alto, casi gritando
-*b) De frente, a su altura, más claro y despacio, y reformulo si no entendió
+*b) De frente, a su altura, más claro y despacio
 c) Le escribo todo en papel
 d) Le hablo a su familiar para que le transmita
-EXPLICACION: Gritar distorsiona el sonido y además avergüenza a la persona delante de otros. Ponerte de frente le permite leer los labios, y reformular funciona mucho mejor que repetir la misma frase más fuerte.
+EXPLICACION: Y reformulo si no entendió. Gritar distorsiona el sonido y además la avergüenza delante de otros; ponerte de frente le permite leer los labios, y decirlo con otras palabras funciona mucho mejor que repetir la misma frase más fuerte.
 
 P: ¿Por qué no se debe llamar "abuelita" o "mi amor" a un residente?
 a) Porque suena poco profesional ante las visitas
-*b) Porque lo infantiliza: es una persona adulta con su propio nombre
+*b) Porque lo infantiliza: es una persona adulta
 c) Porque puede confundirlo
 d) No hay problema si se dice con cariño
 EXPLICACION: La intención suele ser cariñosa, pero el efecto es tratarlo como un niño y no como el adulto que es. Usar su nombre, como él prefiera que lo llamen, es una de las formas más simples y directas de sostener su dignidad.
@@ -1916,15 +1916,15 @@ Todo lo que sabes de un residente por trabajar aquí es información protegida: 
 PREGUNTAS:
 P: Llama alguien diciendo ser hijo de una residente y pide saber cómo sigue. ¿Qué haces?
 a) Le doy la información, es de la familia
-*b) No doy información: verifico si es el contacto autorizado y refiero al director o la enfermera
+*b) No doy información por teléfono
 c) Le doy solo el diagnóstico, no los medicamentos
 d) Le pido que llame más tarde
-EXPLICACION: Por teléfono no puedes verificar quién llama, y no toda la familia tiene derecho a toda la información — solo el contacto autorizado. La información clínica además la da la enfermera o el director, no el cuidador.
+EXPLICACION: Se verifica si es el contacto autorizado y se refiere al director o a la enfermera. Por teléfono no puedes saber quién llama, y no toda la familia tiene derecho a toda la información — solo el contacto autorizado.
 
 P: Tomaste una foto en una actividad donde salen varios residentes sonriendo. ¿Qué puedes hacer con ella?
 a) Publicarla, se ven contentos y es buena publicidad
 b) Compartirla solo en el grupo de WhatsApp del personal
-*c) Nada sin autorización escrita: no se publican ni se comparten fotos de residentes
+*c) Nada sin autorización escrita: no se comparten fotos
 d) Publicarla si no se ven las caras claramente
 EXPLICACION: Las imágenes de residentes son información protegida y requieren autorización escrita, incluso para uso interno. Compartirlas en un grupo de personal las saca del control de la facilidad y es motivo de despido y consecuencia legal.
 
@@ -1999,7 +1999,7 @@ EXPLICACION: Reportar no es opcional ni depende de estar seguro: tu trabajo es d
 P: Una residente con demencia dice que alguien del personal le pegó. ¿Qué haces?
 a) No le hago caso, su demencia la hace confundir cosas
 b) Le pregunto a los compañeros del turno si es verdad
-*c) Lo reporto de inmediato: un señalamiento de maltrato siempre se toma en serio
+*c) Lo reporto de inmediato: siempre se toma en serio
 d) Espero a ver si lo repite otro día
 EXPLICACION: Tener demencia no invalida un señalamiento de maltrato — precisamente las personas con demencia son las más vulnerables y las menos creídas. Reportarlo no acusa a nadie: activa que lo evalúe quien corresponde.
 
@@ -2054,15 +2054,15 @@ PREGUNTAS:
 P: Un residente te insulta y te escupe mientras lo asistes. ¿Qué haces?
 a) Le respondo con firmeza para que entienda que no se hace
 b) Lo dejo sin asistir el resto del turno
-*c) Me retiro, me calmo, pido relevo si lo necesito y reporto la agresión
+*c) Me retiro, me calmo y reporto la agresión
 d) Lo aguanto en silencio, es parte del trabajo
-EXPLICACION: Tienes derecho a no ser agredido, y aguantarlo en silencio desgasta hasta que el trato se deteriora. Retirarte evita responder en caliente; reportarlo permite que se evalúe la causa —dolor, demencia, un medicamento— en vez de que se repita cada turno.
+EXPLICACION: Y pido relevo si lo necesito. Tienes derecho a no ser agredido, y aguantarlo en silencio desgasta hasta que el trato se deteriora. Retirarte evita responder en caliente; reportarlo permite que se evalúe la causa —dolor, demencia, un medicamento— en vez de que se repita cada turno.
 
 P: ¿Cuál es el factor que más frecuentemente erosiona el trato digno en un turno?
-a) La mala intención del personal
-*b) La prisa: cuando vas corriendo dejas de tocar, de explicar y de esperar
-c) La falta de reglas escritas
-d) El tamaño de la facilidad
+a) La mala intención de parte del personal
+*b) La prisa: dejas de tocar y de explicar
+c) La falta de reglas escritas y claras
+d) El tamaño de la facilidad y su diseño
 EXPLICACION: El maltrato rara vez empieza con mala intención. Empieza con prisa y costumbre: se deja de tocar la puerta, se deja de avisar antes de destapar, se deja de esperar la respuesta. Reconocerlo a tiempo es lo que evita que se normalice.
 
 P: Llevas ocho meses bañando a don Tomás todos los días. Ya no le avisas antes de destaparlo ni le explicas lo que vas a hacer, porque él ya se lo sabe. ¿Qué está pasando?
@@ -2140,7 +2140,7 @@ Lo que sí decides tú, y no necesita permiso de nadie: **llamar al 911 cuando h
 PREGUNTAS:
 P: Un residente presenta una señal que podría ser grave, pero no estás seguro y tu supervisor no contesta. ¿Qué haces?
 a) Espero a localizar al supervisor antes de decidir
-*b) Llamo al 911: la duda se resuelve llamando, no esperando
+*b) Llamo al 911: la duda se llama
 c) Lo observo 30 minutos a ver si mejora
 d) Le pregunto a un compañero qué opina
 EXPLICACION: Activar el 911 ante una emergencia real no requiere autorización de nadie. El costo de una llamada de más es cero; el de esperar puede ser la vida del residente. Se llama y después se avisa a supervisión.
@@ -2203,14 +2203,14 @@ Levantar a alguien que puede tener una fractura de cadera o una lesión de colum
 PREGUNTAS:
 P: Encuentras a un residente en el piso, consciente, que dice estar bien y quiere levantarse. No sabes si se golpeó la cabeza. ¿Qué haces?
 a) Lo ayudo a levantarse, él sabe cómo se siente
-*b) No lo muevo y llamo al 911: un posible golpe en la cabeza requiere evaluación
+*b) No lo muevo y llamo al 911
 c) Lo levanto y lo observo el resto del turno
 d) Lo dejo levantarse solo y lo documento
-EXPLICACION: Un golpe en la cabeza puede producir un sangrado interno que tarda horas en dar señales, y el riesgo se multiplica si el residente toma anticoagulantes. Cuando no sabes si se golpeó, se asume que sí y se evalúa.
+EXPLICACION: Un posible golpe en la cabeza siempre requiere evaluación: puede producir un sangrado interno que tarda horas en dar señales, y el riesgo se multiplica si el residente toma anticoagulantes. Cuando no sabes si se golpeó, se asume que sí.
 
 P: No presenciaste la caída. ¿Cómo lo documentas?
 a) "Se cayó mientras caminaba al baño"
-*b) "Encontrado en el piso" con la hora, la posición y lo que observé
+*b) "Encontrado en el piso", con hora y posición
 c) "Se resbaló, probablemente por el piso mojado"
 d) Lo dejo sin documentar porque no lo vi
 EXPLICACION: Documentar lo que no viste como si lo hubieras visto compromete la investigación y tu credibilidad. Se escribe exactamente lo observado — encontrado en el piso, en qué posición, a qué hora — y lo que el residente dijo entre comillas.
@@ -2275,17 +2275,17 @@ Qué haces: **911**, **siéntalo derecho** (nunca acostado), afloja la ropa, ven
 PREGUNTAS:
 P: Una residente sonríe con un lado de la cara caído y arrastra las palabras. ¿Qué haces?
 a) La acuesto a descansar y la vigilo
-*b) Llamo al 911 y anoto la hora en que la vi normal por última vez
+*b) Llamo al 911 y anoto la hora
 c) Le doy agua y espero a ver si se recupera
 d) Llamo primero a la familia
-EXPLICACION: Es la prueba RÁPIDO positiva y una sola señal basta para activar el 911. El tratamiento del derrame depende de una ventana de horas, y la hora en que se la vio normal por última vez es el dato con el que el hospital decide qué puede hacer.
+EXPLICACION: La hora en que la viste normal POR ÚLTIMA VEZ. Es la prueba RÁPIDO positiva, y una sola señal basta para activar el 911: el tratamiento del derrame depende de una ventana de horas, y esa hora es el dato con el que el hospital decide qué puede hacer.
 
 P: Un residente se queja de opresión en el pecho que se le corre al brazo, con sudor frío. ¿Qué haces?
 a) Le doy una aspirina y lo acuesto
-*b) Llamo al 911, lo siento semisentado, aflojo su ropa y no le doy nada
+*b) Llamo al 911 y no le doy nada
 c) Le doy agua y lo llevo caminando a su cuarto
 d) Espero 15 minutos a ver si el dolor cede
-EXPLICACION: Todo dolor de pecho se maneja como emergencia cardíaca. Caminar aumenta la demanda del corazón y dar cualquier medicamento por cuenta propia —incluida la aspirina— está fuera del rol del cuidador y puede ser peligroso según lo que ya tome.
+EXPLICACION: Semisentado y con la ropa floja. Todo dolor de pecho se maneja como emergencia cardíaca: caminar aumenta la demanda del corazón, y dar cualquier medicamento por cuenta propia —incluida la aspirina— está fuera del rol del cuidador y puede ser peligroso según lo que ya tome.
 
 P: Doña Luz, de 84 años, de momento se pone pálida, con sudor frío, náusea y falta de aire. Te repite que el pecho no le duele nada. ¿Qué haces?
 a) Como no le duele el pecho, la acuesto a descansar y la vigilo
@@ -2351,16 +2351,16 @@ PREGUNTAS:
 P: Un residente está convulsionando en el piso. ¿Qué haces?
 a) Lo sujeto para que no se lastime con los movimientos
 b) Le pongo algo en la boca para que no se trague la lengua
-*c) Retiro objetos, protejo su cabeza, anoto la hora y lo pongo de lado al terminar
+*c) Retiro objetos, protejo su cabeza y anoto la hora
 d) Lo siento en una silla y le doy agua
-EXPLICACION: Sujetar produce fracturas y no detiene la convulsión. Meter un objeto en la boca rompe dientes y provoca aspiración — tragarse la lengua es imposible. Lo correcto es proteger el entorno, cronometrar y girarlo de lado al terminar.
+EXPLICACION: Y lo pongo de lado al terminar. Sujetar produce fracturas y no detiene la convulsión; meter un objeto en la boca rompe dientes y provoca aspiración — tragarse la lengua es imposible. Proteger el entorno y cronometrar es todo lo que hay que hacer.
 
 P: Un residente diabético está sudoroso, tembloroso y confuso, pero consciente y traga bien. ¿Qué haces?
 a) Lo acuesto a descansar y lo vigilo
-*b) Le doy algo dulce de absorción rápida según su plan y lo reporto
+*b) Le doy algo dulce según su plan
 c) Le doy agua y espero
 d) No le doy nada y espero al supervisor
-EXPLICACION: Son señales clásicas de azúcar baja, que se corrige en minutos con azúcar de absorción rápida si la persona está consciente y traga. Si estuviera inconsciente o sin poder tragar, no se le da nada por boca: se llama al 911.
+EXPLICACION: De absorción rápida, y lo reporto. Son señales clásicas de azúcar baja, que se corrige en minutos si la persona está consciente y traga bien. Si estuviera inconsciente o sin poder tragar, no se le da nada por boca: se llama al 911.
 
 P: Doña Ana siempre está orientada. Hoy no sabe dónde está y anda más dormida que de costumbre. Tu compañera te dice que "ya la demencia le avanzó". ¿Qué haces?
 a) Le hago caso, a esa edad es lo más probable
@@ -2423,17 +2423,17 @@ Buscar eso durante la emergencia es tiempo que no tienes.
 PREGUNTAS:
 P: Llegan los paramédicos por un residente que encontraste en el piso. ¿Qué información es la más importante que puedes darles?
 a) Mi opinión de lo que probablemente le pasó
-*b) La hora exacta, cómo lo encontré, sus condiciones, medicamentos —sobre todo anticoagulantes— y su nivel habitual
+*b) La hora exacta y cómo lo encontré
 c) El nombre del supervisor de turno
 d) El historial completo de su expediente
-EXPLICACION: Los paramédicos necesitan hechos con hora y una referencia de su estado normal, porque sin saber su nivel habitual no pueden distinguir qué es un cambio. Los anticoagulantes cambian el manejo de cualquier golpe y son de los datos más críticos.
+EXPLICACION: Y sus condiciones, sus medicamentos —sobre todo anticoagulantes— y cuál es su nivel habitual. Sin esa referencia no pueden distinguir qué es un cambio, y los anticoagulantes cambian el manejo de cualquier golpe.
 
 P: ¿Cómo documentas después de una emergencia?
 a) Al final del turno, con un resumen general
-*b) De inmediato, con horas exactas y hechos observados, sin interpretar causas
+*b) De inmediato, con horas exactas y hechos
 c) Solo si el residente resultó lesionado
 d) Con mi conclusión de qué provocó el episodio
-EXPLICACION: La memoria se distorsiona en minutos, y la documentación es lo que protege al residente, a la facilidad y a ti. Se escriben hechos con hora —lo observado y lo dicho entre comillas— no la causa que uno supone.
+EXPLICACION: Sin interpretar causas. La memoria se distorsiona en minutos, y la documentación es lo que protege al residente, a la facilidad y a ti: se escriben hechos con hora —lo observado y lo dicho entre comillas— no la causa que uno supone.
 
 P: Llamaste al 911, diste la dirección y te dicen que la ambulancia va en camino. Todavía te falta avisar a supervisión y buscar la lista de medicamentos. ¿Qué haces?
 a) Cuelgo y llamo al supervisor, que es lo próximo en el orden
@@ -2506,7 +2506,7 @@ Eso cambia el peso de la documentación. No es papeleo: es el instrumento con el
 PREGUNTAS:
 P: Notas que un residente lleva tres días comiendo la mitad. ¿Por qué importa escribirlo?
 a) Porque lo exige el reglamento del hogar
-*b) Porque el servicio externo no está aquí a diario: decide con lo que el hogar documentó
+*b) Porque el servicio externo decide con eso
 c) Porque así queda constancia de que hiciste tu turno
 d) Porque la familia puede pedir el expediente
 EXPLICACION: El servicio externo viene una o dos veces por semana. Lo que sabe del residente el resto del tiempo es exactamente lo que el hogar escribió. Un cambio no documentado no existe para quien tiene que decidir.
@@ -2514,7 +2514,7 @@ EXPLICACION: El servicio externo viene una o dos veces por semana. Lo que sabe d
 P: Ves algo que te preocupa en un residente. ¿A quién se lo dices primero?
 a) Directamente al médico o al servicio externo
 b) A la familia, que es quien paga
-*c) Al supervisor de turno, que lo pasa a la enfermera del hogar
+*c) Al supervisor de turno, que lo escala
 d) Lo anoto y espero a que alguien lo lea
 EXPLICACION: La cadena del hogar es cuidador → supervisor de turno → enfermera del hogar → servicio externo. Saltar eslabones hacia arriba deja al hogar sin saber lo que pasa, y anotarlo sin avisar retrasa la respuesta.
 
@@ -2575,7 +2575,7 @@ d) Retenido, porque se retuvo la dosis
 EXPLICACION: Rechazado significa que el residente ejerció su derecho y tú hiciste tu parte. Marcarlo como no administrado esconde un dato clínico —que está rechazando su tratamiento— y además te atribuye una falla que no cometiste.
 
 P: Piensas que un medicamento no se le debe dar a un residente porque se ve mal. ¿Qué haces?
-*a) Se lo digo al supervisor de turno antes de la hora
+*a) Se lo digo al supervisor antes de la hora
 b) Lo marco como retenido y sigo
 c) Se lo doy igual, la orden es la orden
 d) Espero al próximo turno para que decidan ellos
@@ -2638,12 +2638,12 @@ PREGUNTAS:
 P: Un familiar trae un frasco de medicamento nuevo y pide que se lo den a su mamá. ¿Qué haces?
 a) Se lo devuelvo y le explico que no se aceptan medicamentos
 b) Lo guardo en la habitación de la residente por si acaso
-*c) Lo recibo, lo llevo a enfermería identificado y aviso al supervisor de turno
+*c) Lo recibo, lo llevo a enfermería y aviso
 d) Se lo administro, la familia sabe lo que su mamá necesita
-EXPLICACION: El medicamento se recibe —no se rechaza en la puerta— pero va a enfermería, identificado y bajo aviso al supervisor. No se administra hasta estar en el plan y en el sistema, porque la familia suele tener información incompleta.
+EXPLICACION: Identificado, y con aviso al supervisor de turno. El medicamento se recibe —no se rechaza en la puerta— pero va a enfermería. No se administra hasta estar en el plan y en el sistema, porque la familia suele traer información incompleta o vieja.
 
 P: Un familiar te asegura que el doctor suspendió una pastilla. ¿Qué pasa con la próxima dosis?
-*a) Se administra según el plan, y se lo digo verbalmente al supervisor de turno
+*a) Se administra según el plan, y aviso al supervisor
 b) Se suspende, el doctor manda más que el sistema
 c) Se suspende solo si el familiar lo pone por escrito
 d) Se decide en el relevo del próximo turno
@@ -2722,8 +2722,8 @@ d) Se observa unos días a ver si se estabiliza
 EXPLICACION: Una confusión que aparece de golpe puede ser infección urinaria, deshidratación, azúcar baja o un derrame — todas tratables si se detectan a tiempo. La demencia avanza en meses, nunca de un día para otro.
 
 P: ¿Cuál de estas dos notas le sirve a la enfermera?
-a) "El residente estaba raro en la tarde, creo que algo le molesta"
-*b) "A las 3:15 se quejó de dolor en la cadera derecha al levantarse. Comió el 30%."
+a) "El residente estaba raro en la tarde, creo que algo le molesta bastante"
+*b) "A las 3:15 se quejó de dolor en la cadera. Comió el 30%."
 c) "Todo normal durante el turno"
 d) "Parece que le está empezando una infección"
 EXPLICACION: La documentación útil tiene hora, hecho observado y dato concreto, sin interpretar la causa. La primera no permite actuar y la última introduce un diagnóstico que no le corresponde al cuidador.
@@ -2781,15 +2781,15 @@ Es la información que más se queda sin pasar, y la que más cuesta después. U
 
 PREGUNTAS:
 P: Un familiar te pregunta en la tarde por qué su mamá está durmiendo más. Le contestas y él se va tranquilo. ¿Qué haces con eso?
-*a) Lo paso en el relevo: quién preguntó, qué se le contestó y qué quedó pendiente
+*a) Lo paso en el relevo por escrito
 b) Nada, ya quedó resuelto en el momento
 c) Se lo comento de palabra al compañero que entra
 d) Lo anoto solo si el familiar se fue molesto
-EXPLICACION: Lo que la familia preguntó es la información que más se pierde en el relevo. Si no queda escrito, el turno siguiente contesta otra cosa cuando el familiar vuelva a llamar — y ahí nace la queja.
+EXPLICACION: Quién preguntó, qué se le contestó y qué quedó pendiente. Lo que la familia preguntó es lo que más se pierde en el relevo, y si no queda escrito el turno siguiente contesta otra cosa cuando el familiar vuelva a llamar — ahí nace la queja.
 
 P: ¿Qué significa firmar el cierre de turno en Zendity?
 a) Que terminaste tu jornada
-*b) Que lo que documentaste durante el turno es lo que realmente ocurrió
+*b) Que lo documentado es lo que realmente ocurrió
 c) Que el próximo turno ya recibió la información de palabra
 d) Que no quedaron pendientes
 EXPLICACION: La firma es una declaración sobre el contenido, no un marcador de salida. Por eso documentar de memoria al final del turno, o registrar lo que debió pasar en vez de lo que pasó, compromete un expediente clínico.
@@ -2872,9 +2872,9 @@ EXPLICACION: Sin circulación el tejido empieza a dañarse en horas, y en una pe
 P: Un residente con Braden de 16 hace dos meses ahora come poco y ya no se gira solo. ¿Qué te toca hacer?
 a) Bajarle la puntuación de Braden en el sistema
 b) Nada, la escala se reevalúa a los seis meses
-*c) Reportar los cambios: son justo lo que mueve la puntuación entre evaluaciones
+*c) Reportar los cambios: come poco, no se gira
 d) Aumentar la rotación por mi cuenta a cada hora
-EXPLICACION: El cuidador no puntúa la escala —eso es de la enfermera del hogar, cada seis meses— pero es quien ve lo que la mueve en medio. Reportar que come menos y que perdió movilidad es exactamente el aporte que se espera.
+EXPLICACION: Son justo lo que mueve la puntuación entre evaluaciones. El cuidador no puntúa la escala —eso es de la enfermera del hogar, cada seis meses— pero es quien ve lo que la mueve en medio, y ese es el aporte que se espera.
 
 P: Estás sola y subes a una residente hacia la cabecera halándola por la sábana. Fue rápido y no se quejó. ¿Qué le acabas de hacer a la piel?
 a) Nada, fue rápido y no se quejó
@@ -2928,7 +2928,7 @@ El residente queda como en una hamaca, sostenido por los lados, con **la cadera 
 PREGUNTAS:
 P: Vas a dejar a un residente de lado. ¿Cómo lo colocas?
 a) A 90 grados, apoyado sobre la cadera
-*b) Inclinado unos 30 grados, sostenido con almohadas por detrás de la espalda
+*b) Inclinado unos 30 grados, con almohadas detrás
 c) Boca abajo, para descargar totalmente el sacro
 d) Sentado con la cabecera bien alta
 EXPLICACION: Es la posición de hamaca: el cuerpo se apoya en la almohada y no en el hueso, dejando cadera y sacro sin carga directa. Acostarlo sobre la cadera concentra el peso en el trocánter, donde la lesión aparece rápido.
@@ -2990,17 +2990,17 @@ Esa es la señal más temprana que existe, y llega antes de que haya nada abiert
 PREGUNTAS:
 P: Presionas una zona enrojecida en el talón y el color no cambia. ¿Qué significa?
 a) Es irritación normal del roce de la sábana
-*b) La circulación ya está comprometida: se alivia la presión, se documenta y se reporta
+*b) La circulación ya está comprometida en esa zona
 c) Que la piel está sana, porque no duele
 d) Que hay que darle masaje para reactivar la circulación
-EXPLICACION: El enrojecimiento que no cede al presionar indica que el tejido ya no recibe circulación adecuada. Es la señal más temprana de daño por presión, y el masaje sobre esa zona empeora el daño en vez de ayudar.
+EXPLICACION: Se alivia la presión, se documenta y se reporta. El enrojecimiento que no cede al presionar indica que el tejido ya no recibe circulación adecuada: es la señal más temprana de daño por presión, y el masaje encima lo empeora en vez de ayudar.
 
 P: Encuentras una zona abierta en el sacro. ¿Cómo la describes en el reporte?
-a) "Úlcera etapa 2 en sacro"
-*b) "Zona abierta en sacro, como una peseta, roja, sin mal olor" y le tomo foto
-c) "Lesión de 2 por 3 centímetros aproximadamente"
-d) "Herida en la espalda baja, parece infectada"
-EXPLICACION: El cuidador describe, no clasifica ni diagnostica. El tamaño va por comparación —nadie carga una regla en el turno— y la foto deja ver la evolución real entre visitas del servicio externo.
+a) "Úlcera etapa 2 en el sacro del residente"
+*b) "Zona abierta en sacro, como una peseta, roja"
+c) "Lesión de 2 por 3 centímetros aproximadamente, más o menos"
+d) "Herida en la espalda baja, parece infectada y con pus"
+EXPLICACION: Y le tomo foto. El cuidador describe, no clasifica ni diagnostica; el tamaño va por comparación —nadie carga una regla en el turno— y la foto deja ver la evolución real entre visitas del servicio externo.
 
 P: Un residente de piel oscura se queja de dolor en la cadera cada vez que lo giras, pero tú no le ves nada rojo. ¿Qué haces?
 a) Espero a que aparezca el enrojecimiento para tener algo concreto que reportar
@@ -3061,7 +3061,7 @@ EXPLICACION: El personal maneja apósitos cuando las instrucciones lo permiten Y
 P: Un residente tiene un apósito puesto y quieres saber cómo va la herida. ¿Puedes destaparlo?
 a) Sí, si lo vuelves a tapar enseguida
 b) Sí, siempre que uses guantes
-*c) No: destaparlo solo para mirar rompe la barrera contra la infección
+*c) No: destaparlo solo para mirar
 d) Sí, pero solo en el turno de día
 EXPLICACION: Destapar un apósito para mirar expone la herida a infección y no aporta nada, porque la referencia de cómo iba está en la foto del registro anterior. Esa es la parte que sigue prohibida siempre.
 
@@ -3122,10 +3122,10 @@ EXPLICACION: Sentado el peso se concentra en los isquiones, y una silla no prote
 
 P: ¿Por qué se insiste en que el residente esté peinado, afeitado y bien vestido, sobre todo en horario de visita?
 a) Solo por la impresión que se lleva la familia
-*b) Porque un residente bien arreglado se siente persona, y el que se abandona come y se mueve menos
+*b) Porque un residente bien arreglado se siente persona
 c) Porque lo exige el Departamento de la Familia
 d) Porque así se distingue quién recibe visitas
-EXPLICACION: No es cosmético: el aspecto sostiene el ánimo, y el ánimo sostiene el apetito y la movilidad, que son dos de los factores que protegen la piel. La impresión de la familia es real, pero es la consecuencia, no la razón.
+EXPLICACION: Y el que se abandona come y se mueve menos. No es cosmético: el aspecto sostiene el ánimo, y el ánimo sostiene el apetito y la movilidad, que son dos de los factores que protegen la piel. La impresión de la familia es la consecuencia, no la razón.
 
 P: Le ves el sacro rojo a una residente y la piel reseca. Tienes la crema hidratante en la mano. ¿Qué haces?
 a) Le pongo crema: la piel seca se rompe antes
@@ -3192,17 +3192,17 @@ Eso no es una tarea del sistema: es la foto del estado del residente al inicio d
 PREGUNTAS:
 P: ¿Cuánto dura la ventana para tomar los vitales al abrir turno?
 a) Una hora
-*b) Tres horas, y con una toma buena por turno basta
+*b) Tres horas
 c) Todo el turno
 d) Hasta que el supervisor lo pida
-EXPLICACION: Son tres horas. No se trata de medir muchas veces sino de que la toma esté bien hecha: una lectura con prisa queda escrita como si fuera el estado real del residente.
+EXPLICACION: Y con una toma buena por turno basta. No se trata de medir muchas veces sino de que la toma esté bien hecha: una lectura con prisa queda escrita como si fuera el estado real del residente.
 
 P: Una lectura sale muy distinta de lo habitual en ese residente. ¿Qué haces?
 a) La anoto y espero al próximo turno para confirmar
-*b) La repito en una o dos horas, además de reportarla
+*b) La repito en una o dos horas
 c) La descarto y tomo solo la siguiente
 d) La anoto sin más, los aparatos no fallan
-EXPLICACION: Un valor que llama la atención se confirma antes de que pase el turno, porque puede ser un error de técnica o el inicio de un cambio real. Esperar al próximo turno pierde las horas que importan.
+EXPLICACION: Además de reportarla. Un valor que llama la atención se confirma antes de que pase el turno, porque puede ser un error de técnica o el inicio de un cambio real: esperar al próximo turno pierde las horas que importan.
 
 P: Vas a tomarle los vitales a un residente que acaba de llegar caminando del pasillo, y tú andas corriendo. ¿Qué haces?
 *a) Espero unos minutos a que descanse
@@ -3266,7 +3266,7 @@ Explica por qué un residente se marea o se cae al levantarse, y es una de las c
 
 PREGUNTAS:
 P: El termómetro de frente marca 35.1 en un residente que se ve bien. ¿Qué haces?
-*a) Lo confirmo por vía axilar antes de escalar y anoto las dos lecturas
+*a) Lo confirmo por vía axilar y anoto las dos
 b) Aviso de inmediato, es hipotermia
 c) Lo anoto y sigo, se ve bien
 d) Vuelvo a medir en la frente hasta que dé normal
@@ -3281,7 +3281,7 @@ EXPLICACION: En cuanto la persona sabe que le están contando la respiración, l
 
 P: Durante la prueba de presión ortostática el residente se marea al ponerse de pie. ¿Qué haces?
 a) Completo las tres tomas rápido para tener el dato
-*b) Lo siento de inmediato, no completo la prueba y lo reporto
+*b) Lo siento de inmediato y lo reporto
 c) Lo sostengo del brazo y sigo
 d) Lo acuesto y repito la prueba desde el principio
 EXPLICACION: La seguridad del residente manda sobre el dato. El mareo al levantarse ya es en sí mismo el hallazgo que se buscaba, así que no hace falta completar la prueba para reportarlo.
@@ -3334,14 +3334,14 @@ Estos son los valores aprobados. Hay dos niveles, y la diferencia importa: **lla
 PREGUNTAS:
 P: Un residente tiene la temperatura por debajo de lo normal. ¿Es preocupante?
 a) No, lo preocupante es la fiebre
-*b) Sí: en un adulto mayor la hipotermia también puede indicar infección
+*b) Sí: también puede indicar infección
 c) Solo si además tiene frío
 d) Solo si es menor de 30 grados
 EXPLICACION: La hipotermia avisa igual que la fiebre y se deja pasar más, precisamente porque nadie la espera. En un adulto mayor una infección puede manifestarse bajando la temperatura en vez de subiéndola.
 
 P: Un residente que siempre anda en 90/60 hoy tiene 130/85. ¿Qué haces?
 a) Nada, 130/85 está dentro de lo normal
-*b) Lo reporto: lo que dice más es el cambio respecto a su base, no el valor absoluto
+*b) Lo reporto: cambió respecto a su base
 c) Repito la toma hasta que dé 90/60
 d) Solo lo anoto si además se siente mal
 EXPLICACION: Un valor "normal" puede ser anormal para esa persona. Por eso se conoce la base de cada residente y por eso las tomas tienen que ser consistentes: sin base no hay con qué comparar.
@@ -3396,9 +3396,9 @@ Lo que escribes se queda en un expediente clínico. **Interpretar es lo que no t
 PREGUNTAS:
 P: ¿Cómo se documenta lo que parece una infección urinaria?
 a) "Posible infección urinaria, favor evaluar"
-*b) "Orina turbia y de olor fuerte. Se quejó al orinar dos veces."
-c) "El residente tiene molestias urinarias por su edad"
-d) "Sospecho infección, ya le di más agua"
+*b) "Orina turbia y olor fuerte. Se quejó al orinar."
+c) "El residente tiene molestias urinarias propias de su edad"
+d) "Sospecho infección urinaria, ya le di más agua"
 EXPLICACION: El diagnóstico no le corresponde al cuidador, pero la observación sí — y es la que nadie más puede aportar. Describir lo concreto le da a quien decide exactamente lo que necesita.
 
 P: ¿Cuándo se documenta lo ocurrido en el turno?
@@ -3453,18 +3453,18 @@ La diferencia no fue el conocimiento clínico de nadie. Fue que alguien anotó.
 
 PREGUNTAS:
 P: Tres días seguidos anotas cosas pequeñas de una residente: comió poco, orina oscura, más callada. Por separado ninguna parecía nada. ¿Para qué sirvió anotarlas?
-*a) Juntas dejan ver un patrón —posible infección o deshidratación— que se puede tratar a tiempo
+*a) Juntas dejan ver un patrón tratable
 b) Para tener respaldo si la familia reclama
 c) Para cumplir con el registro diario
 d) Para que el próximo turno sepa cómo tratarla
-EXPLICACION: Ninguna de las tres, sola, justifica una consulta. Juntas dibujan un patrón que se atiende antes de que termine en emergencias. Esa es toda la razón de ser de la documentación diaria.
+EXPLICACION: Posible infección o deshidratación, a tiempo. Ninguna de las tres, sola, justifica una consulta; juntas dibujan un patrón que se atiende antes de que termine en emergencias. Esa es toda la razón de ser de la documentación diaria.
 
 P: Los vitales de un residente salen normales, pero algo te dice que no está como siempre. ¿Qué haces?
 a) Confío en los números y sigo con el turno
-*b) Lo reporto igual: ese instinto viene de verlo todos los días y es información real
+*b) Lo reporto igual: ese instinto es información real
 c) Espero al próximo turno a ver si alguien más lo nota
 d) Repito los vitales hasta que salga algo anormal
-EXPLICACION: Conocer al residente todos los días produce una lectura que ningún aparato da. Un reporte de más cuesta una conversación; uno de menos puede costar una hospitalización.
+EXPLICACION: Viene de verlo todos los días, y eso produce una lectura que ningún aparato da. Un reporte de más cuesta una conversación; uno de menos puede costar una hospitalización.
 
 P: Se te acabó el turno y no pudiste bañar a una residente ni tomarle los vitales, porque estuviste atendiendo una caída. ¿Qué haces?
 a) Nada; el próximo turno se va a dar cuenta
