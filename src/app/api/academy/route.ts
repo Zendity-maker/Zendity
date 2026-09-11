@@ -44,9 +44,22 @@ export async function GET(req: Request) {
             // opcional en trabajo concreto: se devuelven aparte para que la UI
             // pueda ponerlas ARRIBA del catálogo.
             const [enrollments, asignaciones] = await Promise.all([
+                /**
+                 * `include: { course: true }` traia el curso ENTERO por cada
+                 * matricula, contenido incluido. Once cursos aprobados eran
+                 * ~264 KB de markdown para pintar una lista de titulos y
+                 * fechas. De todo el curso, aqui se usa el titulo.
+                 */
                 prisma.userCourse.findMany({
                     where: { employeeId },
-                    include: { course: true }
+                    include: {
+                        course: {
+                            select: {
+                                id: true, title: true, category: true,
+                                emoji: true, durationMins: true, bonusCompliance: true,
+                            },
+                        },
+                    },
                 }),
                 prisma.academyAssignment.findMany({
                     where: { userId: employeeId, status: { in: ['PENDING', 'IN_PROGRESS'] } },
@@ -103,6 +116,18 @@ export async function GET(req: Request) {
             });
             const idsAsignados = asignados.map(a => a.moduleCode);
 
+            /**
+             * EL CATALOGO NO LLEVA EL TEXTO DE LOS CURSOS.
+             *
+             * Iba sin `select`, asi que devolvia el `content` entero de cada
+             * curso. Medido el 11-sep-2026 contra produccion: **431 KB** para
+             * una cuidadora que abre Academy en la tableta, de los cuales 420
+             * son el markdown de veinte cursos que no va a abrir. Con este
+             * select, la misma pantalla son 11 KB.
+             *
+             * El texto se pide al pulsar "Comenzar", en
+             * /api/academy/curso/[id], y son 24 KB de uno solo.
+             */
             const catalog = await prisma.course.findMany({
                 where: {
                     isActive: true,
@@ -112,6 +137,11 @@ export async function GET(req: Request) {
                         { targetRole: { in: roles } },
                         ...(idsAsignados.length > 0 ? [{ id: { in: idsAsignados } }] : []),
                     ]
+                },
+                select: {
+                    id: true, title: true, description: true, category: true,
+                    durationMins: true, bonusCompliance: true, emoji: true,
+                    imageUrl: true, order: true, targetRole: true,
                 },
                 orderBy: [{ order: 'asc' }, { createdAt: 'asc' }]
             });

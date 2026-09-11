@@ -243,11 +243,42 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
 
     // ── Actions ────────────────────────────────────────────────────────────────
 
-    const startLesson = () => {
-        setError('');
-        if (!course.content) { setError('Este curso no tiene contenido disponible.'); return; }
+    /**
+     * El texto del curso llega AL PULSAR, no con el catálogo.
+     *
+     * El catálogo mandaba los cursos enteros: 431 KB al abrir Academy en la
+     * tableta, de los cuales 420 eran markdown de cursos que nadie iba a abrir.
+     * Ahora vienen 11 KB de tarjetas, y los 24 KB del curso se piden aquí.
+     *
+     * `contenidoCache` evita repetir la petición cuando alguien abre, cierra y
+     * vuelve a abrir el mismo curso en la misma sesión.
+     */
+    const [cargandoContenido, setCargandoContenido] = useState(false);
+    const contenidoCache = useRef<string | null>(null);
 
-        const { meta, sections: parsed } = parseCourseContent(course.content);
+    const obtenerContenido = async (): Promise<string | null> => {
+        if (course.content) return course.content;
+        if (contenidoCache.current) return contenidoCache.current;
+        setCargandoContenido(true);
+        try {
+            const res = await fetch(`/api/academy/curso/${course.id}`);
+            const d = await res.json();
+            if (!d.success || !d.curso?.content) return null;
+            contenidoCache.current = d.curso.content;
+            return d.curso.content;
+        } catch {
+            return null;
+        } finally {
+            setCargandoContenido(false);
+        }
+    };
+
+    const startLesson = async () => {
+        setError('');
+        const contenido = await obtenerContenido();
+        if (!contenido) { setError('No se pudo abrir el curso. Intenta de nuevo.'); return; }
+
+        const { meta, sections: parsed } = parseCourseContent(contenido);
         if (parsed.length === 0) { setError('El formato del curso no es compatible.'); return; }
 
         setCourseMeta(meta);
@@ -581,9 +612,9 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
                 </div>
 
                 {error && <p className="text-rose-600 text-xs mt-2">{error}</p>}
-                <button onClick={startLesson}
-                    className="mt-4 w-full bg-[#0F6E56] hover:bg-[#0B5642] text-white font-bold py-3 rounded-xl transition-colors text-sm">
-                    Comenzar
+                <button onClick={startLesson} disabled={cargandoContenido}
+                    className="mt-4 w-full bg-[#0F6E56] hover:bg-[#0B5642] disabled:opacity-60 text-white font-bold py-3 rounded-xl transition-colors text-sm">
+                    {cargandoContenido ? 'Abriendo…' : 'Comenzar'}
                 </button>
             </div>
         </div>
