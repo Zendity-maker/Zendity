@@ -224,8 +224,18 @@ export default function ShiftClosureWizard({
                                         <span>El <strong>próximo turno</strong> lo recibe al entrar.</span>
                                     </div>
                                 </div>
+                                {/* Decia "el sistema descuenta puntos automaticamente".
+                                    No descuenta nada: no existe ninguna penalizacion por
+                                    dejar un turno sin firmar. Lo que si existe es una
+                                    medida en Mi Desempeño —"Turnos cerrados con el
+                                    relevo: X de Y" (src/lib/desempeno.ts:129)— y el
+                                    agujero de verdad, que es el turno siguiente
+                                    entrando a ciegas. Amenazar con una consecuencia
+                                    falsa gasta la credibilidad de la pantalla; la
+                                    consecuencia real es mas convincente. */}
                                 <p className="mt-3 text-xs text-slate-600 italic">
-                                    Si dejas el turno sin firmar este cierre, el sistema descuenta puntos automáticamente.
+                                    Si no firmas, el próximo turno entra sin saber qué pasó en el tuyo — y queda
+                                    contado en tu Mi Desempeño, en “Turnos cerrados con el relevo”.
                                 </p>
                             </div>
                             <button

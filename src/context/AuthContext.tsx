@@ -126,7 +126,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         (pathname.startsWith("/corporate") && !pathname.startsWith("/corporate/medical")))) {
                     router.replace("/");
                 }
-                else if (user.role === "CAREGIVER" && !pathname.startsWith("/care") && !pathname.startsWith("/cuidadores") && !pathname.startsWith("/corporate/medical/handovers") && !pathname.startsWith("/academy") && !pathname.startsWith("/my-observations")) {
+                else if (user.role === "CAREGIVER" && !pathname.startsWith("/care") && !pathname.startsWith("/cuidadores") && !pathname.startsWith("/corporate/medical/handovers") && !pathname.startsWith("/academy") && !pathname.startsWith("/my-observations")
+                    // "Mi desempeño" es SUYA: el endpoint ya le sirve lo suyo a
+                    // cualquiera con sesión, y solo este guard la rebotaba. El
+                    // asistente de cierre le dice que un turno sin firmar queda
+                    // contado ahí — y hasta hoy no podía entrar a verlo.
+                    && !pathname.startsWith("/mi-desempeno")) {
                     router.replace("/care/hub");
                 }
                 else if (user.role === "MAINTENANCE" && !pathname.startsWith("/maintenance") && !pathname.startsWith("/academy")) {
