@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { todayStartAST } from '@/lib/dates';
+import { calcularCobertura, comidasVencidas } from '@/lib/cobertura-comidas';
 import { TicketStatus } from '@prisma/client';
 import OpenAI from 'openai';
 
@@ -110,10 +111,16 @@ async function buildContext(effectiveHqId: string | 'ALL') {
 
     const vitalsAbnormal = vitalsToday.filter(esVitalAnomalo).length;
 
+    /**
+     * La cobertura se mide contra las comidas que YA DEBERIAN estar servidas,
+     * no contra las tres del dia. Dividir entre `residentes * 3` a las 8:38 de
+     * la manana daba 0% en una manana en la que se desayuno con normalidad: el
+     * almuerzo y la cena no habian ocurrido todavia. Ver
+     * src/lib/cobertura-comidas.ts, con las horas medidas sobre 14 dias.
+     */
+    const cobertura = calcularCobertura(mealsToday, patientsCount, new Date());
     const uniqueMealKeys = new Set(mealsToday.map(m => `${m.patientId}::${m.mealType}`));
-    const mealCoverage = patientsCount > 0
-        ? Math.round((uniqueMealKeys.size / (patientsCount * 3)) * 100)
-        : null;
+    const mealCoverage = cobertura.porcentaje;
 
     return {
         scope: effectiveHqId,
@@ -125,7 +132,14 @@ async function buildContext(effectiveHqId: string | 'ALL') {
         triageOpen,
         incidentsWeek,
         baths: bathsToday,
-        meals: { total: mealsToday.length, uniquePatientMeals: uniqueMealKeys.size, coverage: mealCoverage },
+        meals: {
+            total: mealsToday.length,
+            uniquePatientMeals: uniqueMealKeys.size,
+            coverage: mealCoverage,
+            // Lo que hace util el numero: contra que se esta midiendo.
+            detalle: cobertura.resumen,
+            comidasVencidas: cobertura.detalle.length,
+        },
     };
 }
 
@@ -240,12 +254,15 @@ function fallbackBriefing(ctx: any): { summary: string; bullets: BriefingBullet[
             link: BULLET_LINKS.triage,
         });
     }
+    // `coverage === null` = todavia no vence ninguna comida. Antes este aviso
+    // saltaba TODAS las mañanas por construccion: a las 8:38 la cobertura sobre
+    // el dia entero no puede pasar del 33%, y el umbral es 70%.
     if (ctx.meals.coverage !== null && ctx.meals.coverage < 70) {
         bullets.push({
             priority: 'HIGH',
-            title: 'Cobertura de Comidas Baja',
-            description: `La cobertura de comidas es del ${ctx.meals.coverage}%.`,
-            action: 'Revisa y mejora la planificación de comidas para aumentar la cobertura.',
+            title: 'Comidas sin registrar',
+            description: `${ctx.meals.detalle}. Falta registrar el ${100 - ctx.meals.coverage}% de lo que ya debería estar servido.`,
+            action: 'Confirma con el piso si se sirvieron y no se registraron, o si de verdad faltan.',
             link: BULLET_LINKS.meals,
         });
     }
@@ -326,7 +343,24 @@ export async function POST(request: NextRequest) {
             const cached = await prisma.directorBriefing.findUnique({
                 where: { scope_clinicalDay: { scope, clinicalDay } },
             });
-            if (cached) {
+            /**
+             * UN BRIEFING DE LA MAÑANA NO VALE PARA LAS SEIS DE LA TARDE.
+             *
+             * Se cacheaba por dia clinico entero: el que se genera a las 8 AM es
+             * el que el director mira hasta las 6 del dia siguiente. Con la
+             * cobertura de comidas eso se veia claro — decia "0%" toda la
+             * jornada porque a las 8 AM no habia desayunos registrados.
+             *
+             * Ahora se rehace cuando VENCE OTRA COMIDA desde que se genero. Son
+             * como mucho dos regeneraciones extra al dia (tras el almuerzo y
+             * tras la cena), y no hizo falta tocar el schema: la cuenta sale de
+             * `generatedAt`, que ya se guarda.
+             */
+            const comidasAlGenerar = cached ? comidasVencidas(cached.generatedAt).length : 0;
+            const comidasAhora = comidasVencidas().length;
+            if (cached && comidasAhora > comidasAlGenerar) {
+                // Se deja caer al camino de generacion de abajo.
+            } else if (cached) {
                 return NextResponse.json({
                     success: true,
                     cached: true,
