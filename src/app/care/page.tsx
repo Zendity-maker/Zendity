@@ -3162,7 +3162,17 @@ export default function ZendityCareTabletPage() {
                     )}
                 </button>
 
-                {/* Z-Score badge */}
+                {/* Z-SCORE — LA DECIMA FUGA, Y ESTA ERA LA MAS VISIBLE.
+                    El 09-sep-2026 el numero se apago de nueve pantallas y el 10
+                    se limpiaron la API y la notificacion. Aqui se apago la
+                    PETICION (linea 542: `if (!Z_SCORE_VISIBLE) return;`) y se
+                    dejo la INTERFAZ. Resultado: la cuidadora veia un chip
+                    "SCORE —" que no dice nada, y al tocarlo se abria un panel
+                    que se quedaba en "Cargando desglose…" para siempre, porque
+                    los datos que espera no los va a pedir nadie.
+                    Apagar la mitad de una funcion se ve peor que no apagarla.
+                    Ver src/lib/z-score-visible.ts. */}
+                {Z_SCORE_VISIBLE && (
                 <div ref={scorePanelRef} className="relative">
                     <button
                         onClick={() => setScorePanelOpen(v => !v)}
@@ -3293,6 +3303,7 @@ export default function ZendityCareTabletPage() {
                         </div>
                     )}
                 </div>
+                )}
 
                 {/* Notificaciones reales */}
                 <div ref={notifRef} className="relative">
