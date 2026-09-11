@@ -149,9 +149,27 @@ export async function POST(req: Request) {
             if (!existing) {
                 return NextResponse.json({ success: false, error: "Prescripción no encontrada en tu sede." }, { status: 404 });
             }
+            /**
+             * DESCONTINUAR ES UN ESTADO, NO UNA PALABRA EN EL CAMPO DE LA HORA.
+             *
+             * Esto escribia la cadena "DESCONTINUADO" DENTRO de `scheduleTimes`
+             * —el campo de los horarios— y dejaba `status` en ACTIVE. O sea que
+             * una receta descontinuada quedaba diciendo tres cosas a la vez:
+             *   status       = ACTIVE        (mentira)
+             *   isActive     = false         (verdad)
+             *   scheduleTimes= DESCONTINUADO (un estado metido en una hora)
+             *
+             * Hay 27 asi en produccion. Y de paso se perdian los horarios
+             * reales: al descontinuar se pisaba el unico sitio donde constaba a
+             * que hora se daba, que es justo lo que hace falta si mañana hay que
+             * reconstruir lo que el residente recibia.
+             *
+             * `DISCONTINUED` ya existia en el enum MedActiveStatus desde
+             * siempre. Solo habia que usarlo.
+             */
             updatedMed = await prisma.patientMedication.update({
                 where: { id: patientMedicationId },
-                data: { isActive: false, scheduleTimes: "DESCONTINUADO" }
+                data: { isActive: false, status: 'DISCONTINUED' }
             });
             await prisma.medicationAuditLog.create({
                 data: { action: 'DISCONTINUED', patientMedicationId: patientMedicationId, authorId, reason }

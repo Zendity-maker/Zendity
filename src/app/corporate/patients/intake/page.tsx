@@ -8,6 +8,25 @@ import { User, Stethoscope, Activity, Pill, CheckCircle, Save, AlertCircle, Chev
 import { confirmIntake } from "@/actions/intake/intake.actions";
 import { PARENTESCOS } from '@/lib/parentesco';
 
+/** Los cuatro modificadores de dieta que el perfil del residente guarda como flags. */
+const MODIFICADORES_DIETA = [
+    { id: 'DIABETICA',   label: 'Diabética' },
+    { id: 'BAJO_SODIO',  label: 'Baja en sodio' },
+    { id: 'RENAL',       label: 'Renal' },
+    { id: 'VEGETARIANA', label: 'Vegetariana' },
+] as const;
+
+/** Días de la semana para una pauta semanal. 0 = domingo, igual que Date.getDay(). */
+const DIAS_SEMANA = [
+    { n: 0, corto: 'D', largo: 'Domingo' },
+    { n: 1, corto: 'L', largo: 'Lunes' },
+    { n: 2, corto: 'M', largo: 'Martes' },
+    { n: 3, corto: 'X', largo: 'Miércoles' },
+    { n: 4, corto: 'J', largo: 'Jueves' },
+    { n: 5, corto: 'V', largo: 'Viernes' },
+    { n: 6, corto: 'S', largo: 'Sábado' },
+] as const;
+
 export default function IntakeWizardPage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -19,6 +38,8 @@ export default function IntakeWizardPage() {
   
   const [tempMedName, setTempMedName] = useState("");
   const [tempMedTimes, setTempMedTimes] = useState<string[]>([]);
+  const [tempMedFreq, setTempMedFreq] = useState<'DIARIO' | 'SEMANAL'>('DIARIO');
+  const [tempMedDays, setTempMedDays] = useState<number[]>([]);
   const LOCAL_AVAILABLE_TIMES = [
     "05:00 AM",
     "06:00 AM",
@@ -196,6 +217,25 @@ export default function IntakeWizardPage() {
     return () => clearTimeout(handler);
   }, [formData]);
 
+  /**
+   * LA DIETA COMPLETA EN UN SOLO CAMPO.
+   *
+   * `dietSpecifics` lleva "TEXTURA|MOD,MOD" — por ejemplo "BLANDA|DIABETICA".
+   * Un valor viejo sin "|" sigue siendo solo la textura, así que los ingresos
+   * ya guardados se leen igual. Ver la nota larga en intake.actions.ts.
+   */
+  const texturaDieta = React.useMemo(
+    () => (formData.dietSpecifics ?? '').split('|')[0] || 'REGULAR',
+    [formData.dietSpecifics],
+  );
+  const modificadoresDieta = React.useMemo(() => {
+    const raw = formData.dietSpecifics ?? '';
+    if (!raw.includes('|')) return [] as string[];
+    return raw.split('|')[1].split(',').map(x => x.trim()).filter(Boolean);
+  }, [formData.dietSpecifics]);
+  const componerDieta = (textura: string, mods: string[]) =>
+    mods.length ? `${textura}|${[...new Set(mods)].sort().join(',')}` : textura;
+
   const medicationsList = React.useMemo(() => {
     if (!formData.rawMedications) return [];
     try {
@@ -207,10 +247,21 @@ export default function IntakeWizardPage() {
 
   const addMedication = () => {
     if (!tempMedName.trim()) return;
-    const newList = [...medicationsList, { name: tempMedName.trim(), scheduleTimes: tempMedTimes.length > 0 ? tempMedTimes : ["PRN"] }];
+    const horas = tempMedTimes.length > 0 ? tempMedTimes : ["PRN"];
+    // SEMANAL sin ningún día marcado se guarda como DIARIO: una pauta semanal
+    // sin día no toca nunca y el medicamento no aparecería jamás en la tableta.
+    const semanal = tempMedFreq === 'SEMANAL' && tempMedDays.length > 0 && !horas.includes("PRN");
+    const newList = [...medicationsList, {
+      name: tempMedName.trim(),
+      scheduleTimes: horas,
+      frequency: horas.includes("PRN") ? 'PRN' : (semanal ? 'SEMANAL' : 'DIARIO'),
+      scheduleDays: semanal ? tempMedDays : [],
+    }];
     handleFieldChange("rawMedications", JSON.stringify(newList));
     setTempMedName("");
     setTempMedTimes([]);
+    setTempMedFreq('DIARIO');
+    setTempMedDays([]);
   };
 
   const removeMedication = (index: number) => {
@@ -910,10 +961,10 @@ export default function IntakeWizardPage() {
                                 <label className="block text-sm font-black text-slate-500 uppercase tracking-widest mb-6">Régimen Dietético</label>
                                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                                     {/* Sprint Diet System — los ids deben matchear DietTexture enum.
-                                       Modificadores (diabética, bajo sodio, renal, vegetariana) se configuran
-                                       después en el perfil del residente o en /care, NO aquí.
-                                       Si el residente es diabético, prescribe textura aquí y marca el modificador
-                                       en el perfil. */}
+                                       Los modificadores van DEBAJO, en el mismo paso: antes había que
+                                       marcarlos otra vez en el perfil del residente. Ver la nota en
+                                       src/actions/intake/intake.actions.ts sobre el formato
+                                       "TEXTURA|MOD,MOD" con el que viajan los dos en un solo campo. */}
                                     {[
                                       { id: "REGULAR",         label: "Regular" },
                                       { id: "BLANDA",          label: "Blanda" },
@@ -926,16 +977,53 @@ export default function IntakeWizardPage() {
                                        <button
                                            key={d.id}
                                            type="button"
-                                           onClick={() => handleFieldChange("dietSpecifics", d.id)}
+                                           onClick={() => handleFieldChange("dietSpecifics", componerDieta(d.id, modificadoresDieta))}
                                            className={`p-6 rounded-[2rem] font-black text-base transition-all border-4 active:scale-95 flex items-center justify-center ${
-                                             formData.dietSpecifics === d.id 
-                                                ? 'bg-slate-800 border-slate-800 text-white shadow-lg ring-4 ring-slate-800/20' 
+                                             texturaDieta === d.id
+                                                ? 'bg-slate-800 border-slate-800 text-white shadow-lg ring-4 ring-slate-800/20'
                                                 : 'bg-slate-50 border-transparent text-slate-600 hover:bg-slate-100 hover:border-slate-200 shadow-inner'
                                            }`}
                                        >
                                            {d.label}
                                        </button>
                                     ))}
+                                </div>
+
+                                <div className="mt-8 pt-8 border-t border-slate-100">
+                                    <label className="block text-sm font-black text-slate-500 uppercase tracking-widest mb-2">
+                                        Modificadores
+                                    </label>
+                                    <p className="text-sm text-slate-500 font-medium mb-5">
+                                        Marca los que apliquen. Llegan solos al perfil del residente y a la
+                                        pantalla de cocina — no hay que volver a ponerlos.
+                                    </p>
+                                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                        {MODIFICADORES_DIETA.map(m => {
+                                            const puesto = modificadoresDieta.includes(m.id);
+                                            return (
+                                                <button
+                                                    key={m.id}
+                                                    type="button"
+                                                    onClick={() => handleFieldChange(
+                                                        "dietSpecifics",
+                                                        componerDieta(
+                                                            texturaDieta,
+                                                            puesto
+                                                                ? modificadoresDieta.filter(x => x !== m.id)
+                                                                : [...modificadoresDieta, m.id],
+                                                        ),
+                                                    )}
+                                                    className={`p-5 rounded-[1.5rem] font-black text-sm transition-all border-4 active:scale-95 ${
+                                                        puesto
+                                                            ? 'bg-teal-600 border-teal-700 text-white shadow-lg'
+                                                            : 'bg-slate-50 border-transparent text-slate-600 hover:bg-slate-100 hover:border-slate-200'
+                                                    }`}
+                                                >
+                                                    {m.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                              </div>
                          </div>
@@ -1052,6 +1140,61 @@ export default function IntakeWizardPage() {
                                </label>
                              ))}
                            </div>
+
+                           {/* ¿QUÉ DÍAS? — el caso del alendronato.
+                               Sin esto, un "70 mg una vez por semana" que viene del
+                               hospital entraba como DIARIO y había que corregirlo
+                               después en Med & Zoning, que era la única pantalla con
+                               este selector. */}
+                           {!tempMedTimes.includes("PRN") && (
+                             <div className="mt-6 pt-6 border-t border-slate-100">
+                               <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">
+                                 ¿Todos los días, o solo algunos?
+                               </label>
+                               <div className="flex gap-2 mb-3">
+                                 {([
+                                   { id: 'DIARIO', label: 'Todos los días' },
+                                   { id: 'SEMANAL', label: 'Solo ciertos días' },
+                                 ] as const).map(f => (
+                                   <button
+                                     key={f.id}
+                                     type="button"
+                                     onClick={() => { setTempMedFreq(f.id); if (f.id === 'DIARIO') setTempMedDays([]); }}
+                                     className={`px-5 py-3 rounded-xl text-sm font-black border-2 transition-all ${
+                                       tempMedFreq === f.id
+                                         ? 'bg-teal-600 border-teal-700 text-white'
+                                         : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+                                     }`}
+                                   >{f.label}</button>
+                                 ))}
+                               </div>
+                               {tempMedFreq === 'SEMANAL' && (
+                                 <div className="animate-in fade-in">
+                                   <div className="grid grid-cols-7 gap-1.5">
+                                     {DIAS_SEMANA.map(d => {
+                                       const puesto = tempMedDays.includes(d.n);
+                                       return (
+                                         <button
+                                           key={d.n}
+                                           type="button"
+                                           title={d.largo}
+                                           onClick={() => setTempMedDays(prev => puesto ? prev.filter(x => x !== d.n) : [...prev, d.n].sort())}
+                                           className={`py-3 rounded-xl border-2 font-black text-sm transition-all ${
+                                             puesto ? 'bg-teal-600 text-white border-teal-700' : 'bg-white text-slate-500 border-slate-200 hover:border-teal-300'
+                                           }`}
+                                         >{d.corto}</button>
+                                       );
+                                     })}
+                                   </div>
+                                   {tempMedDays.length === 0 && (
+                                     <p className="text-[12px] text-amber-700 font-bold mt-2">
+                                       Marca al menos un día, o quedará como todos los días.
+                                     </p>
+                                   )}
+                                 </div>
+                               )}
+                             </div>
+                           )}
                          </div>
                          
                          <div className="flex-1 bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200 p-6">
@@ -1071,6 +1214,11 @@ export default function IntakeWizardPage() {
                                        {med.scheduleTimes.map((t: string) => (
                                          <span key={t} className="bg-teal-50 text-teal-700 text-[10px] uppercase font-black tracking-widest px-2 py-1 rounded-lg border border-teal-100">{t}</span>
                                        ))}
+                                       {med.frequency === 'SEMANAL' && med.scheduleDays?.length > 0 && (
+                                         <span className="bg-amber-50 text-amber-800 text-[10px] uppercase font-black tracking-widest px-2 py-1 rounded-lg border border-amber-200">
+                                           Solo {med.scheduleDays.map((n: number) => DIAS_SEMANA[n]?.largo).join(', ')}
+                                         </span>
+                                       )}
                                      </div>
                                    </div>
                                    <button onClick={() => removeMedication(index)} className="text-rose-500 hover:bg-rose-50 px-4 py-2 border border-transparent hover:border-rose-100 rounded-xl font-bold text-sm transition-colors">Quitar</button>

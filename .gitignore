@@ -59,6 +59,7 @@ scripts/*
 !scripts/auditar-examenes.ts
 !scripts/capturas/
 !scripts/validar-curso.py
+!scripts/migrar-descontinuadas.ts
 !scripts/desactivar-cursos-sin-audiencia.ts
 !scripts/limpiar-foodintake-alertas.ts
 !scripts/db-push-guard.sh.broken-bak

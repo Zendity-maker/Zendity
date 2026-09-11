@@ -12,13 +12,55 @@ import { categorizeMedication, normalizeMedicationName } from "@/lib/medication-
 const VALID_TEXTURES: ReadonlyArray<DietTexture> = [
     'REGULAR', 'BLANDA', 'MAJADA', 'PUREE', 'LICUADO', 'LIQUIDOS_CLAROS', 'PEG',
 ];
+
+/**
+ * LOS MODIFICADORES DE DIETA, DENTRO DEL MISMO CAMPO.
+ *
+ * Celia, 11-sep-2026: "gran parte de la información que se está corrigiendo ya
+ * fue colocada en intake pero no llega al perfil".
+ *
+ * La dieta era el caso claro. El intake capturaba SOLO la textura, y los cuatro
+ * modificadores —diabética, bajo sodio, renal, vegetariana— había que marcarlos
+ * después en el perfil del residente. Para un residente diabético eso es
+ * escribir la dieta dos veces, en dos pantallas, el mismo día.
+ *
+ * Ahora `dietSpecifics` lleva las dos cosas con este formato:
+ *
+ *     "BLANDA|DIABETICA,RENAL"
+ *      ^textura ^modificadores separados por coma
+ *
+ * Se guarda dentro del campo que ya existe, y NO en columnas nuevas, para no
+ * pedir un cambio de schema en producción por esto. Todo lo que lee
+ * `dietSpecifics` pasa por las dos funciones de abajo, y las dos toleran el
+ * formato viejo (un texto sin "|" sigue siendo solo la textura).
+ */
+const MODIFICADORES = ['DIABETICA', 'BAJO_SODIO', 'RENAL', 'VEGETARIANA'] as const;
+type Modificador = typeof MODIFICADORES[number];
+
 function parseIntakeDietTexture(raw: string | null | undefined): DietTexture | null {
     if (!raw) return null;
-    const upper = raw.toUpperCase().trim();
+    const upper = raw.split('|')[0].toUpperCase().trim();
     if ((VALID_TEXTURES as readonly string[]).includes(upper)) return upper as DietTexture;
     // Heurística defensive — strings legacy que pudieran venir del form viejo
     if (upper === 'DIABETICA') return 'REGULAR'; // Diabética sola → REGULAR (modificador se agrega después)
     return null;
+}
+
+function parseIntakeDietModificadores(raw: string | null | undefined): Modificador[] {
+    if (!raw || !raw.includes('|')) return [];
+    return raw.split('|')[1]
+        .split(',')
+        .map(x => x.toUpperCase().trim())
+        .filter((x): x is Modificador => (MODIFICADORES as readonly string[]).includes(x));
+}
+
+/** Lo que se guarda en `Patient.diet`, el campo legacy que se lee en pantalla. */
+function etiquetaDieta(raw: string | null | undefined): string | undefined {
+    if (!raw) return undefined;
+    const textura = raw.split('|')[0].trim();
+    const mods = parseIntakeDietModificadores(raw)
+        .map(m => ({ DIABETICA: 'diabética', BAJO_SODIO: 'baja en sodio', RENAL: 'renal', VEGETARIANA: 'vegetariana' }[m]));
+    return mods.length ? `${textura}, ${mods.join(', ')}` : textura || undefined;
 }
 
 /**
@@ -115,11 +157,20 @@ export async function submitIntake(patientId: string) {
       // primer día. Si el form mandó algo desconocido, dietTexture queda null y
       // se prescribe luego desde el perfil/care.
       const parsedTexture = parseIntakeDietTexture(intake.dietSpecifics);
+      const mods = parseIntakeDietModificadores(intake.dietSpecifics);
       await tx.patient.update({
         where: { id: patientId },
         data: {
-          diet: intake.dietSpecifics || undefined, // legacy back-compat
+          diet: etiquetaDieta(intake.dietSpecifics), // legacy back-compat, ahora legible
           dietTexture: parsedTexture ?? undefined, // null no escribe nada (Prisma)
+          // Los cuatro modificadores viajan desde intake. Antes había que
+          // marcarlos otra vez en el perfil. Se escriben siempre —también en
+          // false— porque desmarcar una dieta diabética en la corrección del
+          // intake tiene que poder apagarla de verdad.
+          dietDiabetic: mods.includes('DIABETICA'),
+          dietLowSodium: mods.includes('BAJO_SODIO'),
+          dietRenal: mods.includes('RENAL'),
+          dietVegetarian: mods.includes('VEGETARIANA'),
           downtonRisk: (intake.downtonScore ?? 0) > 2,  // Lógica heurística de caída
           nortonRisk: (intake.bradenScore ?? 0) < 14,   // Lógica heurística de úlcera
         },
@@ -165,7 +216,15 @@ export async function submitIntake(patientId: string) {
           }
         });
 
-        let parsedMeds: Array<{ name: string; dose?: string; scheduleTimes: string[] }> = [];
+        let parsedMeds: Array<{
+          name: string;
+          dose?: string;
+          scheduleTimes: string[];
+          /** DIARIO | SEMANAL | PRN. Sin él se deduce como antes. */
+          frequency?: string;
+          /** Solo si es SEMANAL: 0=domingo … 6=sábado. */
+          scheduleDays?: number[];
+        }> = [];
         try {
           parsedMeds = JSON.parse(intake.rawMedications);
         } catch {
@@ -228,12 +287,42 @@ export async function submitIntake(patientId: string) {
                                   ? medObj.scheduleTimes.join(", ") 
                                   : "PRN";
 
+          /**
+           * LA PAUTA SEMANAL VIAJA DESDE EL INTAKE.
+           *
+           * Celia: "los horarios 'Semanal' no le permite colocarlo un solo día,
+           * como el caso del alendronato de Natalia".
+           *
+           * El intake solo sabía generar DIARIO o PRN. Un "70 mg una vez por
+           * semana" que viene del hospital entraba como DIARIO, y alguien tenía
+           * que abrirlo después en Med & Zoning —la única pantalla con el
+           * selector de días— para corregirlo.
+           *
+           * El modelo ya soportaba días sueltos (`scheduleDays`): lo que faltaba
+           * era decirlo en el formulario y traerlo hasta aquí.
+           *
+           * Si la frecuencia es SEMANAL pero no llegó ningún día, se degrada a
+           * DIARIO a propósito: una pauta semanal sin día no toca nunca —
+           * `tocaHoy` en src/lib/receta.ts trata la lista vacía como "todos los
+           * días"— y un medicamento que no aparece jamás en la tableta es peor
+           * que uno que aparece de más.
+           */
+          const dias = Array.isArray(medObj.scheduleDays)
+            ? [...new Set(medObj.scheduleDays.map(Number).filter(d => Number.isInteger(d) && d >= 0 && d <= 6))].sort()
+            : [];
+          const frecuenciaPedida = (medObj.frequency ?? '').toUpperCase().trim();
+          const frecuencia =
+            joinedSchedules === "PRN" ? "PRN"
+              : frecuenciaPedida === "SEMANAL" && dias.length > 0 ? "SEMANAL"
+                : "DIARIO";
+
           // Inyectamos el draft inactivo y seguro al paciente
           await tx.patientMedication.create({
             data: {
               patientId: patientId,
               medicationId: medRecord.id,
-              frequency: joinedSchedules === "PRN" ? "PRN" : "DIARIO",
+              frequency: frecuencia,
+              scheduleDays: frecuencia === "SEMANAL" ? dias : [],
               scheduleTimes: joinedSchedules,
               status: "DRAFT",
               isActive: false,   // Seguridad pasiva estructural
