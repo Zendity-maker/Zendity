@@ -62,7 +62,7 @@ const RUTA_INGRESO: Record<string, string[]> = {
  *
  * El orden importa: el general primero, emergencias al final.
  */
-const RUTA_CERTIFICACION: string[] = [
+export const RUTA_CERTIFICACION: string[] = [
     'Cuidado Geriátrico General',
     'Demencia y Alzheimer',
     'Movilización y Transferencias',

@@ -5,22 +5,43 @@ import { useAuth } from "@/context/AuthContext";
 import InteractiveCourseCard from "@/components/academy/InteractiveCourseCard";
 import { generateZendityMasterCertificate } from "@/components/academy/CertificateGenerator";
 import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
+import { RUTA_CERTIFICACION } from '@/lib/academy-assign';
 
 // Orden fijo de categorías en la Academy
 const CATEGORY_ORDER = [
-    "Roles y Acceso",
-    "Operaciones de Piso",
+    // El oficio va PRIMERO. "Cuidado Geriátrico" no estaba en esta lista, así que
+    // caía al fallback y se pintaba al final, detrás de dieciséis cursos sobre
+    // cómo usar el software.
+    //
+    // Lo que eso produjo, medido el 10-sep-2026 — matrículas de esos diez cursos
+    // en su orden exacto de aparición:
+    //
+    //     11 · 6 · 3 · 2 · 1 · 1 · 1 · 0 · 0 · 0
+    //
+    // Eso no es preferencia de tema: es gente que baja hasta donde aguanta. Los
+    // tres únicos cursos que se usan son los tres primeros de su categoría.
+    "Cuidado Geriátrico",
     "Protocolos Clinicos",
+    "Operaciones de Piso",
+    "Roles y Acceso",
     "Tecnologia Zendity",
 ];
 
-// Los 16 cursos oficiales del programa de certificación
-const ALL_COURSE_IDS = [
-    "ACCESO_ROLES_101", "DIRECTOR_101", "ADMIN_101",
-    "CUIDADOR_101", "SUPERVISOR_101", "ENFERMERA_101", "TURNO_NOCTURNO_101", "PLANTA_FISICA_101",
-    "ADMISION_101", "EMAR_101", "CAIDAS_101", "HANDOVER_101",
-    "CIERRE_TURNO_101", "ZENDI_AI_101", "LIMPIEZA_101", "TRABAJO_SOCIAL_101",
-];
+/**
+ * EL CONTADOR COMPARABA CONTRA IDS QUE NO EXISTEN.
+ *
+ * Esta lista tenía ids pelados ("CUIDADOR_101"), pero el seed los crea como
+ * `${HQ_ID}__CUIDADOR_101` y los diez clínicos son cuid. Así que el filtro no
+ * encontraba NUNCA ninguno: la barra clavada en 0%, el encabezado diciendo
+ * "0 aprobados" a quien llevaba tres, y el certificado maestro matemáticamente
+ * inalcanzable.
+ *
+ * Ahora se usa la ruta de certificación real, que ya existía en
+ * src/lib/academy-assign.ts y se resuelve por fragmento del título — que es
+ * como la resuelve también el generador del certificado maestro.
+ */
+const perteneceALaRuta = (titulo: string) =>
+    RUTA_CERTIFICACION.some(r => titulo.toLowerCase().includes(r.toLowerCase()));
 
 export default function ZendityAcademyPage() {
     const { user } = useAuth();
@@ -83,8 +104,8 @@ export default function ZendityAcademyPage() {
         }
     }
 
-    // Progreso de certificación: todos los 16 cursos oficiales
-    const seriesCourses = courses.filter(c => ALL_COURSE_IDS.includes(c.id));
+    // Progreso de certificación: los diez cursos del oficio.
+    const seriesCourses = courses.filter(c => perteneceALaRuta(c.title ?? ''));
     const completedSeriesCourses = seriesCourses.filter(c => getCourseStatus(c.id) === 'COMPLETED');
     // Recomendacion de Zendi y estado de formacion del ano.
     const [reco, setReco] = useState<any>(null);
@@ -96,7 +117,7 @@ export default function ZendityAcademyPage() {
             .catch(() => null);
     }, []);
 
-    const totalSeries = ALL_COURSE_IDS.length;
+    const totalSeries = RUTA_CERTIFICACION.length;
     const seriesComplete = seriesCourses.length === totalSeries && completedSeriesCourses.length === totalSeries;
 
     return (
@@ -227,7 +248,11 @@ export default function ZendityAcademyPage() {
                     <div className="space-y-2">
                         {assignments.map((a: any) => (
                             <div key={a.id} className="flex items-center gap-4 bg-white border border-amber-200/70 rounded-2xl px-5 py-4">
-                                <span className="text-2xl shrink-0">{a.emoji ?? '📘'}</span>
+                                {/* La inicial del curso, no un emoji: dentro de
+                                    Academy el registro es institucional. */}
+                                <span className="shrink-0 w-9 h-9 rounded-lg bg-amber-100 text-amber-900 font-serif text-lg flex items-center justify-center">
+                                    {(a.title ?? 'Z').trim().charAt(0).toUpperCase()}
+                                </span>
                                 <div className="flex-1 min-w-0">
                                     <p className="font-semibold text-slate-800 text-[15px] truncate">{a.title}</p>
                                     <p className="text-xs text-slate-500 mt-0.5">
