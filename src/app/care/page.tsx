@@ -377,7 +377,6 @@ export default function ZendityCareTabletPage() {
     // preguntabamos.
     const [hubEsAlerta, setHubEsAlerta] = useState(true);
     const [pendingShiftType, setPendingShiftType] = useState<"MORNING" | "EVENING" | "NIGHT" | null>(null);
-    const [pendingHandoverToAccept, setPendingHandoverToAccept] = useState<any>(null);
 
     const [zendiToast, setZendiToast] = useState("");
 
@@ -1063,13 +1062,34 @@ export default function ZendityCareTabletPage() {
                     }
                 } catch {}
 
-                // FASE 44: Intercepción de lectura obligatoria
-                if (data.requireHandoverAccept && data.pendingHandover) {
-                    setPendingHandoverToAccept(data.pendingHandover);
-                    setModalType('ACCEPT_HANDOVER');
-                } else {
-                    continueToBriefing(selectedColor!);
-                }
+                /**
+                 * AQUI HABIA UNA INTERCEPCION QUE NO INTERCEPTABA NADA, Y ENCIMA
+                 * SE COMIA EL BRIEFING.
+                 *
+                 * "FASE 44: Intercepcion de lectura obligatoria" ponia
+                 * modalType 'ACCEPT_HANDOVER' — y ese modal NO EXISTE. No hay
+                 * ninguna rama que lo pinte en todo el repo; el estado
+                 * `pendingHandoverToAccept` se asignaba y no lo leia nadie.
+                 *
+                 * Lo peor no es el cuadro vacio: es el `else`. Al entrar por el
+                 * `if`, NO se llamaba a continueToBriefing, asi que la cuidadora
+                 * se quedaba sin briefing. Y la condicion se cumple siempre que
+                 * haya un relevo firmado en las ultimas 12 horas
+                 * (shift/start/route.ts:412-431) — o sea, EL CASO NORMAL: entrar
+                 * detras de un turno bien cerrado.
+                 *
+                 * Resultado: quien entraba detras de una companera que hizo las
+                 * cosas bien se quedaba sin ver nada, y quien entraba detras de
+                 * un turno mal cerrado si veia el briefing. Al reves de lo que
+                 * se queria.
+                 *
+                 * El briefing YA enseña el relevo anterior —bloque teal "Relevo
+                 * de tu turno anterior", con quien lo entrego, el texto y el
+                 * enlace al reporte completo (linea ~2760)—. Asi que lo correcto
+                 * es dejarlo pasar. Si algun dia se quiere una lectura
+                 * obligatoria de verdad, se construye la pantalla primero.
+                 */
+                continueToBriefing(selectedColor!);
             } else {
                 avisoError("Error de Inicio de Turno: " + data.error);
             }

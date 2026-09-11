@@ -126,11 +126,34 @@ export async function collectShiftActivity(params: {
         prisma.medicationAdministration.count({
             where: { administeredById: caregiverId, administeredAt: { gte: shiftStart }, status: 'ADMINISTERED' },
         }),
+        /**
+         * ESTA CONSULTA NO PODIA DEVOLVER NADA. NUNCA.
+         *
+         * Filtraba por `administeredAt >= shiftStart` sobre filas cuyo estado NO
+         * es ADMINISTERED — y `meds/bulk` escribe exactamente eso:
+         *
+         *   administeredAt: adminStatus === 'ADMINISTERED' ? administeredAt : null
+         *   (src/app/api/care/meds/bulk/route.ts:218)
+         *
+         * Un campo nulo no cumple `gte` jamas, y el schema no le pone default.
+         * Resultado: TODOS los relevos firmados desde que existe este flujo
+         * dicen, implicitamente, "no se omitio nada".
+         *
+         * Comprobado contra produccion el 11-sep-2026: de los ultimos 30 dias
+         * hay 3 registros OMITTED y los 3 tienen administeredAt en NULL. Los
+         * tres fueron invisibles para el turno que entraba.
+         *
+         * Se filtra por `createdAt`, que es cuando se registro la omision y
+         * siempre tiene valor. Y se suma HELD, que es una retencion deliberada
+         * de la cuidadora y le importa igual al que entra. MISSED queda fuera a
+         * proposito: lo escribe el sistema cuando vence la ventana, sin
+         * `administeredById`, asi que ni siquiera pasaria el filtro de autor.
+         */
         prisma.medicationAdministration.findMany({
             where: {
                 administeredById: caregiverId,
-                administeredAt: { gte: shiftStart },
-                status: { in: ['OMITTED', 'REFUSED'] },
+                createdAt: { gte: shiftStart },
+                status: { in: ['OMITTED', 'REFUSED', 'HELD'] },
             },
             include: {
                 patientMedication: { include: { patient: { select: { name: true } }, medication: { select: { name: true } } } },
