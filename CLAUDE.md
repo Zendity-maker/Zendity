@@ -94,6 +94,7 @@ Solo hacer commit si TSC_EXIT: 0 y sin errores en archivos de producción (tests
 7. **Listar personas sin filtrar a quien ya no está** — ver abajo.
 8. **Un examen que se aprueba sin leer** — ver abajo.
 9. **Medir un campo que no pediste en el `select`** — ver abajo.
+10. **Filtrar por una fecha que está nula justo en las filas que importan** — ver abajo.
 
 ---
 
@@ -149,6 +150,42 @@ falleció. La regla es por la forma de la consulta:
 
 Al 10-sep-2026 quedan **83 consultas** unidas a `patient` por sede sin `status`
 que piden revisión una por una. No se tocan en bloque.
+
+---
+
+## 📅 La fecha por la que filtras está nula justo donde importa
+
+*Seis casos el 11-sep-2026, todos el mismo día y ninguno relacionado con otro.*
+
+Dos campos de `MedicationAdministration` parecen buenos para acotar "lo de hoy"
+y los dos mienten:
+
+| campo | cuándo es null |
+|---|---|
+| `administeredAt` | **siempre que el estado NO sea `ADMINISTERED`** — `meds/bulk` lo escribe así a propósito |
+| `scheduledTime` | **siempre**. Nulo en las 7.018 filas de los últimos 30 días: el campo se diseñó y nunca se llenó |
+
+Filtrar por cualquiera de los dos **excluye en silencio las omisiones**, que son
+justo lo que se quiere contar. Y no da error: da un número tranquilizador.
+
+| dónde | qué decía |
+|---|---|
+| `shift-closure-report.ts` | todo relevo decía "no se omitió nada" |
+| `care/supervisor/shift-audit` | la auditoría de turno, "cero omisiones" |
+| `corporate/director-briefing` | cumplimiento eMAR **100% por construcción** |
+| `corporate/trends` | la tendencia, igual |
+| `family/dashboard` y `cron/family-digest` | la familia nunca ve el estado de los medicamentos |
+
+**La regla:** para acotar "lo de hoy" en una tabla de eventos, usa `createdAt`,
+que siempre tiene valor. `administeredAt` y `scheduledTime` sirven para mostrar
+la hora, no para filtrar el día.
+
+**Y el olor a detectar:** una métrica que sale redonda siempre —100%, 0%,
+"ninguno"— no es una métrica buena, es una métrica que no puede moverse.
+Compruébalo simulándola: ¿bajo qué dato daría otra cosa? Si no hay ninguno, está
+rota. El mismo día, la cobertura de comidas del panel del director era el espejo:
+una alarma que **no podía dejar de sonar** porque dividía entre las tres comidas
+del día a las 8:38 de la mañana.
 
 ---
 
