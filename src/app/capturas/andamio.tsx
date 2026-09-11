@@ -52,6 +52,14 @@ export const SESION = {
  */
 export function instalar(rutas: Record<string, unknown>) {
     if (typeof window === 'undefined') return;
+    // EN PRODUCCION NO SE PARCHEA NADA.
+    //
+    // `instalar()` corre al cargar el modulo, antes de que <Andamio> pueda
+    // devolver null. Sin esta linea, abrir /capturas/loquesea en produccion
+    // dejaba `window.fetch` sustituido para esa pestana —devolviendo datos
+    // inventados a todo lo que pidiera— sobre una pagina que ademas sale en
+    // blanco. La guarda tiene que estar en los dos sitios.
+    if (!SOLO_EN_DESARROLLO) return;
     const w = window as any;
     if (w.__andamioPuesto) { w.__andamioRutas = rutas; return; }
     w.__andamioPuesto = true;
