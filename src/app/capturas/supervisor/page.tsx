@@ -9,7 +9,15 @@ const HOY = (hora: string) => {
     d.setHours(Number(h), Number(m), 0, 0);
     return d.toISOString();
 };
-const HACE_H = (horas: number) => new Date(Date.parse('2026-09-11T12:00:00') - horas * 3600_000).toISOString();
+/**
+ * RELATIVO A AHORA, no a un dia fijo.
+ *
+ * Estaba anclado a 2026-09-11T12:00 y la pantalla pinta "hace Xm" restando
+ * contra Date.now() por dentro: la foto decia "hace 448m" en un ticket que el
+ * fixture describe como de hace dos horas, y cada vez que se repitiera la
+ * captura diria otra cosa. Anclando el DESFASE el texto sale igual siempre.
+ */
+const HACE_H = (horas: number) => new Date(Date.now() - horas * 3600_000).toISOString();
 
 instalar({
     // La respuesta de /live va PLANA: la pantalla hace setLiveData(data), no
@@ -27,14 +35,36 @@ instalar({
             { id: 's4', caregiverId: 'c4', startTime: HOY('06:00'), caregiver: { id: 'c4', name: 'Damaris Soto', role: 'CAREGIVER' }, colorGroup: 'YELLOW' },
         ],
         zombieSessions: [],
-        missingHandovers: [
-            { id: 'h1', caregiverId: 'c9', caregiverName: 'Ivelisse Ramos', shiftDate: HACE_H(14), shiftType: 'NIGHT' },
+        /**
+         * VACIO A PROPOSITO, Y NO ES UN OLVIDO.
+         *
+         * El bloque "Brechas — turnos cerrados sin handover" existe en la
+         * pantalla pero en produccion NO PUEDE mostrar nada: en
+         * src/app/api/care/supervisor/live/route.ts:537 `missingHandovers` es
+         * un array vacio literal, con el comentario de que se derivaba del
+         * modelo legacy ShiftSchedule y esta pendiente de migrar a
+         * ScheduledShift. Rellenarlo aqui daria una foto de algo que ninguna
+         * supervisora ha visto nunca — justo lo que hizo viejos los cursos.
+         *
+         * Lo que SI existe y se fotografia es el bloque de abajo:
+         * "Esperando tu firma", que sale de handoversFeed.
+         */
+        missingHandovers: [],
+        handoversFeed: [
+            { id: 'hf1', shiftType: 'NIGHT', status: 'PENDING', derivedStatus: 'PENDING_SUPERVISOR',
+              createdAt: HACE_H(6), signedOutAt: HACE_H(6), supervisorSignedAt: null, handoverCompleted: true,
+              outgoingName: 'Ivelisse Ramos', outgoingId: 'c9', incomingName: null, supervisorName: null,
+              colorGroups: ['RED', 'YELLOW'], patientCount: 8, aiSummaryReport: null, dupCount: 1 },
+            { id: 'hf2', shiftType: 'MORNING', status: 'ACCEPTED', derivedStatus: 'SUPERVISOR_SIGNED',
+              createdAt: HACE_H(2), signedOutAt: HACE_H(2), supervisorSignedAt: HACE_H(1.5), handoverCompleted: true,
+              outgoingName: 'Joaneliz Pérez', outgoingId: 'c1', incomingName: 'Marisol Vega', supervisorName: 'Ana Rivera',
+              colorGroups: ['BLUE'], patientCount: 7, aiSummaryReport: null, dupCount: 1 },
         ],
         pendingComplaints: [],
         triageFeed: [
-            { id: 't1', sourceId: 'd1', sourceType: 'DAILY_LOG', category: 'CLINICAL_ALERT', title: 'Piquiña y enrojecimiento', description: 'Se queja de picazón en la espalda y los brazos. Piel enrojecida, sin herida abierta.', patientId: 'p1', patientName: 'Rosa Medina', authorId: 'c1', authorName: 'Joaneliz Pérez', authorRole: 'CAREGIVER', urgency: 'HIGH', createdAt: HACE_H(2) },
-            { id: 't2', sourceId: 'd2', sourceType: 'DAILY_LOG', category: 'CLINICAL_ALERT', title: 'Comió el 25% del almuerzo', description: 'Tercer día seguido dejando casi todo. No se queja de nada.', patientId: 'p2', patientName: 'Luis Ortega', authorId: 'c2', authorName: 'Marisol Vega', authorRole: 'CAREGIVER', urgency: 'MEDIUM', createdAt: HACE_H(4) },
-            { id: 't3', sourceId: 'u1', sourceType: 'UPP_SLA', category: 'UPP_SLA', title: 'Rotación vencida', description: 'Lleva 3h 40min sin cambio de posición. El plan indica cada 2 horas.', patientId: 'p4', patientName: 'Pedro Santana', patientIdParaRotar: 'p4', ultimaRotacion: HACE_H(3.7), urgency: 'HIGH', createdAt: HACE_H(1) },
+            { id: 't1', sourceId: 'd1', sourceType: 'DAILY_LOG', category: 'CLINICAL_ALERT', title: 'Piquiña y enrojecimiento', description: 'Se queja de picazón en la espalda y los brazos. Piel enrojecida, sin herida abierta.', patientId: 'p1', patientName: 'Rosa Medina', authorId: 'c1', authorName: 'Joaneliz Pérez', authorRole: 'CAREGIVER', urgency: 'INMINENTE', createdAt: HACE_H(2) },
+            { id: 't2', sourceId: 'd2', sourceType: 'DAILY_LOG', category: 'CLINICAL_ALERT', title: 'Comió el 25% del almuerzo', description: 'Tercer día seguido dejando casi todo. No se queja de nada.', patientId: 'p2', patientName: 'Luis Ortega', authorId: 'c2', authorName: 'Marisol Vega', authorRole: 'CAREGIVER', urgency: 'ATENCION', createdAt: HACE_H(4) },
+            { id: 't3', sourceId: 'u1', sourceType: 'UPP_SLA', category: 'UPP_SLA', title: 'Rotación vencida', description: 'Lleva 3h 40min sin cambio de posición. El plan indica cada 2 horas.', patientId: 'p4', patientName: 'Pedro Santana', patientIdParaRotar: 'p4', ultimaRotacion: HACE_H(3.7), urgency: 'INMINENTE', createdAt: HACE_H(1) },
         ],
         activeFastActions: [],
         fallIncidents: [],
@@ -45,7 +75,6 @@ instalar({
         vitalsTotals: { tomados: 26, esperados: 31, pct: 84 },
         medsProgress: { shift: 'MORNING', completed: 48, total: 50, pct: 96 },
         teamScores: [],
-        handoversFeed: [],
         observationsFeed: [],
         incidentAppeals: [],
         roundsSummary: { completedSlots: 2, totalSlots: 3 },

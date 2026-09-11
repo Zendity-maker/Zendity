@@ -56,6 +56,15 @@ const TOMAS: Toma[] = [
     //   El turno activo, los contadores del piso y los accesos del supervisor.
     { nombre: 'supervisor-rondas', ruta: '/capturas/supervisor', ancho: 1400, alto: 700, esperar: 'text=Rondas de Cuidadores', bajar: 300 },
     //   Las rondas por piso: cada cuidadora con su grupo de color y su porcentaje.
+    { nombre: "supervisor-inbox-operativo", ruta: '/capturas/supervisor', ancho: 1400, alto: 1000, esperar: "text=Inbox Operativo", recortar: 'div.rounded-\\[2\\.5rem\\]:has(h2:has-text("Inbox Operativo"))' },
+    //   La bandeja donde cae todo lo que el piso reporta: los contadores de
+    //   Inminente y Atencion arriba, las pestañas por tipo, y los tickets con su
+    //   urgencia. Es la pantalla en la que la supervisora decide a que va primero.
+    { nombre: "supervisor-relevos", ruta: '/capturas/supervisor', ancho: 1400, alto: 1100, esperar: "text=Handovers Hoy", recortar: 'div.rounded-\\[2\\.5rem\\]:has(h3:has-text("Handovers Hoy"))' },
+    //   Los relevos del dia: el de la noche esperando la firma de la supervisora,
+    //   con el boton para firmarlo sin salir de la pantalla, y el de la mañana ya
+    //   firmado. NO se fotografia el bloque de "Brechas": en produccion siempre
+    //   esta vacio (ver la nota del andamio).
     // ── /care
     { nombre: "care-turno-lista", ruta: '/capturas/care-turno', ancho: 1400, alto: 1050, esperar: "text=Rosa Medina" },
     //   LA FOTO PRINCIPAL, la que piden los 21 cursos: el encabezado con el turno de mañana abierto, el chip del grupo azul, el botón Entregar Turno, la nota 
