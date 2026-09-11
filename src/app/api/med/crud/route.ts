@@ -70,6 +70,28 @@ export async function POST(req: Request) {
         const dias = frecuencia === 'SEMANAL' ? diasValidos(scheduleDays) : [];
         const medico = typeof prescribedBy === 'string' ? prescribedBy.trim().slice(0, 120) || null : null;
 
+        /**
+         * EN UNA MODIFICACION, LO QUE NO SE MANDA NO SE TOCA.
+         *
+         * Celia, 11-sep-2026: "los horarios Semanal no le permite colocarlo un
+         * solo dia, como el caso del alendronato de Natalia".
+         *
+         * Esto era literal, y el culpable estaba aqui. El modal "Modificar
+         * Horario" de /med no manda `frequency` ni `scheduleDays`, y esta rama
+         * escribia `frequency: frecuencia` —que sin campo cae a DIARIO— y
+         * `scheduleDays: []`. Resultado: abrir una receta SEMANAL para cambiarle
+         * la hora la convertia en DIARIA y le borraba los dias, sin decir nada.
+         * Se pone el viernes, se edita cualquier cosa, y el viernes desaparece.
+         *
+         * Una receta nueva (ADDED) si necesita frecuencia si o si, y ahi DIARIO
+         * como defecto es correcto. Una modificacion no: un campo ausente
+         * significa "no lo cambies", que es lo que `undefined` ya significa en
+         * Prisma. Afecta a las 7 recetas semanales vivas de Cupey.
+         */
+        const cambiosDeFrecuencia = esFrecuenciaValida(frequency)
+            ? { frequency: frecuencia, scheduleDays: dias }
+            : {};
+
         // authorId SIEMPRE viene de la sesión, no del body (auditoría HIPAA).
         const authorId = invokerId;
 
@@ -125,13 +147,16 @@ export async function POST(req: Request) {
             updatedMed = await prisma.patientMedication.update({
                 where: { id: patientMedicationId },
                 data: {
-                    scheduleTimes,
-                    prepDuration: prepDuration || "1_SEMANA",
-                    frequency: frecuencia,
-                    scheduleDays: dias,
+                    // Lo mismo que arriba: un campo que no llega, no se pisa.
+                    ...(typeof scheduleTimes === 'string' && scheduleTimes.trim()
+                        ? { scheduleTimes } : {}),
+                    ...(prepDuration ? { prepDuration } : {}),
+                    ...cambiosDeFrecuencia,
                     ...(medico !== null ? { prescribedBy: medico } : {}),
-                    isActive: true,
-                    status: "ACTIVE"
+                    // NO se fuerza isActive/status aqui. Ahora que DISCONTINUED
+                    // es un estado de verdad, "modificar" no puede resucitar una
+                    // receta descontinuada sin que nada lo diga: revivirla tiene
+                    // que ser un acto propio, no el efecto de cambiar una hora.
                 }
             });
             await prisma.medicationAuditLog.create({

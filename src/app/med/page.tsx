@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FRECUENCIAS, DIAS, tieneHoraLegible } from "@/lib/receta";
+import { FRECUENCIAS, DIAS, tieneHoraLegible, esFrecuenciaValida } from "@/lib/receta";
 import { useAuth } from "@/context/AuthContext";
 import { useActiveHq } from "@/contexts/ActiveHqContext";
 import TaskAssignmentButton from "@/components/TaskAssignmentButton";
@@ -20,7 +20,18 @@ export default function ZendityMedPage() {
     const [selectedMed, setSelectedMed] = useState<any>(null);
     const [crudReason, setCrudReason] = useState("");
     const [crudAction, setCrudAction] = useState<"MODIFIED" | "DISCONTINUED" | null>(null);
-    const [newSchedule, setNewSchedule] = useState("");
+    /**
+     * LO QUE SE ESTA EDITANDO DE UNA RECETA VIVA.
+     *
+     * Antes esto era un solo `newSchedule` que se inicializaba con
+     * `med.scheduleTime` —un campo que no existe: el modelo lo llama
+     * `scheduleTimes`— asi que el recuadro abria VACIO, sin la hora actual. Y
+     * el modal no preguntaba por la frecuencia ni por los dias, asi que editar
+     * una receta semanal la devolvia a diaria y le borraba los dias.
+     */
+    const [editForm, setEditForm] = useState({
+        scheduleTimes: "", frequency: "DIARIO", scheduleDays: [] as number[], prepDuration: "1_SEMANA",
+    });
     const [submitting, setSubmitting] = useState(false);
 
     // Add Med State
@@ -102,6 +113,16 @@ export default function ZendityMedPage() {
 
     const handleCrudSubmit = async () => {
         if (!crudReason) { alert("Obligatorio justificar el cambio (Auditoría HIPAA)."); return; }
+        if (crudAction === 'MODIFIED') {
+            // Las mismas dos guardas que al añadir. Una pauta semanal sin día no
+            // toca nunca, y una hora que no parsea no llega a la tableta.
+            if (editForm.frequency === 'SEMANAL' && editForm.scheduleDays.length === 0) {
+                return alert("Marca al menos un día de la semana.");
+            }
+            if (editForm.frequency !== 'PRN' && !tieneHoraLegible(editForm.scheduleTimes)) {
+                return alert("El horario tiene que llevar al menos una hora en formato 08:00 AM.\n\nSi el medicamento es solo ciertos días, elige \"Solo ciertos días\" y marca los días — no lo escribas dentro del horario.");
+            }
+        }
         setSubmitting(true);
         try {
             const res = await fetch("/api/med/crud", {
@@ -110,7 +131,12 @@ export default function ZendityMedPage() {
                 body: JSON.stringify({
                     action: crudAction,
                     patientMedicationId: selectedMed.id,
-                    scheduleTime: crudAction === 'MODIFIED' ? newSchedule : selectedMed.scheduleTime,
+                    ...(crudAction === 'MODIFIED' ? {
+                        scheduleTimes: editForm.scheduleTimes,
+                        frequency: editForm.frequency,
+                        scheduleDays: editForm.scheduleDays,
+                        prepDuration: editForm.prepDuration,
+                    } : {}),
                     authorId: user?.id,
                     reason: crudReason
                 })
@@ -131,7 +157,12 @@ export default function ZendityMedPage() {
     const openCruModal = (med: any, action: "MODIFIED" | "DISCONTINUED") => {
         setSelectedMed(med);
         setCrudAction(action);
-        setNewSchedule(med.scheduleTime);
+        setEditForm({
+            scheduleTimes: med.scheduleTimes ?? "",
+            frequency: esFrecuenciaValida(med.frequency) ? med.frequency : "DIARIO",
+            scheduleDays: Array.isArray(med.scheduleDays) ? [...med.scheduleDays] : [],
+            prepDuration: med.prepDuration ?? "1_SEMANA",
+        });
         setModalOpen(true);
     };
 
@@ -239,7 +270,7 @@ export default function ZendityMedPage() {
 
                                             {/* Action Hover for AUDIT CRUD */}
                                             <div className="absolute inset-0 bg-slate-900/90 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-sm">
-                                                <button onClick={() => openCruModal(m, 'MODIFIED')} className="text-xs font-bold bg-white text-slate-900 px-4 py-1.5 rounded-lg hover:scale-105 active:scale-95 transition-all">Editar Dosis</button>
+                                                <button onClick={() => openCruModal(m, 'MODIFIED')} className="text-xs font-bold bg-white text-slate-900 px-4 py-1.5 rounded-lg hover:scale-105 active:scale-95 transition-all">Editar receta</button>
                                                 <button onClick={() => openCruModal(m, 'DISCONTINUED')} className="text-xs font-bold bg-red-500 text-white px-4 py-1.5 rounded-lg shadow-lg shadow-red-500/30 hover:scale-105 active:scale-95 transition-all">Descontinuar</button>
                                             </div>
                                         </div>
@@ -271,16 +302,65 @@ export default function ZendityMedPage() {
                 <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
                     <div className="bg-white rounded-xl w-full max-w-md shadow-2xl p-8 animate-in zoom-in-95">
                         <h3 className="text-2xl font-black text-slate-900 mb-1">
-                            {crudAction === 'MODIFIED' ? 'Modificar Horario' : 'Descontinuar Récord'}
+                            {crudAction === 'MODIFIED' ? 'Editar la receta' : 'Descontinuar Récord'}
                         </h3>
                         <p className="text-sm font-medium text-slate-500 mb-6 border-b border-slate-100 pb-4">Auditoría Estricta: Fármaco <strong className="text-slate-800">{selectedMed.medication.name}</strong></p>
 
                         <div className="space-y-4">
                             {crudAction === 'MODIFIED' && (
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-1">Nuevo Horario de Suministro</label>
-                                    <input type="text" value={newSchedule} onChange={e => setNewSchedule(e.target.value)} className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold" />
-                                </div>
+                                <>
+                                    {/* Los mismos tres campos que al añadir, y por la misma razon:
+                                        si el modal no los pregunta, la API no los recibe y la pauta
+                                        semanal se pierde al guardar. */}
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">¿Cada cuándo?</label>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {FRECUENCIAS.map(f => (
+                                                <button
+                                                    key={f.codigo}
+                                                    type="button"
+                                                    onClick={() => setEditForm({ ...editForm, frequency: f.codigo, scheduleDays: f.codigo === 'SEMANAL' ? editForm.scheduleDays : [] })}
+                                                    className={`p-3 rounded-xl border-2 text-left transition-all ${editForm.frequency === f.codigo ? 'bg-teal-600 text-white border-teal-700' : 'bg-white text-slate-700 border-slate-200 hover:border-teal-300'}`}
+                                                >
+                                                    <span className="block text-[13px] font-black leading-tight">{f.etiqueta}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <p className="text-[11px] text-slate-400 mt-1.5">
+                                            {FRECUENCIAS.find(f => f.codigo === editForm.frequency)?.ayuda}
+                                        </p>
+                                    </div>
+
+                                    {editForm.frequency === 'SEMANAL' && (
+                                        <div className="animate-in fade-in">
+                                            <label className="block text-sm font-bold text-slate-700 mb-1">¿Qué días?</label>
+                                            <div className="grid grid-cols-7 gap-1.5">
+                                                {DIAS.map(d => {
+                                                    const puesto = editForm.scheduleDays.includes(d.n);
+                                                    return (
+                                                        <button
+                                                            key={d.n}
+                                                            type="button"
+                                                            title={d.largo}
+                                                            onClick={() => setEditForm({ ...editForm, scheduleDays: puesto ? editForm.scheduleDays.filter(x => x !== d.n) : [...editForm.scheduleDays, d.n].sort() })}
+                                                            className={`py-3 rounded-xl border-2 font-black text-sm transition-all ${puesto ? 'bg-teal-600 text-white border-teal-700' : 'bg-white text-slate-500 border-slate-200 hover:border-teal-300'}`}
+                                                        >{d.corto}</button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {editForm.frequency !== 'PRN' && (
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 mb-1">Horario de Suministro</label>
+                                            <input type="text" value={editForm.scheduleTimes} onChange={e => setEditForm({ ...editForm, scheduleTimes: e.target.value })} className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold outline-none focus:border-teal-500" placeholder="Ej: 08:00 AM, 08:00 PM" />
+                                            <p className="text-[11px] text-slate-400 mt-1.5">
+                                                Solo horas, separadas por coma. Los días van arriba.
+                                            </p>
+                                        </div>
+                                    )}
+                                </>
                             )}
 
                             <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
