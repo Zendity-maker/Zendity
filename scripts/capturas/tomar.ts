@@ -68,10 +68,48 @@ async function main() {
     let ok = 0;
     for (const t of tomas) {
         const pag = await ctx.newPage();
+        const avisos: string[] = [];
+        pag.on('console', m => { if (m.type() === 'warning' || m.type() === 'error') avisos.push(m.text()); });
+        pag.on('pageerror', e => avisos.push(`pageerror: ${e.message}`));
         await pag.setViewportSize({ width: t.ancho ?? 1100, height: t.alto ?? 900 });
         try {
             await pag.goto(BASE + t.ruta, { waitUntil: 'networkidle', timeout: 30_000 });
             if (t.esperar) await pag.waitForSelector(t.esperar, { timeout: 15_000 });
+
+            /**
+             * NO GUARDAR UNA FOTO DE UN ERROR NI DE UN SPINNER.
+             *
+             * Sin esto el script dice "✓" igual: guarda el overlay rojo de Next
+             * o una pantalla en blanco con la ruedita, y el fallo no aparece
+             * hasta que alguien abre el curso y ve la foto. Un andamio al que
+             * le falta un fixture se queda cargando para siempre, y eso es
+             * exactamente lo que hay que cazar aqui.
+             */
+            const roto = await pag.evaluate(() => {
+                // El <nextjs-portal> SIEMPRE existe en desarrollo (es el
+                // indicador, que ocultamos por CSS). Lo que delata un error es
+                // lo que lleva DENTRO, en su shadow root.
+                const portal = document.querySelector('nextjs-portal') as any;
+                const dentro = portal?.shadowRoot?.textContent ?? '';
+                const error = /Runtime|Unhandled|Build Error|Failed to compile/i.test(dentro);
+                const texto = document.body.innerText ?? '';
+                return {
+                    error, detalle: dentro.slice(0, 120).replace(/\s+/g, ' '),
+                    vacia: texto.trim().length < 120,
+                    muestra: texto.slice(0, 90).replace(/\s+/g, ' '),
+                };
+            });
+            if (roto.error) throw new Error(`error de Next en la pantalla: ${roto.detalle}`);
+            if (roto.vacia) throw new Error(`la pantalla salio casi vacia — ¿falta un fixture? "${roto.muestra}"`);
+            const fallos = avisos.filter(a => a.startsWith('pageerror:'));
+            if (fallos.length) throw new Error(fallos[0].slice(0, 140));
+
+            const sinFixture = avisos.filter(a => a.includes('[andamio] sin fixture'));
+            if (sinFixture.length) {
+                console.log(`     · ${sinFixture.length} peticion(es) sin fixture (se pintan vacias):`);
+                [...new Set(sinFixture.map(a => a.split('sin fixture:')[1]?.trim()))].slice(0, 5)
+                    .forEach(u => console.log(`       ${u}`));
+            }
             for (const sel of t.clics ?? []) { await pag.click(sel); await pag.waitForTimeout(600); }
             if (t.bajar) { await pag.evaluate((y) => window.scrollTo(0, y), t.bajar); await pag.waitForTimeout(400); }
             await pag.waitForTimeout(800); // que terminen las animaciones
