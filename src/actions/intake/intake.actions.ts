@@ -165,7 +165,7 @@ export async function submitIntake(patientId: string) {
           }
         });
 
-        let parsedMeds: Array<{name: string, scheduleTimes: string[]}> = [];
+        let parsedMeds: Array<{ name: string; dose?: string; scheduleTimes: string[] }> = [];
         try {
           parsedMeds = JSON.parse(intake.rawMedications);
         } catch {
@@ -187,6 +187,23 @@ export async function submitIntake(patientId: string) {
             where: { name: { contains: normalizedName, mode: "insensitive" } }
           });
 
+          /**
+           * LA DOSIS, SI LA HAY, ENTRA AL CATÁLOGO.
+           *
+           * Antes se creaba siempre con `dosage: "Por Definir"`, y por eso 181
+           * de los 197 fármacos del catálogo están así: cada medicamento que
+           * entra por una admisión obliga a una segunda vuelta por el catálogo
+           * de farmacia para teclear la dosis que ya se había leído del
+           * documento. Es la mitad de lo que Celia describe como "hay que
+           * volver a trabajar con ellos en el catálogo".
+           *
+           * Cuando el fármaco YA existe y su dosis es el marcador "Por Definir",
+           * se rellena. Nunca se pisa una dosis real: el catálogo lo comparten
+           * todos los residentes y una dosis equivocada ahí sale en muchas
+           * recetas a la vez.
+           */
+          const dosisLeida = (medObj.dose ?? '').trim();
+
           if (!medRecord) {
             // Crecimiento orgánico: categoriza automáticamente por heurística
             // del nombre del medicamento. Si no hay match → "Sin clasificar"
@@ -195,10 +212,15 @@ export async function submitIntake(patientId: string) {
             medRecord = await tx.medication.create({
               data: {
                 name: normalizedName,
-                dosage: "Por Definir",
+                dosage: dosisLeida || "Por Definir",
                 route: "Oral",
                 category: inferredCategory,
               }
+            });
+          } else if (dosisLeida && medRecord.dosage === "Por Definir") {
+            medRecord = await tx.medication.update({
+              where: { id: medRecord.id },
+              data: { dosage: dosisLeida },
             });
           }
 

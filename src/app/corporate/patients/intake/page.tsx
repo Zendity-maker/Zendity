@@ -514,8 +514,13 @@ export default function IntakeWizardPage() {
     const meds = analyzeResult.suggestions?.medications || [];
     if (meds.length > 0) {
       const current = medicationsList;
+      // `dose` SE CONSERVA. Zendi la saca del documento, la enseña en pantalla
+      // ("Alendronato · 70 mg · ...") y hasta hoy este map la tiraba: llegaba al
+      // catálogo de farmacia como dosis "Por Definir" — 181 de los 197 fármacos
+      // están así — y alguien tenía que volver a teclearla allí.
       const merged = [...current, ...meds.map((m: any) => ({
         name: m.name,
+        dose: m.dose || undefined,
         scheduleTimes: Array.isArray(m.scheduleTimes) && m.scheduleTimes.length > 0 ? m.scheduleTimes : ["PRN"],
       }))];
       handleFieldChange("rawMedications", JSON.stringify(merged));
@@ -1058,7 +1063,10 @@ export default function IntakeWizardPage() {
                                {medicationsList.map((med: any, index: number) => (
                                  <div key={index} className="bg-white p-4 rounded-2xl border border-slate-200 flex justify-between items-center shadow-sm">
                                    <div>
-                                     <h5 className="font-black text-slate-800">{med.name}</h5>
+                                     <h5 className="font-black text-slate-800">
+                                       {med.name}
+                                       {med.dose && <span className="ml-2 text-slate-500 font-bold">· {med.dose}</span>}
+                                     </h5>
                                      <div className="flex gap-2 mt-1 flex-wrap">
                                        {med.scheduleTimes.map((t: string) => (
                                          <span key={t} className="bg-teal-50 text-teal-700 text-[10px] uppercase font-black tracking-widest px-2 py-1 rounded-lg border border-teal-100">{t}</span>
