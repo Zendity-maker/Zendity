@@ -1710,7 +1710,12 @@ export default function ZendityCareTabletPage() {
         try {
             const res = await fetch(`/api/care/meds/prn-efecto?patientId=${patientId}`);
             const data = await res.json();
-            setPrnSinEfecto(data.success ? data.pendientes : []);
+            // `?? []` y no `data.pendientes` a secas: si la respuesta llega con
+            // success:true y sin `pendientes`, el estado se queda en undefined y
+            // el `prnSinEfecto.length` de mas abajo tumba la pantalla ENTERA con
+            // una pantalla blanca — en la tableta, a mitad de turno. Lo descubri
+            // fotografiando el pack para el curso de eMAR.
+            setPrnSinEfecto(data.success ? (data.pendientes ?? []) : []);
         } catch { setPrnSinEfecto([]); }
     }, []);
 

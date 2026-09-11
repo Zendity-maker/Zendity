@@ -69,6 +69,10 @@ const TOMAS: Toma[] = [
     //   Primer plano de las tres tarjetas y el botón de salir, sin el saludo. Para el paso "pulsa Iniciar Turno para abrir tu turno" y para explicar que Acade
     { nombre: "care-hub-observacion-pendiente", ruta: '/capturas/care-hub', ancho: 820, alto: 760, esperar: "text=2 pendientes de respuesta", recortar: "button:has-text(\"Mis Observaciones\")" },
     //   Solo la tarjeta de Mis Observaciones con "2 pendientes de respuesta" y la pastilla ámbar con el 2. Enseña a reconocer que dirección le pidió una expli
+    // ── /care — el pack de medicamentos, el acto central del turno
+    { nombre: 'care-pack-meds', ruta: '/capturas/care-meds', ancho: 1300, alto: 950, esperar: 'text=Administrar pack', recortar: 'div.fixed' },
+    //   El pack de las 8:00 con su medicamento, "¿Cuándo se hizo?", el recuadro de la
+    //   firma y la frase de los 5 correctos que se certifica al firmar.
     // ── /care/hallazgos
     { nombre: "hallazgos-tarjeta-pendiente", ruta: '/capturas/care-hallazgos', ancho: 1000, alto: 900, esperar: "text=Debió avisar y no avisó", recortar: ".space-y-3 > div:first-child" },
     //   LA TOMA PRINCIPAL. Una tarjeta PENDIENTE entera: la etiqueta de tipo en rosa ('Debió avisar y no avisó'), Rosa Medina Hab. 204, la frase original de l

@@ -107,7 +107,8 @@ export function instalar(rutas: Record<string, unknown>) {
             success: true, ok: true, data: [], items: [], results: [],
             messages: [], notifications: [], alerts: [], tasks: [], logs: [],
             patients: [], residentes: [], staff: [], users: [], schedules: [],
-            incidents: [], history: [], eventos: [], total: 0, count: 0,
+            incidents: [], history: [], eventos: [], pendientes: [], pendings: [],
+            total: 0, count: 0,
         });
     };
 }
