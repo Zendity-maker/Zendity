@@ -2,14 +2,35 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { todayStartAST } from '@/lib/dates';
 import { MOTIVOS_DE_COCINA, etiquetaMotivo } from '@/lib/comida';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * QUIEN PUEDE PEDIR EL CENSO DE COCINA.
+ *
+ * Esta ruta solo comprobaba que hubiera SESION. Devuelve, de los 47 residentes,
+ * nombre, numero de habitacion, grupo de color y la dieta prescrita — textura,
+ * diabetica, renal, baja en sodio. Eso es informacion clinica de todo el censo,
+ * y la tenia cualquier cuenta con sesion en la sede: cocina, mantenimiento,
+ * limpieza... y una FAMILIA, que tambien tiene sesion y headquartersId.
+ *
+ * La lista es quien necesita el censo para trabajar: cocina lo cocina, el
+ * supervisor lo revisa desde /care/supervisor/kitchen, y direccion y enfermeria
+ * responden por la dieta.
+ */
+const PUEDEN_VER_EL_CENSO_DE_COCINA = [
+    'KITCHEN', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'NURSE', 'SUPER_ADMIN',
+];
+
 export async function GET(request: Request) {
     try {
+        const auth = await requireRole(PUEDEN_VER_EL_CENSO_DE_COCINA);
+        if (auth instanceof NextResponse) return auth;
+
         const session = await getServerSession(authOptions);
         if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

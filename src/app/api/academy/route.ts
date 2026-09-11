@@ -7,7 +7,19 @@ import { notifyUser, notifyRoles } from '@/lib/notifications';
 import { logError, logWarn } from '@/lib/logger';
 import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
 
-const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'KITCHEN', 'MAINTENANCE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+/**
+ * QUIEN PUEDE USAR ACADEMY.
+ *
+ * Faltaban CLEANING, SOCIAL_WORKER y COORDINATOR — y a los tres se les ASIGNA
+ * formacion automaticamente (academy-assign.ts:49-51). El resultado era que el
+ * sistema les mandaba un curso y, al terminarlo, el POST que registra el
+ * aprobado les contestaba 403. Una tarea imposible de completar, que es
+ * justo el anti-patron que este proyecto tiene escrito: prometer y no entregar.
+ */
+const ALLOWED_ROLES = [
+    'CAREGIVER', 'NURSE', 'KITCHEN', 'MAINTENANCE', 'CLEANING',
+    'SOCIAL_WORKER', 'COORDINATOR', 'SUPERVISOR', 'DIRECTOR', 'ADMIN',
+];
 const SUPERVISORY_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 const CompleteBody = z.object({

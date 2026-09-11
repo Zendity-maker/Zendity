@@ -129,10 +129,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 else if (user.role === "CAREGIVER" && !pathname.startsWith("/care") && !pathname.startsWith("/cuidadores") && !pathname.startsWith("/corporate/medical/handovers") && !pathname.startsWith("/academy") && !pathname.startsWith("/my-observations")) {
                     router.replace("/care/hub");
                 }
-                else if (user.role === "MAINTENANCE" && !pathname.startsWith("/maintenance")) {
+                else if (user.role === "MAINTENANCE" && !pathname.startsWith("/maintenance") && !pathname.startsWith("/academy")) {
                     router.replace("/maintenance");
                 }
-                else if (user.role === "KITCHEN" && !pathname.startsWith("/kitchen")) {
+                else if (user.role === "KITCHEN" && !pathname.startsWith("/kitchen") && !pathname.startsWith("/academy")) {
                     router.replace("/kitchen");
                 }
                 else if (user.role === "CLEANING" && !pathname.startsWith("/cleaning") && !pathname.startsWith("/academy")) {
@@ -156,7 +156,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     !pathname.startsWith("/corporate/social") &&
                     !pathname.startsWith("/corporate/medical/patients") &&
                     // FASE 2 SW Eval: el page de la evaluación vive en su propia ruta
-                    !pathname.startsWith("/corporate/sw-evaluations")) {
+                    !pathname.startsWith("/corporate/sw-evaluations") &&
+                    // Academy: se le asigna formación, así que tiene que poder abrirla.
+                    !pathname.startsWith("/academy")) {
                     router.replace("/corporate/social");
                 }
                 // COORDINATOR-PURO (sin DIR/ADMIN/SUP/NURSE/SW como secondary) —
@@ -187,7 +189,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     !pathname.startsWith("/coordinator") &&
                     !pathname.startsWith("/corporate/family-") &&
                     !pathname.startsWith("/corporate/medical/patients") &&
-                    !pathname.startsWith("/corporate/calendar")
+                    !pathname.startsWith("/corporate/calendar") &&
+                    // Academy: se le asigna formación, así que tiene que poder abrirla.
+                    !pathname.startsWith("/academy")
                 ) {
                     router.replace("/coordinator");
                 }
