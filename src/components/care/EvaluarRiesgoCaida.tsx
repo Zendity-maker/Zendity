@@ -27,7 +27,7 @@ const NIVEL: Record<string, { texto: string; clase: string }> = {
 };
 
 export default function EvaluarRiesgoCaida({ residente, onCerrar, onGuardado }: {
-    residente: { id: string; nombre: string; habitacion?: string | null };
+    residente: { id: string; nombre: string; habitacion?: string | null; encamado?: boolean };
     onCerrar: () => void;
     onGuardado: () => void;
 }) {
@@ -129,6 +129,30 @@ export default function EvaluarRiesgoCaida({ residente, onCerrar, onGuardado }: 
                                 Estos son los ítems del índice de Downton publicado. Si alguno no
                                 corresponde a la hoja que usa el hogar, dilo antes de seguir — se
                                 corrige en un minuto.
+                            </p>
+                        </div>
+                    )}
+
+                    {/**
+                      * ENCAMADO — quien evalúa tiene que saberlo ANTES de empezar.
+                      *
+                      * Dos cosas cambian y ninguna es evidente desde la hoja:
+                      * el ítem de deambulación no se va a marcar nunca, así que
+                      * el puntaje sale un punto más bajo sin que la persona esté
+                      * mejor; y lo que Downton sugiere cuando alguien puntúa alto
+                      * —calzado, andador, iluminación— no es su riesgo.
+                      *
+                      * En Cupey los 8 encamados no se han caído nunca, y 4 de
+                      * ellos tienen úlcera. El riesgo no desapareció: se mudó.
+                      */}
+                    {residente.encamado && (
+                        <div className="mb-5 rounded-xl border border-slate-300 bg-slate-50 px-4 py-3">
+                            <p className="text-[13px] font-black text-slate-700 mb-1">Residente encamado</p>
+                            <p className="text-[13px] text-slate-600 leading-snug">
+                                La deambulación no va a marcarse, así que el puntaje saldrá un punto
+                                más bajo — eso no quiere decir que esté mejor. Su riesgo está en los
+                                traslados, la baranda y la altura de la cama, que esta escala no
+                                pregunta. Anótalo abajo si aplica.
                             </p>
                         </div>
                     )}

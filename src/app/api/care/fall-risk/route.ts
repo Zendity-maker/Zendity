@@ -50,6 +50,8 @@ export async function GET(req: Request) {
                 where: { headquartersId: invokerHqId, status: 'ACTIVE' },
                 select: {
                     id: true, name: true, roomNumber: true, downtonRisk: true,
+                    // Encamado. Ver el comentario de `encamado` mas abajo.
+                    requiresPosturalChanges: true,
                     fallRiskAssessments: {
                         orderBy: { evaluatedAt: 'desc' },
                         take: 1,
@@ -73,6 +75,27 @@ export async function GET(req: Request) {
                         id: p.id,
                         nombre: p.name.trim(),
                         habitacion: p.roomNumber,
+                        /**
+                         * ENCAMADO — la escala no le mide lo mismo.
+                         *
+                         * Un encamado pierde automaticamente el punto de
+                         * "camina inseguro", asi que puntua un punto mas bajo
+                         * que alguien que camina SIN estar mejor. Y lo que
+                         * Downton te hace pensar cuando alguien puntua alto
+                         * —calzado, iluminacion, andador— no es su riesgo: el
+                         * suyo es la tecnica de traslado, la baranda y la
+                         * altura de la cama.
+                         *
+                         * Medido el 10-sep-2026 en Cupey: los 8 encamados NO
+                         * se han caido NUNCA. No porque esten a salvo, sino
+                         * porque no caminan — su riesgo se mudo a la piel, y
+                         * ahi si se ve: 4 de los 8 tienen ulcera.
+                         *
+                         * Igual hay que evaluarlos: se cae en los traslados,
+                         * al sacarlo de la cama, al sentarlo. Y "evaluado y
+                         * sale bajo" no es lo mismo que "nunca se evaluo".
+                         */
+                        encamado: p.requiresPosturalChanges,
                         nivel: ev?.riskLevel ?? null,               // null = nadie lo ha evaluado
                         evaluadoEl: ev?.evaluatedAt ?? null,
                         proximaRevision: ev?.nextReviewAt ?? null,

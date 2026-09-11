@@ -50,6 +50,7 @@ interface EnRiesgo {
     proximaRevision: string | null;
     vencida: boolean;
     puntaje: number | null;
+    encamado: boolean;
     caidas90d: number;
     ultimaCaida: string | null;
 }
@@ -214,6 +215,10 @@ export default function CaidasPage() {
                                                     className={`text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all hover:shadow-sm active:scale-[0.97] ${n.chip}`}>
                                                     {r.nombre}
                                                     {r.habitacion && <span className="opacity-60"> · {r.habitacion}</span>}
+                                                    {/* La escala no le mide lo mismo a un encamado:
+                                                        pierde el punto de deambulación de oficio.
+                                                        Ver el comentario en /api/care/fall-risk. */}
+                                                    {r.encamado && <span className="opacity-60"> · encamado</span>}
                                                     {r.puntaje !== null && <span className="opacity-80"> · {r.puntaje} pts</span>}
                                                     {r.caidas90d > 0 && (
                                                         <span className="opacity-80"> · {r.caidas90d} caída{r.caidas90d === 1 ? '' : 's'} en 90 días</span>
@@ -286,7 +291,7 @@ export default function CaidasPage() {
 
             {evaluando && (
                 <EvaluarRiesgoCaida
-                    residente={{ id: evaluando.id, nombre: evaluando.nombre, habitacion: evaluando.habitacion }}
+                    residente={{ id: evaluando.id, nombre: evaluando.nombre, habitacion: evaluando.habitacion, encamado: evaluando.encamado }}
                     onCerrar={() => setEvaluando(null)}
                     onGuardado={() => { setEvaluando(null); cargar(); }}
                 />
