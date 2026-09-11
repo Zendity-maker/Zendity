@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="es-PR">
+<head>
+<meta charset="utf-8">
+<title>Del ingreso al piso — Zéndity</title>
+<style>
+  @page { size: Letter; margin: 20mm 18mm 18mm 18mm; }
+
+  :root {
+    --teal: #0F6E56;
+    --teal-claro: #1D9E75;
+    --tinta: #1E293B;
+    --gris: #64748B;
+    --linea: #E2E8F0;
+    --papel: #FFFFFF;
+    --ambar: #B45309;
+    --ambar-fondo: #FFFBEB;
+    --ambar-linea: #FDE68A;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 10.5pt;
+    line-height: 1.6;
+    color: var(--tinta);
+    background: var(--papel);
+  }
+
+  .sans { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+
+  /* ───────────────────────────── portada ───────────────────────────── */
+  .portada {
+    height: 232mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    page-break-after: always;
+  }
+  .marca {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 11pt; font-weight: 700; letter-spacing: .26em;
+    text-transform: uppercase; color: var(--teal);
+    margin-bottom: 14mm;
+  }
+  .portada h1 {
+    font-size: 33pt; line-height: 1.12; margin: 0 0 6mm 0;
+    font-weight: normal; letter-spacing: -.015em;
+  }
+  .portada .bajada {
+    font-size: 13pt; color: var(--gris); line-height: 1.5;
+    max-width: 125mm; margin: 0 0 16mm 0;
+  }
+  .regla { width: 26mm; height: 3px; background: var(--teal); margin-bottom: 8mm; }
+  .creditos {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 9pt; color: var(--gris); line-height: 1.9;
+  }
+  .creditos strong { color: var(--tinta); font-weight: 600; }
+
+  /* ───────────────────────────── secciones ──────────────────────────── */
+  h2 {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 16pt; font-weight: 700; letter-spacing: -.01em;
+    color: var(--tinta); margin: 0 0 1mm 0;
+    page-break-after: avoid;
+  }
+  h2 .num {
+    display: inline-block; min-width: 9mm;
+    color: var(--teal-claro); font-weight: 700;
+  }
+  h2 + .sub {
+    font-size: 10.5pt; color: var(--gris); font-style: italic;
+    margin: 0 0 6mm 9mm; page-break-after: avoid;
+  }
+  h3 {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 10.5pt; font-weight: 700; color: var(--teal);
+    text-transform: uppercase; letter-spacing: .07em;
+    margin: 7mm 0 2mm 0; page-break-after: avoid;
+  }
+  section { page-break-before: always; }
+  section.seguida { page-break-before: auto; }
+  p { margin: 0 0 3.5mm 0; }
+  ul, ol { margin: 0 0 4mm 0; padding-left: 6mm; }
+  li { margin-bottom: 1.8mm; }
+  strong { font-weight: bold; }
+  em { font-style: italic; }
+
+  /* ───────────────────────────── piezas ─────────────────────────────── */
+  .cita {
+    border-left: 3px solid var(--teal);
+    padding: 1mm 0 1mm 6mm;
+    margin: 0 0 5mm 0;
+    font-size: 11.5pt; font-style: italic; color: #334155;
+  }
+  .cita .quien {
+    display: block; margin-top: 2mm;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 8.5pt; font-style: normal; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--gris);
+  }
+
+  figure { margin: 5mm 0 6mm 0; page-break-inside: avoid; }
+  figure img {
+    display: block; max-width: 100%; margin: 0 auto;
+    border: 1px solid var(--linea); border-radius: 3mm;
+  }
+  figure img.estrecha { max-width: 72mm; }
+
+  /* Las capturas de una tarjeta son altas y estrechas: puestas a un lado
+     dejan que el texto suba, en vez de empujarlo a la página siguiente. */
+  figure.alLado {
+    float: right; width: 62mm; margin: 0 0 5mm 7mm;
+  }
+  figure.alLado img { max-width: 100%; }
+  figure.alLado figcaption { padding: 0; text-align: left; }
+  .limpia { clear: both; }
+  figure img.media   { max-width: 108mm; }
+  /* La foto que va DENTRO de la columna de texto, a la izquierda de una foto
+     flotante. Sin `clear`: con él, Chromium la empuja a la página siguiente y
+     deja media página en blanco. */
+  figure.enColumna { max-width: 78mm; margin-top: 2mm; margin-bottom: 0; }
+  figure.alLado.chica { width: 54mm; }
+  figure.enColumna figcaption { padding: 0; text-align: left; }
+  figcaption {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 8.5pt; line-height: 1.5; color: var(--gris);
+    text-align: center; margin-top: 2.5mm; padding: 0 8mm;
+  }
+
+  .aviso {
+    background: var(--ambar-fondo);
+    border: 1px solid var(--ambar-linea);
+    border-left: 3px solid var(--ambar);
+    border-radius: 2mm; padding: 4mm 5mm; margin: 4mm 0 5mm 0;
+    page-break-inside: avoid;
+  }
+  .aviso .titulo {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 8.5pt; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--ambar); margin-bottom: 1.5mm;
+  }
+  .aviso p:last-child { margin-bottom: 0; }
+
+  .nota {
+    background: #F8FAFC; border: 1px solid var(--linea);
+    border-radius: 2mm; padding: 4mm 5mm; margin: 4mm 0 5mm 0;
+    font-size: 10pt; page-break-inside: avoid;
+  }
+  .nota p:last-child { margin-bottom: 0; }
+  .nota .titulo {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 8.5pt; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--teal); margin-bottom: 1.5mm;
+  }
+
+  /* pasos del recorrido */
+  .recorrido { margin: 6mm 0 7mm 0; }
+  .paso {
+    display: flex; gap: 5mm; align-items: flex-start;
+    padding: 3.5mm 0; border-top: 1px solid var(--linea);
+    page-break-inside: avoid;
+  }
+  .paso:last-child { border-bottom: 1px solid var(--linea); }
+  .paso .n {
+    flex: 0 0 8mm; height: 8mm; border-radius: 50%;
+    background: var(--teal); color: #fff;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 10pt; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: .5mm;
+  }
+  .paso .cuerpo { flex: 1; }
+  .paso .donde {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 10.5pt; font-weight: 700; color: var(--tinta);
+    margin-bottom: .5mm;
+  }
+  .paso .donde span {
+    font-weight: 400; color: var(--gris); font-size: 9pt;
+    margin-left: 2mm;
+  }
+  .paso .cuerpo p { margin: 0; font-size: 10pt; }
+
+  table { width: 100%; border-collapse: collapse; margin: 4mm 0 6mm 0; font-size: 9.5pt; }
+  th, td { text-align: left; padding: 2.5mm 3mm; vertical-align: top; border-bottom: 1px solid var(--linea); }
+  th {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 8pt; font-weight: 700; letter-spacing: .07em;
+    text-transform: uppercase; color: var(--gris);
+    border-bottom: 2px solid var(--tinta);
+  }
+  tbody tr { page-break-inside: avoid; }
+  td.si { color: var(--teal); font-weight: bold; }
+  td.no { color: var(--ambar); }
+
+  .antes-despues { display: flex; gap: 4mm; margin: 4mm 0 6mm 0; page-break-inside: avoid; }
+  .antes-despues > div {
+    flex: 1; border: 1px solid var(--linea); border-radius: 2mm; padding: 4mm;
+    font-size: 9.5pt;
+  }
+  .antes-despues .rotulo {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 8pt; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; margin-bottom: 2mm;
+  }
+  .antes .rotulo { color: var(--gris); }
+  .despues { border-color: var(--teal); }
+  .despues .rotulo { color: var(--teal); }
+  .antes-despues p { margin: 0; }
+
+  .cierre {
+    margin-top: 8mm; padding-top: 5mm; border-top: 2px solid var(--tinta);
+    font-size: 10pt;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═════════════════════════════ PORTADA ═════════════════════════════ -->
+<div class="portada">
+  <div class="marca">Zéndity</div>
+  <h1>Del ingreso al piso</h1>
+  <p class="bajada">
+    Cómo viaja la información de una admisión dentro de Zéndity,
+    qué cambió el 11 de septiembre de 2026, y qué sigue pidiendo
+    un segundo paso a propósito.
+  </p>
+  <div class="regla"></div>
+  <div class="creditos">
+    Preparado para <strong>Celia Sierra</strong>, Directora<br>
+    Vivid Senior Living &middot; Cupey y Mayagüez<br>
+    11 de septiembre de 2026
+  </div>
+</div>
+
+<!-- ═════════════════════════ 1. POR QUÉ ══════════════════════════════ -->
+<section class="seguida">
+  <h2><span class="num">1</span>Por qué existe este documento</h2>
+  <p class="sub">Empieza con una observación tuya, y era exacta.</p>
+
+  <div class="cita">
+    &ldquo;Se siente que se tienen que repetir cosas en diferentes lugares y en cómo
+    trabajar lo mismo, y eso incrementa la confusión en los módulos y no se siente
+    intuitivo.&rdquo;
+    <span class="quien">Celia, sobre el flujo de una admisión</span>
+  </div>
+
+  <p>
+    Se fue a comprobar contra el código, y no era una impresión: un solo ingreso
+    obligaba a tocar la misma información en <strong>cuatro pantallas distintas</strong>.
+  </p>
+
+  <table>
+    <thead>
+      <tr><th style="width:34%">Dónde</th><th>Qué había que escribir ahí</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Ingreso (Intake)</td><td>La textura de la dieta. El nombre del medicamento y sus horas.</td></tr>
+      <tr><td>Catálogo de farmacia</td><td>La dosis y la vía, que no llegaban desde el ingreso.</td></tr>
+      <tr><td>Zéndity Med</td><td>Volver a montar la receta, y arreglar la pauta semanal.</td></tr>
+      <tr><td>Perfil del residente</td><td>Marcar otra vez si la dieta es diabética, baja en sodio, renal o vegetariana.</td></tr>
+    </tbody>
+  </table>
+
+  <p>
+    Tres de esos cuatro tramos están conectados desde hoy. El cuarto
+    &mdash;que confirmar un ingreso active solo las recetas&mdash; <strong>no se tocó</strong>,
+    y el apartado&nbsp;7 explica por qué esa decisión es tuya y no del sistema.
+  </p>
+
+  <div class="nota">
+    <div class="titulo">Cómo leer este documento</div>
+    <p>
+      Cada apartado dice tres cosas: <strong>qué haces tú</strong>,
+      <strong>a dónde llega solo</strong> y <strong>qué ya no hace falta repetir</strong>.
+      Las fotos son de las pantallas de verdad; los residentes que aparecen en
+      ellas no existen &mdash; el material de formación no lleva datos de nadie.
+    </p>
+  </div>
+</section>
+
+<!-- ═════════════════════════ 2. EL RECORRIDO ═════════════════════════ -->
+<section>
+  <h2><span class="num">2</span>El recorrido de un ingreso</h2>
+  <p class="sub">Cuatro paradas. La información se escribe en la primera.</p>
+
+  <div class="recorrido">
+    <div class="paso">
+      <div class="n">1</div>
+      <div class="cuerpo">
+        <div class="donde">Ingreso <span>/corporate/patients/intake</span></div>
+        <p>Aquí se escribe todo una vez: identidad, riesgos, dieta completa y los
+           medicamentos con sus horas y sus días.</p>
+      </div>
+    </div>
+    <div class="paso">
+      <div class="n">2</div>
+      <div class="cuerpo">
+        <div class="donde">Perfil del residente y Cocina <span>llega solo</span></div>
+        <p>Al confirmar el ingreso, la dieta &mdash;textura y modificadores&mdash;
+           aparece en el perfil y en la pantalla de cocina sin que nadie la vuelva
+           a escribir.</p>
+      </div>
+    </div>
+    <div class="paso">
+      <div class="n">3</div>
+      <div class="cuerpo">
+        <div class="donde">Zéndity Med <span>/med &mdash; un paso humano</span></div>
+        <p>Los medicamentos llegan como <strong>borradores</strong>. Alguien los mira y
+           los autoriza. Ese paso existe a propósito.</p>
+      </div>
+    </div>
+    <div class="paso">
+      <div class="n">4</div>
+      <div class="cuerpo">
+        <div class="donde">La tableta del piso <span>/care</span></div>
+        <p>Una vez autorizada, la receta aparece en el pack de su hora, y solo los
+           días que le tocan.</p>
+      </div>
+    </div>
+  </div>
+
+  <p>
+    Lo único que cambió de este recorrido es <em>cuánto</em> hay que escribir en cada
+    parada. La parada&nbsp;1 ahora carga con casi todo; la&nbsp;2 ya no pide nada; la&nbsp;3
+    sigue pidiendo una firma, pero desde la pantalla donde trabajas.
+  </p>
+</section>
+
+<!-- ═════════════════════════ 3. LA DIETA ═════════════════════════════ -->
+<section>
+  <h2><span class="num">3</span>La dieta sale completa del ingreso</h2>
+  <p class="sub">Paso 3 del asistente: &ldquo;Plan de Vida (PAI) y Riesgos&rdquo;.</p>
+
+  <p>
+    El formulario capturaba solo la <strong>textura</strong> &mdash;Regular, Blanda, Majada,
+    Puré, Licuado, Líquidos Claros, PEG&mdash;. Los cuatro modificadores había que
+    marcarlos otra vez en el perfil del residente. Para alguien con dieta
+    diabética eso era escribir la misma dieta dos veces el mismo día, en dos
+    pantallas distintas.
+  </p>
+  <p>Ahora los dos están en el mismo sitio, uno debajo del otro:</p>
+
+  <figure class="alLado">
+    <img src="../../public/academy/capturas/intake-dieta-modificadores.jpg" alt="">
+    <figcaption>
+      Arriba la textura &mdash;una sola, la que come&mdash;. Debajo, los
+      modificadores: marca <em>todos</em> los que apliquen. En la foto:
+      dieta blanda, diabética y renal.
+    </figcaption>
+  </figure>
+
+  <h3>A dónde llega solo</h3>
+  <ul>
+    <li><strong>Al perfil del residente</strong>, como las cuatro casillas de siempre.</li>
+    <li><strong>A la pantalla de cocina</strong>, que cuenta las bandejas por modificador
+        para saber cuántas salen diabéticas, cuántas bajas en sodio, y así.</li>
+    <li><strong>A la etiqueta corta</strong> que se ve en listados: &ldquo;Blanda +Diabética +Renal&rdquo;.</li>
+  </ul>
+
+  <h3>Lo que ya no hace falta</h3>
+  <p>
+    Entrar al perfil después de la admisión a marcar los modificadores. Si están
+    puestos en el ingreso, ya están puestos.
+  </p>
+
+  <div class="nota limpia">
+    <div class="titulo">Si la dieta cambia más adelante</div>
+    <p>
+      El ingreso es la foto del día de entrada. Un cambio posterior &mdash;una textura
+      nueva, un modificador que se añade o se quita&mdash; se hace en el
+      <strong>perfil del residente</strong>, que es donde vive la prescripción dietética
+      del día a día. No hay que volver al ingreso.
+    </p>
+  </div>
+</section>
+
+<!-- ═══════════════════ 4. EL MEDICAMENTO SEMANAL ═════════════════════ -->
+<section>
+  <h2><span class="num">4</span>Un medicamento que solo toca ciertos días</h2>
+  <p class="sub">Paso 4 del asistente: &ldquo;Inventario Farmacológico (eMAR)&rdquo;.</p>
+
+  <div class="cita">
+    &ldquo;Los horarios <em>Semanal</em> no le permite colocarlo un solo día.&rdquo;
+    <span class="quien">Celia</span>
+  </div>
+
+  <p>
+    Eran dos problemas distintos con el mismo síntoma, y los dos están arreglados.
+  </p>
+
+  <h3>Uno: el ingreso solo sabía decir &ldquo;todos los días&rdquo;</h3>
+  <p>
+    Un &ldquo;una vez por semana&rdquo; que viene del hospital entraba como diario, y
+    había que abrirlo después en Zéndity Med para corregirlo. Ahora el ingreso
+    pregunta, medicamento por medicamento, si es todos los días o solo algunos:
+  </p>
+
+  <figure>
+    <img class="media" src="../../public/academy/capturas/intake-medicamento-dias.jpg" alt="">
+    <figcaption>
+      El nombre, la hora, y debajo &ldquo;Solo ciertos días&rdquo; con las siete letras:
+      D&nbsp;L&nbsp;M&nbsp;X&nbsp;J&nbsp;V&nbsp;S. Se pueden marcar uno o varios.
+    </figcaption>
+  </figure>
+
+  <div class="aviso">
+    <div class="titulo">La única trampa del paso</div>
+    <p>
+      Si eliges &ldquo;Solo ciertos días&rdquo; y <strong>no marcas ninguno</strong>, el
+      medicamento se guarda como <strong>todos los días</strong>. Lo dice el aviso en
+      ámbar, y es a propósito: una pauta semanal sin ningún día marcado no tocaría
+      <em>nunca</em>, y un medicamento que no aparece jamás en la tableta es peor que
+      uno que aparece de más. Marca el día, o déjalo en &ldquo;Todos los días&rdquo;.
+    </p>
+  </div>
+
+  <p>Cuando pulsas <strong>Añadir</strong>, el borrador ya lleva su día escrito:</p>
+
+  <figure>
+    <img class="media" src="../../public/academy/capturas/intake-medicamento-semanal.jpg" alt="">
+    <figcaption>
+      La etiqueta ámbar &ldquo;Solo Viernes&rdquo; junto a la hora. Si no la ves, el
+      medicamento quedó diario.
+    </figcaption>
+  </figure>
+</section>
+
+<section>
+  <h3>Dos: editar una receta semanal la devolvía a diaria</h3>
+  <p>
+    Este era el que más se notaba, y no estaba en el ingreso: estaba en Zéndity
+    Med. El botón que abría una receta ya creada preguntaba <em>solo</em> por la hora
+    &mdash;y ni siquiera la enseñaba: el recuadro abría vacío&mdash;. Al guardar, como
+    nadie le había dicho nada sobre los días, la receta salía <strong>diaria y sin
+    días</strong>. Se ponía el viernes, se editaba cualquier cosa, y el viernes
+    desaparecía sin que nada lo dijera.
+  </p>
+
+  <div class="antes-despues">
+    <div class="antes">
+      <div class="rotulo">Antes</div>
+      <p>&ldquo;Editar Dosis&rdquo; &rarr; un recuadro de hora, vacío. Al guardar: diaria,
+         sin días, y la hora sin cambiar.</p>
+    </div>
+    <div class="despues">
+      <div class="rotulo">Ahora</div>
+      <p>&ldquo;Editar receta&rdquo; &rarr; las tres preguntas, ya rellenas con lo que la
+         receta tiene de verdad.</p>
+    </div>
+  </div>
+
+  <figure>
+    <img class="media" src="../../public/academy/capturas/med-editar-receta.jpg" alt="">
+    <figcaption>
+      Cada cuándo, a qué hora, y la razón &mdash;que queda firmada con tu nombre&mdash;.
+      Si eliges &ldquo;Solo ciertos días&rdquo;, aparecen las siete letras, igual que en el ingreso.
+    </figcaption>
+  </figure>
+
+  <p>
+    En la tarjeta del residente, una receta semanal ahora <strong>dice sus días</strong>.
+    Antes no lo decía en ninguna parte:
+  </p>
+
+  <figure class="alLado">
+    <img src="../../public/academy/capturas/med-receta-semanal.jpg" alt="">
+    <figcaption>
+      La etiqueta &ldquo;Solo Viernes&rdquo; debajo del alendronato. Es la
+      forma rápida de comprobar que una pauta semanal quedó bien.
+    </figcaption>
+  </figure>
+
+  <div class="nota">
+    <div class="titulo">Una cosa más, que no se veía</div>
+    <p>
+      El recuadro de la hora, en la tarjeta del residente, <strong>salía vacío en todas
+      las recetas</strong> por un error de nombre de campo. Ya enseña el horario real.
+      Si antes te parecía que Zéndity Med &ldquo;no mostraba las horas&rdquo;, no era
+      impresión tuya.
+    </p>
+  </div>
+</section>
+
+<!-- ═════════════════════════ 5. LA DOSIS ═════════════════════════════ -->
+<section>
+  <h2><span class="num">5</span>La dosis que ya se leyó</h2>
+  <p class="sub">Por qué el catálogo de farmacia estaba lleno de &ldquo;Por Definir&rdquo;.</p>
+
+  <p>
+    Cuando Zendi analiza el documento que trae el residente, saca el nombre
+    <em>y la dosis</em>: lo enseña en pantalla como &ldquo;Alendronato &middot; 70&nbsp;mg&rdquo;.
+    Hasta hoy, esa dosis se perdía por el camino: el fármaco entraba al catálogo
+    de farmacia con la dosis <strong>&ldquo;Por Definir&rdquo;</strong> y alguien tenía que
+    volver a teclearla allí. Por eso <strong>181 de los 197 fármacos</strong> del
+    catálogo están así.
+  </p>
+  <p>Ahora la dosis viaja hasta el catálogo, con dos reglas:</p>
+  <ul>
+    <li>Si el fármaco <strong>no existe</strong> en el catálogo, se crea con la dosis que
+        se leyó del documento.</li>
+    <li>Si <strong>ya existe</strong> y su dosis es el marcador &ldquo;Por Definir&rdquo;, se
+        rellena. <strong>Nunca se pisa una dosis real</strong>: el catálogo lo comparten
+        todos los residentes del hogar, y una dosis equivocada ahí saldría en muchas
+        recetas a la vez.</li>
+  </ul>
+
+  <div class="nota">
+    <div class="titulo">Si escribes el medicamento a mano</div>
+    <p>
+      El campo del ingreso es uno solo &mdash;el ejemplo que sugiere es
+      &ldquo;Losartan 50mg&rdquo;&mdash;, así que la dosis va <strong>dentro del nombre</strong>,
+      como siempre. Lo que cambia es el camino automático: lo que Zendi lee del
+      documento ya no se queda a medias.
+    </p>
+  </div>
+
+  <div class="aviso">
+    <div class="titulo">Los que entran por Zendi llegan como diarios</div>
+    <p>
+      Cuando aplicas las sugerencias de Zendi, los medicamentos entran con su hora
+      pero <strong>como diarios</strong>: el documento rara vez dice los días de forma
+      que se pueda leer sola. Si uno de ellos es semanal, tienes dos salidas: quitarlo
+      de la lista del ingreso y añadirlo a mano con sus días, o dejarlo y ponerle los
+      días al autorizarlo en Zéndity Med (apartado&nbsp;6). Las dos son válidas.
+    </p>
+  </div>
+</section>
+
+<!-- ═══════════════════ 6. AUTORIZAR EL BORRADOR ══════════════════════ -->
+<section>
+  <h2><span class="num">6</span>Autorizar lo que dejó el ingreso</h2>
+  <p class="sub">El paso humano, ahora en la pantalla donde trabajas.</p>
+
+  <p>
+    Una admisión <strong>no</strong> pone medicamentos en la tableta. Los deja como
+    borradores, y alguien tiene que mirarlos y autorizarlos. Eso es deliberado: un
+    medicamento no debería llegar al piso solo porque se escribió en un formulario.
+  </p>
+  <p>
+    El problema no era la barrera: era <em>dónde</em> estaba. La única pantalla que
+    autorizaba borradores no está en el menú de nadie, y Zéndity Med los escondía.
+    Resultado: los borradores no se autorizaban &mdash; se volvían a teclear a mano.
+    Y el que no se retecleaba, se quedaba ahí, sin aparecer en ningún sitio.
+  </p>
+
+  <figure class="alLado chica">
+    <img src="../../public/academy/capturas/med-borrador-sin-autorizar.jpg" alt="">
+    <figcaption>
+      El recuadro ámbar &ldquo;Del ingreso, sin autorizar&rdquo;. Lo de arriba
+      ya está en la tableta; lo de abajo, no.
+    </figcaption>
+  </figure>
+
+  <p>Ahora aparecen en la tarjeta del residente, debajo de sus recetas vivas.
+     El botón abre las mismas tres preguntas de siempre:</p>
+
+
+  <div class="aviso">
+    <div class="titulo">Hay uno esperando ahora mismo</div>
+    <p>
+      En Cupey quedó <strong>un medicamento capturado en un ingreso que nunca se
+      autorizó</strong>. No estaba escondido a propósito: es que hasta hoy no había
+      pantalla donde verlo. Ya aparece, en ámbar, en la tarjeta de ese residente.
+      Si entra o no entra es una decisión clínica, y es tuya &mdash; lo que cambió es
+      que el sistema ya no es el que lo esconde.
+    </p>
+  </div>
+
+  <figure class="enColumna">
+    <img src="../../public/academy/capturas/med-autorizar-modal.jpg" alt="">
+    <figcaption>
+      Cada cuándo, a qué hora, y la razón. Al firmar, la receta pasa a viva y el
+      registro guarda tu nombre, la hora y lo que escribiste.
+    </figcaption>
+  </figure>
+</section>
+
+<!-- ═════════════════════════ 7. DESCONTINUAR ═════════════════════════ -->
+<section>
+  <h2><span class="num">7</span>Descontinuar una receta</h2>
+  <p class="sub">Un estado, no una palabra escrita en el campo de la hora.</p>
+
+  <p>
+    Descontinuar escribía la palabra &ldquo;DESCONTINUADO&rdquo; <em>dentro</em> del campo
+    del horario, y dejaba el estado de la receta en &ldquo;activa&rdquo;. La receta decía
+    tres cosas a la vez, y de paso se perdía el horario real: se pisaba el único
+    sitio donde constaba a qué hora se daba.
+  </p>
+
+  <div class="antes-despues">
+    <div class="antes">
+      <div class="rotulo">Antes</div>
+      <p>Horario: <em>DESCONTINUADO</em><br>Estado: activa<br>La hora real: perdida</p>
+    </div>
+    <div class="despues">
+      <div class="rotulo">Ahora</div>
+      <p>Horario: 08:00&nbsp;PM<br>Estado: <strong>descontinuada</strong><br>Con su razón y su firma</p>
+    </div>
+  </div>
+
+  <p>
+    Las <strong>27 recetas</strong> que estaban así en Cupey quedaron migradas, con
+    respaldo. <strong>No cambia lo que ve nadie</strong>: la tableta ya las filtraba
+    correctamente. Lo que cambia es que el expediente ahora dice la verdad sobre
+    por qué una receta dejó de darse &mdash; que es lo que hace falta cuando alguien
+    revisa un caso seis meses después.
+  </p>
+
+  <div class="nota">
+    <div class="titulo">Y una protección nueva</div>
+    <p>
+      Editar una receta descontinuada ya <strong>no la revive</strong>. Antes, cambiar
+      una hora la devolvía a activa sin que nada lo dijera. Volver a poner un
+      medicamento tiene que ser un acto propio, no el efecto secundario de otra cosa.
+    </p>
+  </div>
+</section>
+
+<!-- ═══════════════════ 8. LO QUE NO CAMBIÓ ═══════════════════════════ -->
+<section>
+  <h2><span class="num">8</span>Lo que no cambió, y por qué</h2>
+  <p class="sub">Una decisión que no es del sistema.</p>
+
+  <p>
+    Se podría hacer que confirmar un ingreso <strong>active solas</strong> todas las
+    recetas, y desaparecería el apartado&nbsp;6 entero. No se hizo, y no por falta de
+    tiempo: porque ese paso es la última vez que una persona mira una lista de
+    medicamentos antes de que lleguen al piso. Esa lista viene de un documento de
+    hospital, leída a veces por Zendi, a veces tecleada con prisa el día de una
+    admisión.
+  </p>
+  <p>
+    Si decides que en Vivid ese paso sobra, se quita &mdash; es una decisión clínica
+    tuya y de Andrés, y el sistema hará lo que ustedes digan. Lo que no parecía
+    correcto era quitarla sin preguntar.
+  </p>
+
+  <h3>Dónde va cada cosa &mdash; resumen</h3>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:26%">Qué</th>
+        <th style="width:26%">Dónde se escribe</th>
+        <th style="width:26%">Dónde aparece solo</th>
+        <th style="width:22%">¿Pide otro paso?</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Textura de la dieta</td>
+        <td>Ingreso, paso 3</td>
+        <td>Perfil y cocina</td>
+        <td class="si">No</td>
+      </tr>
+      <tr>
+        <td>Diabética / bajo sodio / renal / vegetariana</td>
+        <td>Ingreso, paso 3</td>
+        <td>Perfil y cocina</td>
+        <td class="si">No</td>
+      </tr>
+      <tr>
+        <td>Nombre y horas del medicamento</td>
+        <td>Ingreso, paso 4</td>
+        <td>Zéndity Med, como borrador</td>
+        <td class="no">Sí &mdash; autorizar</td>
+      </tr>
+      <tr>
+        <td>Días de una pauta semanal</td>
+        <td>Ingreso, paso 4</td>
+        <td>Viaja con el borrador</td>
+        <td class="no">Sí &mdash; autorizar</td>
+      </tr>
+      <tr>
+        <td>Dosis leída por Zendi</td>
+        <td>Ingreso, paso 4</td>
+        <td>Catálogo de farmacia</td>
+        <td class="si">No</td>
+      </tr>
+      <tr>
+        <td>Cambiar hora o días después</td>
+        <td>Zéndity Med</td>
+        <td>Tableta del piso</td>
+        <td class="si">No</td>
+      </tr>
+      <tr>
+        <td>Retirar un medicamento</td>
+        <td>Zéndity Med</td>
+        <td>Expediente, con razón</td>
+        <td class="si">No</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="cierre">
+    <p>
+      <strong>Si vuelves a ver algo que se escribe dos veces, dilo.</strong>
+      Cada una de estas conexiones salió de una observación tuya en el correo de
+      revisión diaria. No hacía falta que vinieran con una solución dentro: bastó
+      con que dijeras dónde dolía.
+    </p>
+  </div>
+</section>
+
+</body>
+</html>
