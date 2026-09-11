@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { bloqueoPorBAA } from '@/lib/acuerdos-sede';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { residenteRecienCreado, MINUTOS_VENTANA_DUPLICADO } from '@/lib/residente-duplicado';
 
 export async function POST(request: Request) {
     try {
@@ -29,6 +30,18 @@ export async function POST(request: Request) {
         const bloqueo = await bloqueoPorBAA(hqId);
         if (bloqueo) {
             return NextResponse.json({ success: false, error: bloqueo }, { status: 403 });
+        }
+
+        // Misma guarda que /api/intake. Ver src/lib/residente-duplicado.ts.
+        const yaExiste = await residenteRecienCreado(hqId, name);
+        if (yaExiste) {
+            console.warn(`[preingreso] doble envio evitado para "${name}" — ya existe ${yaExiste.id}`);
+            return NextResponse.json({
+                success: true,
+                duplicado: true,
+                patient: yaExiste,
+                message: `${yaExiste.name.trim()} ya se dio de alta hace un momento. Se sigue con ese expediente.`,
+            });
         }
 
         const patient = await prisma.patient.create({

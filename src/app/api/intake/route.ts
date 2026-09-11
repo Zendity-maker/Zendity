@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { bloqueoPorBAA } from '@/lib/acuerdos-sede';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { residenteRecienCreado, MINUTOS_VENTANA_DUPLICADO } from '@/lib/residente-duplicado';
 
 /**
  * DEPRECATED — Sprint P.4
@@ -56,6 +57,26 @@ export async function POST(req: Request) {
         const bloqueo = await bloqueoPorBAA((session.user as any).headquartersId);
         if (bloqueo) {
             return NextResponse.json({ success: false, error: bloqueo }, { status: 403 });
+        }
+
+        /**
+         * Guarda contra doble envio. Ver src/lib/residente-duplicado.ts:
+         * paso dos veces en cuatro meses y las dos dejaron un expediente vacio
+         * con "Creado por error" de motivo de baja.
+         *
+         * Devuelve EXITO con el que ya existe, no un error: quien da de alta
+         * hizo lo correcto, y un error en rojo le hace intentarlo otra vez —
+         * que es justo lo que produce el duplicado.
+         */
+        const yaExiste = await residenteRecienCreado(finalHqId, name);
+        if (yaExiste) {
+            console.warn(`[intake] doble envio evitado para "${name}" — ya existe ${yaExiste.id}`);
+            return NextResponse.json({
+                success: true,
+                duplicado: true,
+                patient: yaExiste,
+                message: `${yaExiste.name.trim()} ya se dio de alta hace un momento. Se sigue con ese expediente.`,
+            });
         }
 
         const patient = await prisma.patient.create({
