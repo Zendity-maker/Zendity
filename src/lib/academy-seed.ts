@@ -4600,10 +4600,17 @@ async function main() {
              * los cursos habria hecho visible y asignable a todo el personal la
              * formacion de cada rol, sin que nadie tocara esa decision.
              *
-             * Esos tres campos tienen otro dueño: `isGlobal` y `targetRole` los
-             * pone `scripts/academy-roles-y-puntos.ts`; `imageUrl`, que hoy esta
-             * en null en los 26 cursos, lo pone `scripts/academy-imagenes.ts`.
-             * Este seed es dueño del CONTENIDO, y de nada mas.
+             * `bonusCompliance` TAMPOCO, y esa me la comi. El 11-sep, horas
+             * despues de escribir este comentario, corri el seed y devolvi los
+             * puntos de Cupey de 10/15/20/30 —racionalizados por RIESGO en
+             * agosto— a los 75/100/125 originales, donde el curso de Caidas
+             * valia doce veces menos que el de Accesos. Arregle la fuga por
+             * `isGlobal` y deje abierta la de al lado, en la linea siguiente.
+             *
+             * Todos esos campos tienen otro dueño: `isGlobal`, `targetRole` y
+             * `bonusCompliance` los pone `scripts/academy-roles-y-puntos.ts`;
+             * `imageUrl` lo pone `scripts/academy-imagenes.ts`. Este seed es
+             * dueño del CONTENIDO, y de nada mas.
              *
              * En `create` si van, porque un curso que nace necesita un valor.
              */
@@ -4626,7 +4633,6 @@ async function main() {
                     description: course.description,
                     content: course.content,
                     durationMins: course.durationMins,
-                    bonusCompliance: course.bonusCompliance,
                     emoji: course.emoji,
                     category: course.category || 'General',
                     order: course.order || 0,
