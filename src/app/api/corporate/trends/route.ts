@@ -84,12 +84,20 @@ export async function GET(request: NextRequest) {
             activePatientsCount,
         ] = await Promise.all([
             // MedicationAdministration — eMAR
+            //
+            // `createdAt` entra en el OR porque las otras dos ramas dejan fuera
+            // justo lo que hace bajar la tendencia: `scheduledTime` esta nulo en
+            // TODAS las filas (el campo nunca se llego a llenar) y
+            // `administeredAt` solo lo tienen las administradas. Sin esta
+            // tercera rama, la tendencia de cumplimiento es 100% por
+            // construccion, suba o baje el piso.
             prisma.medicationAdministration.findMany({
                 where: {
                     ...hqFilterViaPatientMed,
                     OR: [
                         { scheduledTime: { gte: windowStart, lt: windowEnd } },
                         { administeredAt: { gte: windowStart, lt: windowEnd } },
+                        { createdAt: { gte: windowStart, lt: windowEnd } },
                     ],
                 },
                 select: { status: true, scheduledTime: true, administeredAt: true },
@@ -100,6 +108,7 @@ export async function GET(request: NextRequest) {
                     OR: [
                         { scheduledTime: { gte: prevStart, lt: prevEnd } },
                         { administeredAt: { gte: prevStart, lt: prevEnd } },
+                        { createdAt: { gte: prevStart, lt: prevEnd } },
                     ],
                 },
                 select: { status: true },

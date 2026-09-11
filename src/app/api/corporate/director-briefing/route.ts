@@ -64,12 +64,30 @@ async function buildContext(effectiveHqId: string | 'ALL') {
                 status: { notIn: ['DISCHARGED', 'DECEASED'] },
             },
         }),
+        /**
+         * EL CUMPLIMIENTO DE eMAR NO PODIA BAJAR DE 100%. NUNCA.
+         *
+         * El OR eran dos ramas y las dos dejaban fuera lo que importa:
+         *   - `scheduledTime` esta NULO en las 7.018 administraciones de los
+         *     ultimos 30 dias. Esa rama no selecciona nada.
+         *   - `administeredAt` solo lo tienen las ADMINISTRADAS: meds/bulk
+         *     escribe null cuando el estado es otro (meds/bulk/route.ts:218).
+         *
+         * O sea que la consulta veia 7.015 administradas de 7.015 filas, y el
+         * cumplimiento salia 100% por construccion. La regla que avisa por
+         * debajo del 85% no podia dispararse jamas.
+         *
+         * `createdAt` siempre tiene valor y es cuando se resolvio la dosis, que
+         * es exactamente lo que hay que contar en el dia de hoy. Es el mismo
+         * fallo del relevo y de la auditoria de turno, en el tercer sitio.
+         */
         prisma.medicationAdministration.findMany({
             where: {
                 ...hqFilterViaPatientMed,
                 OR: [
                     { scheduledTime: { gte: today } },
                     { administeredAt: { gte: today } },
+                    { createdAt: { gte: today } },
                 ],
             },
             select: { status: true },

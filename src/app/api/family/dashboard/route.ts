@@ -135,14 +135,20 @@ export async function GET(req: Request) {
         const [totalToday, omitsToday] = await Promise.all([
             prisma.medicationAdministration.count({
                 where: {
+                    // `scheduledTime` esta NULO en las 7.018 administraciones de
+                    // los ultimos 30 dias: el campo se diseño ("FASE eMAR
+                    // Integral") y nunca se llena. Filtrar solo por el devolvia
+                    // CERO filas siempre, asi que `medsOnTrack` se quedaba en
+                    // null todos los dias y la familia nunca veia el estado de
+                    // los medicamentos. `createdAt` siempre tiene valor.
                     patientMedication: { patientId: resident.id },
-                    scheduledTime: { gte: clinicalDayStart },
+                    createdAt: { gte: clinicalDayStart },
                 },
             }),
             prisma.medicationAdministration.count({
                 where: {
                     patientMedication: { patientId: resident.id },
-                    scheduledTime: { gte: clinicalDayStart },
+                    createdAt: { gte: clinicalDayStart },
                     status: { in: ['OMITTED', 'MISSED', 'REFUSED'] },
                 },
             }),

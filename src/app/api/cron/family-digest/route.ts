@@ -158,16 +158,19 @@ Devuelve SOLO este JSON (sin markdown, sin backticks):
                 // null si no hubo administraciones registradas; true si todas en regla;
                 // false si hubo OMITTED/MISSED/REFUSED.
                 const [totalAdmins, omits] = await Promise.all([
+                    // Mismo caso que en /api/family/dashboard: `scheduledTime`
+                    // nunca se llena, asi que este conteo daba cero siempre y
+                    // medsOnTrack salia null en todos los digests.
                     prisma.medicationAdministration.count({
                         where: {
                             patientMedication: { patientId: p.id },
-                            scheduledTime: { gte: digestDate },
+                            createdAt: { gte: digestDate },
                         },
                     }),
                     prisma.medicationAdministration.count({
                         where: {
                             patientMedication: { patientId: p.id },
-                            scheduledTime: { gte: digestDate },
+                            createdAt: { gte: digestDate },
                             status: { in: ['OMITTED', 'MISSED', 'REFUSED'] },
                         },
                     }),
