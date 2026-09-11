@@ -61,6 +61,7 @@ scripts/*
 # Los documentos que se entregan en PDF, con su fuente: el PDF se rehace, no se busca
 !scripts/documentos/
 !scripts/validar-curso.py
+!scripts/academy-poner-contenido.py
 !scripts/migrar-descontinuadas.ts
 !scripts/desactivar-cursos-sin-audiencia.ts
 !scripts/limpiar-foodintake-alertas.ts
