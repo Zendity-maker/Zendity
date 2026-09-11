@@ -90,6 +90,63 @@ Solo hacer commit si TSC_EXIT: 0 y sin errores en archivos de producción (tests
 3. **Datos mock en producción** — el commit `5739e8a` los eliminó. No reintroducir.
 4. **Email remitente hardcoded** — usar siempre `process.env.SENDGRID_FROM_EMAIL`
 5. **Plaintext PINs en email** — eliminado en commit `34ddc60`. No volver atrás.
+6. **Escribir sin guarda contra doble envío** — ver abajo.
+7. **Listar personas sin filtrar a quien ya no está** — ver abajo.
+
+---
+
+## ⚠️ Los dos que más se repiten
+
+Estos dos aparecieron **cuatro veces cada uno** en septiembre de 2026, en sitios
+que no tenían nada que ver entre sí. No son bugs sueltos: son la forma por
+defecto de equivocarse en este código. Compruébalos SIEMPRE al tocar algo
+nuevo.
+
+### 1. Un POST que escribe sin guarda contra doble envío
+
+Un doble toque, o un reintento porque la pantalla se vio lenta, y hay dos filas
+donde debía haber una. Nadie se entera hasta que alguien cuenta.
+
+| Dónde | Qué produjo |
+|---|---|
+| `/api/care/vitals` | 30 tomas duplicadas de 5,483 |
+| `/api/care/incidents` | una caída de Pura contada dos veces |
+| `/api/intake` y `/api/preingreso` | dos residentes duplicados en cuatro meses |
+| `/api/corporate/crm/leads` | sin guarda todavía — el CRM está dormido |
+
+**La forma correcta**, igual en los tres: buscar si existe una fila equivalente
+en una ventana corta y **devolver ÉXITO con la que ya existe**, no un error.
+Quien pulsó hizo lo correcto; un error en rojo le hace intentarlo otra vez, que
+es justo lo que produce el duplicado. Ver `src/lib/residente-duplicado.ts`.
+
+La ventana se elige por el acto, no por costumbre: 2 minutos para unos vitales,
+5 para una caída, 10 para un alta. Y si el registro admite fecha retroactiva,
+comparar **la fecha del evento**, no solo la de escritura — si no, dos caídas
+viejas del mismo residente escritas seguidas se tragan una a otra.
+
+### 2. Una consulta de personas que no filtra a quien ya no está
+
+`Patient` sin `status: 'ACTIVE'`, o `User` sin `isActive` / `isDeleted`. El
+resultado siempre es el mismo: el sistema le pide trabajo a alguien sobre gente
+que se fue, o señala a un empleado que ya no trabaja aquí.
+
+| Dónde | Qué mostraba |
+|---|---|
+| Úlceras | las de Wilfredo, fallecido hacía 84 días |
+| Riesgo de caídas | residentes dados de alta y fallecidos |
+| Señales de personal | Medelyn García, inactiva y borrada |
+| Leaderboard del wall | Eiby Caraballo, inactiva, en el "Top 5" de la pared |
+| Digest de relevo, horarios, concierge | corregidos el 09-sep-2026 |
+
+**Pero no es un filtro que se ponga en todas partes.** Una búsqueda de UN
+expediente por id NO debe filtrar: hay que poder abrir el de alguien que
+falleció. La regla es por la forma de la consulta:
+
+- **Lista o conteo** para trabajo pendiente, una pantalla o una métrica → filtra
+- **Un registro por id**, historial o auditoría → no filtra
+
+Al 10-sep-2026 quedan **83 consultas** unidas a `patient` por sede sin `status`
+que piden revisión una por una. No se tocan en bloque.
 
 ---
 
@@ -141,7 +198,17 @@ es señalar lo que tú ves que él no ve todavía. Lecciones aprendidas:
    específicos, ni datos clínicos identificables. Sí puede decir
    "tienes una notificación, entra a app.zendity.com".
 
-8. **¿Esta lista carga TODO o pagina?**
+8. **¿Este POST puede ejecutarse dos veces?**
+   Si escribe una fila, ¿qué pasa con un doble toque o un reintento? Ver
+   "Los dos que más se repiten" arriba. Ya costó duplicados en vitales,
+   caídas y admisión.
+
+9. **¿Esta consulta lista personas?**
+   Si devuelve una lista o un conteo de residentes o empleados para una
+   pantalla, una alerta o una métrica, ¿filtra a quien ya no está? Cuatro
+   pantallas distintas señalaban a gente fallecida o dada de baja.
+
+10. **¿Esta lista carga TODO o pagina?**
    `findMany` sin take en producción = OOM en cuanto crezcas. Default
    sano: `take: 50` con paginación.
 
