@@ -63,10 +63,10 @@ EXPLICACION: Zendity es una plataforma de gestion integral que centraliza todas 
 
 P: Que ventaja ofrece la trazabilidad en Zendity?
 a) Permite eliminar los turnos de trabajo
-*b) Cada accion queda registrada con fecha, hora y responsable
+*b) Cada accion queda registrada y firmada
 c) Reduce automaticamente los costos de medicamentos
 d) Elimina la necesidad de supervision clinica
-EXPLICACION: La trazabilidad significa que cada accion (administrar un medicamento, cambiar un horario, registrar una nota) queda documentada con quien lo hizo y cuando.
+EXPLICACION: Con fecha, hora y responsable. La trazabilidad significa que cada accion —administrar un medicamento, cambiar un horario, registrar una nota— queda documentada con quien lo hizo y cuando.
 
 P: Que es una "Sede" en el contexto de Zendity?
 a) La oficina central de la empresa Zendity
@@ -85,9 +85,9 @@ EXPLICACION: Los sistemas manuales (papeles, carpetas, notas) generan errores hu
 P: Que garantiza el modelo de Sede aislada en Zendity?
 a) Que todos los empleados comparten la misma contrasena
 b) Que la plataforma funciona sin internet
-*c) Que los datos de una facilidad nunca se mezclan con los de otra
+*c) Que los datos de una facilidad nunca se mezclan
 d) Que los residentes pueden ver datos de otras facilidades
-EXPLICACION: El modelo multi-tenant asegura aislamiento completo de datos entre facilidades, protegiendo la privacidad y cumplimiento regulatorio.
+EXPLICACION: Con los de otra. El modelo multi-tenant asegura aislamiento completo de datos entre facilidades, protegiendo la privacidad y el cumplimiento regulatorio.
 
 ---SECCION_2---
 LECTURA:
@@ -131,9 +131,9 @@ EXPLICACION: Los cuidadores tienen acceso al piso de cuido donde registran activ
 P: Por que un empleado de KITCHEN no puede ver datos clinicos de residentes?
 a) Porque Zendity tiene un error de programacion
 b) Porque los datos clinicos no existen en el sistema
-*c) Porque el sistema de roles limita el acceso a lo necesario para cada funcion, protegiendo la privacidad
+*c) Porque cada rol accede solo a lo necesario para su funcion
 d) Porque el personal de cocina no tiene cuenta en el sistema
-EXPLICACION: El principio de "minimo privilegio" significa que cada rol solo tiene acceso a la informacion necesaria para su funcion, cumpliendo con HIPAA y protegiendo la privacidad del residente.
+EXPLICACION: Y eso es lo que protege la privacidad del residente. El principio de "minimo privilegio" significa que cada rol solo ve la informacion que su trabajo necesita, cumpliendo con HIPAA.
 
 P: Que rol tiene acceso al portal externo de Zendity?
 a) ADMIN
@@ -335,9 +335,9 @@ EXPLICACION: Problemas con el PIN, errores del sistema o acceso comprometido son
 P: Que debes hacer si ves datos incorrectos en el expediente de un residente?
 a) Corregirlos tu mismo inmediatamente
 b) Ignorarlos si no afectan tu trabajo
-*c) Reportarlo al administrador de la Sede sin modificar datos que no te corresponden
+*c) Reportarlo al administrador de la Sede
 d) Borrar el expediente y crear uno nuevo
-EXPLICACION: Si detectas datos incorrectos, debes reportarlo al administrador. Modificar datos que no te corresponden puede causar mas errores y violar protocolos de trazabilidad.
+EXPLICACION: Sin modificar datos que no te corresponden: hacerlo puede causar mas errores y rompe la trazabilidad, porque el expediente deja de decir quien cambio que.
 
 P: Que complementa la tecnologia de Zendity segun las buenas practicas?
 a) Reemplaza completamente la necesidad de personal capacitado
@@ -402,9 +402,9 @@ EXPLICACION: Al mover un lead a ADMISSION, Zendity ejecuta una transaccion autom
 P: En la etapa EVALUATION, quien participa principalmente?
 a) Solo el equipo administrativo
 b) Solo la familia del prospecto
-*c) El equipo clinico que evalua si la facilidad puede atender las necesidades del potencial residente
+*c) El equipo clinico de la facilidad
 d) Solo el director de la facilidad
-EXPLICACION: En EVALUATION, el equipo clinico evalua condiciones medicas, nivel de dependencia y requerimientos especiales para determinar si la facilidad puede atender adecuadamente al potencial residente.
+EXPLICACION: Que evalua si la facilidad puede atender a esa persona: condiciones medicas, nivel de dependencia y requerimientos especiales. Es la etapa donde se decide si el hogar es el sitio adecuado.
 
 P: Que informacion se recopila en la etapa CONTACTED?
 a) Solo el nombre del prospecto
@@ -459,9 +459,9 @@ EXPLICACION: Al crear un lead en el CRM, los campos obligatorios son nombre y ap
 P: Por que es critico completar la lista de medicamentos antes de la admision?
 a) Para calcular el costo de la estadia
 b) Para asignar el grupo de color correcto
-*c) Para garantizar la continuidad del tratamiento y prevenir errores de medicacion
+*c) Para garantizar la continuidad del tratamiento indicado
 d) Para generar automaticamente el Plan de Vida
-EXPLICACION: La lista completa de medicamentos es esencial para que enfermeria pueda continuar el tratamiento sin interrupcion y prevenir errores como dosis incorrectas o interacciones peligrosas.
+EXPLICACION: Y para prevenir errores de medicacion. La lista completa es lo que permite que enfermeria continue el tratamiento sin interrupcion y evite dosis incorrectas o interacciones peligrosas.
 
 P: Que pasa si se admite a un residente sin documentacion clinica completa?
 a) El sistema automaticamente completa la informacion faltante
@@ -650,10 +650,10 @@ Cuando un lead se mueve a ADMISSION en el CRM, Zendity automaticamente crea una 
 PREGUNTAS:
 P: Cuando se crea automaticamente la cuenta del familiar en Zendity?
 a) Cuando la familia llama por primera vez
-*b) Cuando el lead se mueve a la etapa ADMISSION en el CRM
+*b) Cuando el lead pasa a ADMISSION
 c) Cuando el residente completa su primera semana
 d) Cuando la enfermera completa el IntakeData
-EXPLICACION: La cuenta familiar se crea automaticamente como parte de la transaccion de admision, cuando el lead pasa a status ADMISSION en el CRM.
+EXPLICACION: En el CRM. La cuenta familiar se crea sola, como parte de la transaccion de admision: nadie tiene que acordarse de crearla aparte.
 
 P: Cual es el passcode inicial de una cuenta familiar nueva?
 a) El numero de telefono del familiar
@@ -806,9 +806,9 @@ EXPLICACION: La lista de medicamentos iniciales se registra en el IntakeData dur
 P: Que diferencia a un medicamento PRN de un medicamento programado?
 a) Los PRN son mas caros
 b) Los PRN solo los puede administrar el doctor
-*c) Los PRN se administran solo cuando el residente presenta un sintoma especifico, no a horas fijas
+*c) Los PRN se dan solo si hay sintoma
 d) Los PRN no requieren documentacion
-EXPLICACION: Los medicamentos PRN (Pro Re Nata) se administran segun necesidad cuando el residente presenta un sintoma especifico (dolor, fiebre, ansiedad), a diferencia de los programados que tienen horarios fijos.
+EXPLICACION: Un sintoma especifico —dolor, fiebre, ansiedad— y no a horas fijas. Eso es lo que distingue al PRN (Pro Re Nata) del programado, que se da segun reloj.
 
 P: Que informacion adicional se requiere al administrar un medicamento PRN?
 a) El costo del medicamento
@@ -825,10 +825,10 @@ d) No pasa nada, las alergias son solo informativas
 EXPLICACION: El sistema genera una alerta de alergia que el equipo clinico debe revisar. Esta alerta es un mecanismo de seguridad critico para prevenir reacciones adversas.
 
 P: Cuales son los tres tipos de medicamentos que maneja el eMAR?
-a) Genericos, comerciales y experimentales
-b) Urgentes, normales y opcionales
-*c) Programados (scheduled), PRN (segun necesidad) y de orden unica (one-time)
-d) Orales, inyectables y topicos
+a) Genericos, comerciales y experimentales de investigacion
+b) Urgentes, normales y opcionales segun la prioridad
+*c) Programados, PRN y de orden unica
+d) Orales, inyectables y topicos segun la via
 EXPLICACION: El eMAR maneja tres tipos: programados (horarios fijos), PRN (segun necesidad del residente) y de orden unica (una sola administracion por orden medica).
 
 ---SECCION_3---
@@ -873,10 +873,10 @@ EXPLICACION: La regla de las tres lecturas es un protocolo de seguridad estandar
 
 P: Que es "pre-charting" y por que esta prohibido?
 a) Es registrar medicamentos en la noche anterior y es permitido en emergencias
-*b) Es registrar un medicamento como administrado ANTES de darlo realmente, y esta prohibido porque el registro seria falso si el residente lo rechaza
+*b) Es registrar un medicamento como administrado ANTES de darlo
 c) Es preparar los medicamentos del dia anterior y es una practica recomendada
 d) Es verificar el chart del residente antes de administrar
-EXPLICACION: Pre-charting significa registrar una administracion antes de que ocurra. Si el residente rechaza el medicamento despues, el registro seria falso. Siempre se registra inmediatamente DESPUES de administrar.
+EXPLICACION: Y esta prohibido porque si el residente lo rechaza despues, el registro ya quedo falso. Siempre se registra inmediatamente DESPUES de administrar, nunca antes.
 
 P: Que debes verificar en el eMAR ANTES de administrar un medicamento?
 a) Solo el nombre del medicamento
@@ -1037,9 +1037,9 @@ EXPLICACION: La mejor preparacion para una auditoria es la practica diaria de do
 P: Por que se dice que el registro del eMAR es "evidencia legal"?
 a) Porque solo lo puede leer un abogado
 b) Porque requiere firma notarizada
-*c) Porque documenta quien hizo que, cuando y como, y puede usarse en procedimientos legales o regulatorios
+*c) Porque documenta quien hizo que y cuando
 d) Porque esta encriptado con tecnologia militar
-EXPLICACION: Cada registro del eMAR es evidencia legal porque documenta con precision quien administro que medicamento, a que hora, y bajo que circunstancias. Esta evidencia puede ser usada en inspecciones regulatorias o procedimientos legales.
+EXPLICACION: Y puede usarse en una inspeccion regulatoria o en un procedimiento legal. Por eso cada registro se hace con precision: quien administro que medicamento, a que hora y en que circunstancias.
 `
 }
 
@@ -1415,18 +1415,18 @@ d) Solo los incidentes graves ocurridos en las ultimas 24 horas
 EXPLICACION: El Prologo es un resumen completo que incluye estado de residentes, medicamentos, pendientes transferidos, alertas activas y cambios en ordenes medicas.
 
 P: Como prioriza ZendiAssist la informacion en el Prologo?
-a) Alfabeticamente por nombre del residente
-b) Cronologicamente por hora del evento
-*c) Segun la urgencia, con los elementos mas criticos primero
+a) Alfabeticamente por el nombre del residente
+b) Cronologicamente por la hora del evento
+*c) Segun la urgencia de cada elemento
 d) Aleatoriamente para evitar sesgos
-EXPLICACION: ZendiAssist analiza la urgencia de cada elemento y presenta los mas criticos al inicio del Prologo, facilitando que el cuidador atienda primero lo mas importante.
+EXPLICACION: Con los mas criticos primero, al inicio del Prologo, para que el cuidador atienda antes lo que no puede esperar.
 
 P: El Prologo del Turno sustituye la comunicacion directa entre cuidadores?
 a) Si, es un reemplazo completo del handover presencial
 b) Si, siempre que el cuidador confirme que lo leyo
-*c) No, es una herramienta de apoyo que complementa pero no sustituye la comunicacion directa
+*c) No, es una herramienta de apoyo al handover
 d) Solo en turnos nocturnos donde no hay coincidencia presencial
-EXPLICACION: El Prologo es una herramienta de apoyo generada por IA que complementa pero nunca sustituye la comunicacion directa entre cuidadores ni el criterio clinico profesional.
+EXPLICACION: Complementa, pero no sustituye la comunicacion directa entre cuidadores ni el criterio clinico. Es apoyo generado por IA, y el apoyo no releva a nadie de hablar.
 
 P: Que puede hacer el cuidador con cada item del Prologo?
 a) Eliminarlo si no le parece relevante
@@ -1468,16 +1468,16 @@ EXPLICACION: El digest automatico es un resumen completo que incluye todas las a
 P: Puede el cuidador usar ZendiAssist para la documentacion del handover?
 a) No, toda la documentacion debe ser manual
 b) Si, y ZendiAssist puede redactar el contenido clinico autonomamente
-*c) Si, para dar formato a las notas, pero el contenido clinico debe ser validado por el profesional
+*c) Si, para dar formato a las notas
 d) Solo si el supervisor lo autoriza
-EXPLICACION: ZendiAssist puede ayudar con el formato de las notas, pero el contenido clinico siempre debe ser validado por el profesional de salud, ya que la IA no sustituye el criterio clinico.
+EXPLICACION: Pero el contenido clinico siempre lo valida el profesional. La IA da formato; no sustituye el criterio clinico de quien firma.
 
 P: A que registros queda vinculada la documentacion del handover?
 a) Solo al registro del turno saliente
 b) Solo al registro del turno entrante
-*c) Al registro de cierre del turno saliente y al registro de apertura del turno entrante
+*c) A los dos registros: cierre y apertura
 d) A un registro independiente accesible solo por el supervisor
-EXPLICACION: La documentacion del handover se vincula a ambos turnos, creando un puente auditable entre el cierre del turno saliente y la apertura del turno entrante.
+EXPLICACION: Al cierre del turno saliente y a la apertura del entrante. Queda un puente auditable entre los dos, y por eso no se puede perder por el camino.
 
 ---SECCION_5---
 LECTURA:
@@ -1627,9 +1627,9 @@ EXPLICACION: Todos los modos de escritura mantienen los hechos intactos y solo m
 P: Para que sirve el modo KITCHEN_OBS?
 a) Para pedir suministros de cocina al proveedor
 b) Para reportar problemas de higiene al supervisor
-*c) Para estructurar observaciones de nutricion y alimentacion para el equipo de cocina
+*c) Para estructurar observaciones de nutricion y alimentacion
 d) Para generar menus semanales automaticamente
-EXPLICACION: KITCHEN_OBS estructura las observaciones del cuidador sobre nutricion y alimentacion de los residentes en un formato estandarizado que el equipo de cocina puede utilizar directamente.
+EXPLICACION: Para el equipo de cocina. Toma lo que el cuidador observo sobre como comio cada residente y lo deja en un formato estandar que cocina puede usar directamente.
 
 ---SECCION_3---
 LECTURA:
@@ -1657,9 +1657,9 @@ EXPLICACION: El Digest es particularmente valioso cuando el cuidador necesita po
 P: Que tipo de tendencias puede detectar Zendi AI en el Digest?
 a) Tendencias financieras de la facilidad
 b) Patrones de ausentismo del personal
-*c) Cambios graduales en patron de sueno, apetito o nivel de actividad de los residentes
+*c) Cambios graduales en sueno, apetito o actividad
 d) Tendencias en el uso de suministros medicos
-EXPLICACION: Zendi AI analiza datos a lo largo del tiempo para detectar cambios graduales en los residentes, como alteraciones en sueno, apetito o actividad, que podrian no ser evidentes turno a turno.
+EXPLICACION: De los residentes, a lo largo del tiempo. Son justo los cambios que no se ven turno a turno porque cada dia se parece al anterior; solo aparecen al mirar varias semanas juntas.
 
 P: Se deben basar decisiones clinicas unicamente en los resumenes de Zendi AI?
 a) Si, si el resumen tiene menos de 24 horas de antiguedad
@@ -1692,18 +1692,18 @@ d) Exclusivamente para comunicaciones con familiares
 EXPLICACION: La voz neural es especialmente util durante tareas de cuidado directo como asistencia con higiene o alimentacion, cuando el cuidador no puede usar las manos para escribir.
 
 P: Que puede hacer un cuidador con la voz neural y los modos de escritura combinados?
-a) Generar diagnosticos clinicos por voz
-*b) Dictar una observacion informal y pedir que se formatee como SUPERVISOR_MEMO o FAMILY_MESSAGE
-c) Enviar mensajes directamente sin revision
+a) Generar diagnosticos clinicos por voz sin revision medica
+*b) Dictar una observacion informal y pedir que se formatee
+c) Enviar mensajes a la familia directamente sin revision
 d) Modificar ordenes medicas verbalmente
-EXPLICACION: La combinacion de voz neural con modos de escritura permite dictar informacion informal y seleccionar el formato apropiado para la audiencia, optimizando el flujo de trabajo del cuidador.
+EXPLICACION: Como SUPERVISOR_MEMO o FAMILY_MESSAGE. Dictas en tus palabras y eliges el formato segun a quien va dirigido; lo que no cambia es que despues hay que leerlo antes de enviarlo.
 
 P: Por que es importante revisar el texto generado por voz antes de aprobarlo?
 a) Porque el sistema agrega informacion que el cuidador no dijo
 b) Porque la voz neural solo funciona en ingles
-*c) Porque el reconocimiento de voz puede introducir errores en nombres, terminologia medica o dosis
+*c) Porque el reconocimiento de voz introduce errores
 d) Porque el supervisor debe ver el texto primero
-EXPLICACION: El reconocimiento de voz puede cometer errores con nombres propios, terminologia medica especifica y numeros de dosis, areas donde la precision es critica en documentacion clinica.
+EXPLICACION: En nombres propios, en terminologia medica y en numeros de dosis — justo los tres sitios donde un error de una letra cambia el significado.
 
 P: De quien es la responsabilidad de la precision en la documentacion clinica?
 a) De Zendi AI, que genero el texto
@@ -1715,9 +1715,9 @@ EXPLICACION: La precision en la documentacion clinica es siempre responsabilidad
 P: Que proceso sigue la voz neural para generar un mensaje formateado?
 a) Envia el audio directamente al destinatario
 b) Convierte el audio a texto y lo envia automaticamente
-*c) Convierte audio a texto, aplica el formato seleccionado y presenta un borrador para revision
+*c) Convierte audio a texto y presenta un borrador
 d) Graba el audio y lo adjunta como nota de voz
-EXPLICACION: El proceso tiene tres pasos: conversion de audio a texto, aplicacion del modo de escritura seleccionado, y presentacion del borrador para que el cuidador lo revise y apruebe antes de enviarlo.
+EXPLICACION: Tres pasos: audio a texto, formato segun el modo elegido, y borrador para que el cuidador lo revise y apruebe antes de enviarlo. El ultimo paso es una persona.
 
 ---SECCION_5---
 LECTURA:
@@ -1866,7 +1866,7 @@ PREGUNTAS:
 P: Cual es la regla numero uno cuando encuentras a un residente en el piso?
 a) Levantarlo inmediatamente para evitar que se enfrie
 b) Llamar primero a la familia
-*c) NO mover al residente hasta que un profesional clinico lo autorice
+*c) NO mover al residente sin autorizacion clinica
 d) Colocar una almohada debajo de su cabeza
 EXPLICACION: La regla de no mover es absoluta. Cualquier movimiento sin evaluacion clinica puede agravar fracturas o lesiones cervicales que no son visibles a simple vista.
 
@@ -1894,9 +1894,9 @@ EXPLICACION: Si el residente esta inconsciente pero respira, no se debe intentar
 P: Que detalles debes observar mientras esperas junto al residente?
 a) Solo la hora exacta de la caida
 b) El nombre del residente unicamente
-*c) Posicion exacta, presencia de sangre y objetos cercanos que pudieron causar la caida
+*c) Posicion exacta, sangre y objetos cercanos
 d) Los medicamentos que toma el residente
-EXPLICACION: Observar la posicion del residente, si hay sangre, y objetos del entorno es crucial para que el equipo clinico entienda el mecanismo de la caida y para documentar el incidente correctamente.
+EXPLICACION: Sobre todo los objetos que pudieron causarla. Con eso el equipo clinico entiende el mecanismo de la caida, que es lo que permite evitar la proxima.
 
 ---SECCION_3---
 LECTURA:
@@ -2015,7 +2015,7 @@ EXPLICACION: Las circunstancias deben describir el contexto completo: donde esta
 P: Que diferencia hay entre una "caida confirmada" y una "cuasi-caida" en el ticket?
 a) No hay diferencia, ambas se documentan igual
 b) La cuasi-caida solo se registra verbalmente
-*c) La caida confirmada implica que el residente llego al piso; la cuasi-caida es cuando estuvo a punto de caer pero no llego al suelo
+*c) En la confirmada el residente llego al piso
 d) La cuasi-caida solo aplica a empleados, no a residentes
 EXPLICACION: Una caida confirmada significa que el residente termino en el piso. Una cuasi-caida (near miss) es cuando estuvo a punto de caer pero se detuvo o fue sostenido. Ambas se documentan en Zendity.
 
@@ -2067,7 +2067,7 @@ EXPLICACION: El handover de caida debe ser completo: que ocurrio, severidad asig
 P: Que tipo de analisis compila Zendity con los datos de todas las caidas?
 a) Solo estadisticas de costos medicos
 b) Unicamente el numero total de caidas al mes
-*c) Patrones de horarios, areas problematicas, residentes recurrentes y correlaciones con medicamentos
+*c) Patrones de horario, area, residente y medicamentos
 d) Solo informacion para las aseguradoras
 EXPLICACION: Zendity analiza patrones incluyendo horarios de mayor riesgo, areas problematicas, residentes con caidas recurrentes y correlaciones con medicamentos para facilitar la prevencion basada en evidencia.
 
@@ -2175,7 +2175,7 @@ PREGUNTAS:
 P: Que es el Prologo del Turno en Zendity?
 a) Un formulario que el cuidador debe llenar al iniciar
 b) Una reunion presencial con el supervisor
-*c) Un resumen narrado por Zendi que prepara al cuidador para su turno
+*c) Un resumen narrado por Zendi al empezar
 d) Un examen de conocimientos al inicio de cada turno
 EXPLICACION: El Prologo del Turno es un resumen automatico narrado por Zendi (el asistente de voz) que incluye handover, residentes asignados, medicamentos MISSED y tareas pendientes.
 
@@ -2248,7 +2248,7 @@ EXPLICACION: Los 5 correctos son: residente correcto, medicamento correcto, dosi
 P: Que indica el estado MISSED (rojo) en el eMAR?
 a) Que el medicamento fue administrado exitosamente
 b) Que el residente fue trasladado a otro centro
-*c) Que la ventana de tiempo para administrar el medicamento paso sin registro
+*c) Que la ventana para administrarlo paso sin registro
 d) Que el medicamento esta en backorder
 EXPLICACION: MISSED significa que el medicamento no fue registrado dentro de su ventana de tiempo programada. Es un estado critico que requiere atencion inmediata y seguimiento.
 
@@ -2297,18 +2297,18 @@ d) Un reporte mensual de rendimiento
 EXPLICACION: El Daily Log es donde el cuidador documenta continuamente observaciones, actividades y eventos durante su turno. Cada nota se convierte en parte del expediente oficial del residente.
 
 P: Cual es la forma correcta de documentar un cambio de animo del residente?
-a) "El residente esta deprimido y triste"
-b) "Creo que el residente no se siente bien emocionalmente"
-*c) "El residente no participo en la actividad grupal y permanecio en silencio durante el almuerzo"
+a) "El residente esta deprimido y triste ultimamente"
+b) "Creo que el residente no se siente bien emocionalmente hoy"
+*c) "No participo en la actividad y permanecio en silencio"
 d) "El residente tuvo un mal dia"
-EXPLICACION: La documentacion debe ser objetiva y observable. "No participo y permanecio en silencio" es verificable, mientras que "esta triste" es subjetivo y no util clinicamente.
+EXPLICACION: Y mejor todavia con la hora: "durante el almuerzo". Lo que se ve es verificable; "esta triste" es una conclusion tuya, y no le sirve a quien tiene que decidir.
 
 P: Que es un Override Forzado en Zendity?
 a) Una funcion para eliminar registros erroneos
-*b) Un mecanismo para registrar acciones fuera del flujo normal que requiere PIN y motivo obligatorio
+*b) Un mecanismo para registrar fuera del flujo normal
 c) Una herramienta para cambiar ordenes medicas sin autorizacion
 d) Un boton para reiniciar el sistema
-EXPLICACION: El Override Forzado permite registrar acciones fuera del flujo normal (como un medicamento administrado tarde). Requiere PIN y un motivo obligatorio, y queda marcado para revision del supervisor.
+EXPLICACION: Exige PIN y un motivo obligatorio, y queda marcado para que lo revise el supervisor. Sirve para cosas como un medicamento administrado tarde: se registra lo que paso, no se esconde.
 
 P: Quien puede ver las notas que el cuidador escribe en el Daily Log?
 a) Solo el cuidador que las escribio
@@ -2352,11 +2352,11 @@ Si no completas el cierre de turno, Zendity genera una **sesion zombi** — una 
 
 PREGUNTAS:
 P: Que es lo primero que debe verificar el cuidador al cerrar su turno?
-*a) Que todos los medicamentos programados estan en estado ADMINISTRADO o tienen documentacion de por que no se dieron
+*a) Que todos los medicamentos tienen estado definido
 b) Que el supervisor aprobo su salida
 c) Que el dispositivo esta cargado
 d) Que la familia fue notificada de cada actividad
-EXPLICACION: Lo primero es verificar los medicamentos: todos deben estar en ADMINISTRADO o tener documentacion de motivo (RECHAZADO, MISSED). No deben quedar medicamentos sin estado definido.
+EXPLICACION: ADMINISTRADO, o con el motivo documentado (RECHAZADO, MISSED). Lo que no puede quedar es un medicamento sin estado: eso no dice que paso, dice que nadie miro.
 
 P: Que es una sesion zombi?
 a) Una sesion de entrenamiento nocturna
@@ -2381,7 +2381,7 @@ EXPLICACION: Las alertas activas que no se pueden resolver deben escalarse al su
 
 P: Por que las sesiones zombi son un problema operativo?
 a) Porque consumen mucha bateria en el dispositivo
-*b) Porque indican que un turno no fue cerrado correctamente, afectando la continuidad del cuidado y el cumplimiento
+*b) Porque indican que un turno no fue cerrado bien
 c) Porque el sistema deja de funcionar para todos los usuarios
 d) Porque generan costos adicionales de licencia
 EXPLICACION: Las sesiones zombi indican un cierre de turno incompleto, lo que afecta la continuidad del cuidado (informacion no transferida), el cumplimiento regulatorio y el puntaje operativo de la facilidad.
@@ -2441,16 +2441,16 @@ EXPLICACION: El supervisor debe detectar anomalias operativas como sesiones zomb
 P: Cuando debe el supervisor escalar un problema al director o Triage Center?
 a) Nunca, el supervisor resuelve todo solo
 b) Solo cuando un familiar se queja
-*c) Cuando un problema operativo se convierte en un evento que requiere intervencion de nivel superior
+*c) Cuando el problema supera su alcance
 d) Al final de cada turno como rutina
 EXPLICACION: El escalado inteligente implica que el supervisor evalua cuando un problema supera su capacidad de resolucion y necesita intervencion del director o del Triage Center.
 
 P: Como debe usar el supervisor los datos del dashboard?
 a) Para castigar a los empleados con bajo rendimiento
 b) Para generar reportes financieros
-*c) Para detectar problemas temprano y apoyar al equipo antes de que se conviertan en incidentes
+*c) Para detectar problemas temprano y apoyar al equipo
 d) Para compartir estadisticas en redes sociales
-EXPLICACION: El dashboard proporciona datos objetivos para detectar problemas temprano y actuar proactivamente. Supervisar no es micro-gestionar sino apoyar al equipo con informacion.
+EXPLICACION: Antes de que se conviertan en incidentes. Supervisar no es vigilar de cerca: es llegar antes con informacion, que es distinto.
 
 P: Que puede hacer el supervisor cuando hay ausencias o emergencias?
 a) Cancelar el turno completo
@@ -2500,7 +2500,7 @@ EXPLICACION: El digest es un resumen automatico que Zendity genera cada 4 horas 
 P: Que indica el color rojo en los indicadores del dashboard?
 a) Que es horario de almuerzo
 b) Que todo esta funcionando correctamente
-*c) Que se requiere accion inmediata — MISSED activo, sesion zombi o alerta critica
+*c) Que se requiere accion inmediata
 d) Que el sistema esta en mantenimiento
 EXPLICACION: El rojo indica accion inmediata requerida: puede ser un MISSED activo, una sesion zombi o una alerta critica sin atender. El supervisor debe actuar sin demora.
 
@@ -2615,10 +2615,10 @@ d) El area de recepcion para visitantes
 EXPLICACION: El Triage Center es un modulo digital en Zendity donde llegan todos los eventos que requieren evaluacion y decision del supervisor o niveles superiores.
 
 P: Cuales son las tres opciones de accion para cada evento en el Triage Center?
-a) Eliminar, archivar o reenviar
-b) Aprobar, denegar o posponer
-*c) Resolver localmente, escalar al director o activar protocolo de emergencia
-d) Leer, responder o ignorar
+a) Eliminar, archivar o reenviar al director
+b) Aprobar, denegar o posponer la decision
+*c) Resolver localmente, escalar o activar emergencia
+d) Leer, responder o ignorar el evento
 EXPLICACION: Cada evento tiene tres rutas: resolucion local por el supervisor, escalado al director si supera su capacidad, o activacion de protocolo de emergencia para situaciones criticas.
 
 P: Que tipo de evento llega al Triage Center por multiples MISSED?
@@ -2670,9 +2670,9 @@ PREGUNTAS:
 P: Que es la redistribucion de color?
 a) Cambiar el esquema de colores de la interfaz
 b) Pintar las habitaciones de los residentes
-*c) Reasignar residentes entre cuidadores en tiempo real cuando cambian las condiciones del turno
+*c) Reasignar residentes entre cuidadores en tiempo real
 d) Un proceso de seleccion de uniformes
-EXPLICACION: La redistribucion de color permite al supervisor reasignar residentes entre cuidadores disponibles cuando hay ausencias, emergencias o desbalance de carga de trabajo.
+EXPLICACION: Cuando cambian las condiciones del turno: una ausencia, una emergencia, o simplemente una carga que quedo desbalanceada. El supervisor reparte entre los cuidadores disponibles.
 
 P: En cual de estas situaciones debe el supervisor redistribuir?
 a) Cuando un residente pide cambiar de cuidador por preferencia
@@ -2994,7 +2994,7 @@ EXPLICACION: El handover culmina con la firma digital de ambas enfermeras en Zen
 P: Como asigna tareas la enfermera a los cuidadores?
 a) Mediante mensajes de texto personales
 b) Dejando notas en papel en el escritorio
-*c) Asignando tareas por grupo de color y documentando la instruccion en el sistema
+*c) Por grupo de color, documentando la instruccion
 d) Verbalmente sin ningun registro
 EXPLICACION: La enfermera asigna tareas por grupo de color y documenta cada instruccion en Zendity, creando trazabilidad de quien recibio la indicacion y cuando.
 
@@ -3050,10 +3050,10 @@ EXPLICACION: El Director tiene responsabilidad ejecutiva sobre toda la operacion
 
 P: Que significa "activacion clinica" en el contexto del Director?
 a) Dar de alta a un residente del sistema
-*b) Asegurar que un residente admitido pase de DORMANT a clinicamente activo con todos sus modulos habilitados
+*b) Asegurar que un residente admitido quede clinicamente activo
 c) Iniciar sesion en el sistema cada manana
 d) Aprobar los horarios de los cuidadores
-EXPLICACION: La activacion clinica es el proceso de asegurar que un residente recien admitido tenga todos sus modulos (eMAR, escalas, notas) habilitados y funcionales.
+EXPLICACION: Pasa de DORMANT a activo, con todos sus modulos habilitados y funcionando: eMAR, escalas, notas. Sin ese paso el expediente existe pero no se puede usar.
 
 P: Para que sirve el digest ejecutivo en Zendity?
 a) Para enviar mensajes a los familiares
@@ -3072,9 +3072,9 @@ EXPLICACION: El Director es responsable de monitorear continuamente que todo el 
 P: El Director necesita ejecutar personalmente cada tarea operativa?
 a) Si, debe hacer todo personalmente
 b) Si, pero solo durante el turno diurno
-*c) No, pero es responsable de que todo funcione y lo supervisa con herramientas del sistema
+*c) No, pero responde de que todo funcione
 d) No, porque el sistema lo hace todo automaticamente
-EXPLICACION: El Director no ejecuta cada tarea pero si es responsable de la operacion completa. Zendity le da herramientas de monitoreo y alertas para supervisar remotamente.
+EXPLICACION: Y lo supervisa con las herramientas del sistema. No ejecuta cada tarea, pero responde por la operacion completa: para eso tiene monitoreo y alertas.
 
 ---SECCION_2---
 LECTURA:
@@ -3156,10 +3156,10 @@ El CRM del Director incluye filtros avanzados para visualizar prospectos por urg
 
 PREGUNTAS:
 P: Que etapas del pipeline requieren supervision del Director?
-a) Solo la etapa PROSPECT
-b) Ninguna, todo es automatico
-*c) Las transiciones a EVALUATION y ADMISSION requieren supervision directiva
-d) Solo la etapa CONTACTED
+a) Solo la etapa PROSPECT del pipeline
+b) Ninguna, todo el pipeline es automatico
+*c) Las transiciones a EVALUATION y ADMISSION
+d) Solo la etapa CONTACTED del pipeline
 EXPLICACION: Aunque el equipo administrativo gestiona etapas iniciales, avanzar a EVALUATION y ADMISSION requiere que el Director verifique capacidad, recursos y documentacion.
 
 P: Que son los "prospectos estancados" en el CRM?
@@ -3186,9 +3186,9 @@ EXPLICACION: Al mover un lead a ADMISSION, Zendity ejecuta una transaccion autom
 P: Para que sirven los filtros avanzados del CRM del Director?
 a) Para eliminar prospectos no deseados
 b) Para enviar publicidad a los leads
-*c) Para visualizar prospectos por urgencia, tipo de cuidado y fecha de contacto y tomar decisiones informadas
+*c) Para ordenar los prospectos por urgencia
 d) Para transferir prospectos a otras facilidades
-EXPLICACION: Los filtros permiten al Director ver prospectos organizados por urgencia, tipo de cuidado requerido y fecha de contacto, facilitando la toma de decisiones sobre el flujo de admisiones.
+EXPLICACION: Por urgencia, por tipo de cuidado y por fecha de contacto. Con eso el Director decide el flujo de admisiones mirando datos, no memoria.
 
 ---SECCION_4---
 LECTURA:
@@ -3241,7 +3241,7 @@ EXPLICACION: El Director debe revisar el digest ejecutivo cada manana como prime
 P: Por que es importante mantener un complianceScore alto?
 a) Solo por apariencia ante los familiares
 b) Para obtener descuentos en el sistema Zendity
-*c) Porque es evidencia documentada ante reguladores de que la facilidad opera correctamente
+*c) Porque es evidencia documentada ante reguladores
 d) Porque determina el salario de los empleados
 EXPLICACION: Un complianceScore alto es evidencia documentada de operacion correcta, esencial para inspecciones regulatorias y para demostrar cumplimiento ante autoridades.
 
@@ -3365,10 +3365,10 @@ EXPLICACION: La transicion de un lead a ADMISSION (que activa la creacion del ex
 
 P: Cuando es particularmente critico el rol del Admin?
 a) Solo durante las mananas del turno diurno
-*b) Cuando el Director esta en reuniones, supervisando el piso o fuera de la facilidad
+*b) Cuando el Director no esta disponible
 c) Unicamente durante las admisiones nuevas
 d) Solo cuando hay inspecciones regulatorias
-EXPLICACION: El Admin mantiene el flujo de trabajo cuando el Director no esta disponible, asegurando que los procesos administrativos no se detengan.
+EXPLICACION: En reuniones, supervisando el piso o fuera de la facilidad. El Admin es quien sostiene el flujo administrativo esas horas, para que no se detenga y se acumule.
 
 P: Que tipo de modulos puede acceder el Admin en Zendity?
 a) Solo los modulos clinicos del piso de cuido
@@ -3400,9 +3400,9 @@ PREGUNTAS:
 P: Que es Intake Maestro en Zendity?
 a) Un curso de capacitacion para nuevos empleados
 b) Un modulo para administrar medicamentos
-*c) Un asistente que guia al Admin paso a paso durante el registro de nuevos prospectos
+*c) Un asistente que guia el registro
 d) Un reporte financiero automatizado
-EXPLICACION: Intake Maestro es un asistente de Zendity que guia el proceso de registro de prospectos, sugiriendo campos, validando datos y alertando sobre informacion faltante.
+EXPLICACION: Guia al Admin paso a paso durante el registro de un prospecto nuevo: sugiere campos, valida datos y avisa de lo que falta antes de cerrar.
 
 P: Hasta que etapa del pipeline puede el Admin avanzar un lead de forma autonoma?
 a) Hasta ADMISSION
@@ -3539,9 +3539,9 @@ EXPLICACION: El Directorio Staff contiene la informacion de contacto y rol de ca
 P: Por que son importantes las comunicaciones profesionales en una facilidad de cuido?
 a) Solo por cumplir con requisitos legales
 b) Porque los familiares no leen mensajes informales
-*c) Porque representan la imagen de la facilidad y un mensaje mal redactado puede generar desconfianza
+*c) Porque representan la imagen de la facilidad
 d) Porque Zendity cobra extra por mensajes informales
-EXPLICACION: Las comunicaciones institucionales representan la imagen de la facilidad ante familias, reguladores y la comunidad. El profesionalismo genera confianza.
+EXPLICACION: Y un mensaje mal redactado puede generar desconfianza justo donde mas cuesta recuperarla: ante familias, reguladores y la comunidad.
 
 P: Quien es responsable de mantener actualizado el Directorio Staff?
 a) Cada empleado actualiza sus propios datos
@@ -3664,7 +3664,7 @@ EXPLICACION: Sin testigos presentes, la documentacion en Zendity se convierte en
 P: Cual es la principal diferencia operativa entre el turno diurno y el nocturno?
 a) El turno nocturno tiene menos residentes asignados
 b) El turno nocturno usa un modulo diferente de Zendity
-*c) El cuidador nocturno opera con supervision minima o nula y toma decisiones solo
+*c) El cuidador nocturno opera con supervision minima
 d) El turno nocturno no requiere documentacion
 EXPLICACION: La diferencia clave es que el cuidador nocturno trabaja sin supervision presencial directa, asumiendo mayor responsabilidad en la toma de decisiones.
 
@@ -3699,7 +3699,7 @@ EXPLICACION: El Prologo del Turno es una pantalla resumen que incluye incidentes
 P: Que sucede si el cuidador saliente no completo el cierre de su turno?
 a) El turno entrante comienza sin esa informacion
 b) El supervisor debe completar el cierre manualmente
-*c) Zendity marca los items como MISSED y los transfiere con prioridad alta al turno entrante
+*c) Zendity los marca como MISSED y los transfiere con prioridad
 d) El sistema bloquea al cuidador saliente hasta que complete el cierre
 EXPLICACION: Los items incompletos se marcan como MISSED y se transfieren automaticamente al turno entrante con prioridad alta para garantizar continuidad.
 
@@ -3739,10 +3739,10 @@ d) Solo cuando hay una alerta activa
 EXPLICACION: Zendity establece intervalos obligatorios de ronda cada 2 horas durante el turno nocturno, comenzando desde la hora de inicio del turno.
 
 P: Que estados puede registrar el cuidador para un residente durante una ronda nocturna?
-a) Solo dormido o despierto
-b) Estable, inestable o critico
-*c) Dormido, despierto, inquieto, ausente de cama o requiere atencion
-d) Normal o anormal
+a) Solo dormido o despierto en su cama
+b) Estable, inestable o en estado critico
+*c) Dormido, despierto, inquieto, ausente o requiere atencion
+d) Normal o anormal segun la ronda
 EXPLICACION: Zendity ofrece cinco opciones de estado durante las rondas nocturnas: dormido, despierto, inquieto, ausente de cama o requiere atencion.
 
 P: Que es un MISSED nocturno?
@@ -3817,7 +3817,7 @@ El cierre del turno nocturno es tan critico como el inicio. A las 6am, Zendity p
 PREGUNTAS:
 P: Que presenta Zendity al cuidador a las 6am?
 a) Una lista de tareas para el turno diurno
-*b) Una pantalla de cierre que resume todo lo ocurrido durante la noche
+*b) Una pantalla de cierre de la noche
 c) Un formulario de evaluacion del turno
 d) Las instrucciones del supervisor para el proximo turno
 EXPLICACION: A las 6am, Zendity presenta una pantalla de cierre con el resumen de rondas, incidentes, items MISSED y notas del turno nocturno.
@@ -4048,7 +4048,7 @@ PREGUNTAS:
 P: Que define una emergencia de infraestructura en Zendity?
 a) Cualquier dano que requiera un contratista externo
 b) Un ticket que excede su SLA original
-*c) Un evento que pone en riesgo inmediato la seguridad de los residentes o la operacion del hogar
+*c) Un riesgo inmediato para la seguridad
 d) Una solicitud del Director para reparacion urgente
 EXPLICACION: Una emergencia de infraestructura es un evento con riesgo inmediato para la seguridad de residentes o la operacion del hogar, como fallas electricas, inundaciones o dano estructural.
 
@@ -4115,10 +4115,10 @@ d) Panel de Sanitizacion
 EXPLICACION: Mi Turno es la pantalla principal donde cada empleado de limpieza ve sus areas asignadas con horarios y niveles de prioridad.
 
 P: En que tres categorias se clasifican las areas de limpieza?
-a) Criticas, normales y opcionales
+a) Criticas, normales y opcionales segun el riesgo
 b) Interiores, exteriores y de emergencia
-*c) Areas de residentes, areas comunes y areas de servicio
-d) Publicas, privadas y restringidas
+*c) Areas de residentes, comunes y de servicio
+d) Publicas, privadas y restringidas al personal
 EXPLICACION: Las areas se clasifican en areas de residentes (habitaciones y banos), areas comunes (comedor, sala, pasillos) y areas de servicio (cocina, lavanderia, almacen).
 
 P: Que es la Zendi logica de evidencia?
@@ -4173,9 +4173,9 @@ EXPLICACION: El empleado debe marcar el area como en progreso al comenzar y como
 P: Que pasa si el empleado no completa un area dentro de su ventana de tiempo?
 a) Se cierra automaticamente como completada
 b) Se elimina de la lista del dia
-*c) Se marca como pendiente y se reasigna o se escala al supervisor
+*c) Se marca como pendiente y se reasigna
 d) Se pospone automaticamente para el dia siguiente
-EXPLICACION: Las areas no completadas en su ventana de tiempo se marcan como pendientes y el sistema las reasigna a otro empleado o las escala al supervisor.
+EXPLICACION: O se escala al supervisor si no hay a quien reasignarla. Lo que no pasa es que desaparezca de la lista por vencerse.
 
 P: Como maneja Mi Turno las solicitudes urgentes que surgen durante el dia?
 a) Las coloca al final de la lista del empleado
@@ -4201,7 +4201,7 @@ EXPLICACION: Las fotos tomadas desde la app de Zendity incluyen timestamp y geol
 P: Que hace Zendity si la foto de evidencia es borrosa u oscura?
 a) La acepta con una advertencia al supervisor
 b) La mejora automaticamente con filtros
-*c) La rechaza automaticamente y notifica al empleado con la razon del rechazo
+*c) La rechaza y notifica al empleado
 d) La envia al supervisor para revision manual
 EXPLICACION: Zendity rechaza automaticamente fotos que no cumplen los estandares de calidad y notifica al empleado para que tome una nueva foto.
 
@@ -4277,7 +4277,7 @@ Zendity mide el desempeno del equipo de limpieza a traves de metricas objetivas 
 PREGUNTAS:
 P: Cuales son las metricas principales que mide Zendity para el equipo de limpieza?
 a) Velocidad de limpieza y consumo de productos
-*b) Areas completadas a tiempo, solicitudes urgentes en SLA, calidad de fotos y areas reabiertas
+*b) Areas a tiempo, SLA, fotos y reaperturas
 c) Numero de areas asignadas y completadas por dia
 d) Satisfaccion de residentes y quejas recibidas
 EXPLICACION: Las metricas principales son: areas completadas a tiempo, solicitudes urgentes dentro del SLA, calidad de evidencia fotografica y numero de areas reabiertas por supervisor.
@@ -4354,7 +4354,7 @@ EXPLICACION: El dashboard global muestra en tiempo real beneficios por vencer, c
 P: Que incluye el perfil del residente en Zendi TS?
 a) Solo datos demograficos y contacto de emergencia
 b) Historial medico completo y recetas activas
-*c) Historial social, contactos familiares, beneficios activos, necesidades especiales y notas clinicas relevantes
+*c) Historial social, familia, beneficios y notas clinicas
 d) Solo la informacion necesaria para facturacion
 EXPLICACION: El perfil incluye historial social, contactos familiares, beneficios activos, necesidades especiales y notas clinicas relevantes para una vision completa del residente.
 
@@ -4368,7 +4368,7 @@ EXPLICACION: El dashboard esta disenado para que el trabajador social pueda ver 
 P: Cual es la relacion de Zendi TS con el juicio profesional del trabajador social?
 a) Zendi TS toma decisiones automaticas que el trabajador social ejecuta
 b) Zendi TS reemplaza la necesidad de juicio profesional
-*c) Zendi TS no reemplaza el juicio profesional, pero provee herramientas para que nada critico se pierda
+*c) No lo reemplaza: le da herramientas para no perder nada
 d) Zendi TS solo se usa cuando el trabajador social necesita orientacion
 EXPLICACION: Zendi TS es una herramienta de apoyo que no sustituye el juicio profesional, sino que asegura que ninguna tarea critica se pierda en la complejidad del trabajo diario.
 
@@ -4388,7 +4388,7 @@ EXPLICACION: El dashboard se organiza en cuatro paneles: Alertas Activas, Benefi
 
 P: Que tipo de situacion genera una Alerta Activa en el dashboard?
 a) Cuando un residente cumple anos en los proximos 7 dias
-*b) Un residente sin contacto familiar registrado o un beneficio que vence en menos de 7 dias
+*b) Un residente sin contacto familiar, o un beneficio por vencer
 c) Cuando el trabajador social tiene mas de 5 tareas pendientes
 d) Cuando un especialista cancela una cita programada
 EXPLICACION: Las Alertas Activas se generan por situaciones criticas como residentes sin contacto familiar o beneficios que vencen en menos de 7 dias.
@@ -4445,7 +4445,7 @@ EXPLICACION: Si un beneficio vence sin accion, el caso se marca como critico y e
 P: Que genera automaticamente Zendi TS cuando emite una alerta de beneficio por vencer?
 a) Una carta de renovacion al proveedor
 b) Un correo electronico al familiar responsable
-*c) Tareas automaticas en la lista de pendientes con los pasos necesarios para la renovacion
+*c) Tareas automaticas en la lista de pendientes
 d) Una solicitud de cotizacion al nuevo proveedor
 EXPLICACION: Ademas de la alerta, Zendi TS genera tareas automaticas en la lista de pendientes del trabajador social con los pasos especificos para gestionar la renovacion.
 
@@ -4480,7 +4480,7 @@ EXPLICACION: El sistema genera alertas cuando detecta que un residente ha excedi
 P: Que tareas incluye la coordinacion de una cita con especialista?
 a) Solo confirmar la cita con el consultorio
 b) Solo gestionar el transporte del residente
-*c) Gestionar transporte, confirmar cita, preparar documentos medicos y coordinar con el cuidador
+*c) Transporte, cita, documentos y coordinacion
 d) Solo notificar al residente y su familiar
 EXPLICACION: La coordinacion completa incluye transporte, confirmacion de cita, preparacion de documentos medicos y coordinacion con el cuidador asignado.
 
@@ -4558,6 +4558,11 @@ import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 async function main() {
+    // Simulacion. Antes no habia: la unica forma de saber que iba a hacer era
+    // dejarlo escribir.
+    const DRY = process.argv.includes('--dry-run')
+    if (DRY) console.log('🔍 SIMULACION — no se escribe nada\n')
+
     // Si se pasa SEED_HQ_ID, sembrar solo esa sede. Si no, sembrar a todas las activas.
     let hqIds: string[] = []
     if (process.env.SEED_HQ_ID) {
@@ -4584,6 +4589,36 @@ async function main() {
             // ID compuesto para que cada sede tenga su propio set de cursos
             // sin colisiones de ID entre sedes.
             const compositeId = `${HQ_ID}__${course.id}`
+            /**
+             * EL UPDATE NO PISA `isGlobal`, `isActive` NI `imageUrl`.
+             *
+             * Los pisaba, y el 11-sep-2026 estuvo a punto de costar caro: en
+             * produccion OCHO de estos cursos estan limitados por rol
+             * —CUIDADOR_101 a CAREGIVER, ENFERMERA_101 a NURSE, TRABAJO_SOCIAL
+             * a SOCIAL_WORKER, y asi— y este bloque los forzaba a
+             * `isGlobal: true`. Correr el seed para actualizar el CONTENIDO de
+             * los cursos habria hecho visible y asignable a todo el personal la
+             * formacion de cada rol, sin que nadie tocara esa decision.
+             *
+             * Esos tres campos tienen otro dueño: `isGlobal` y `targetRole` los
+             * pone `scripts/academy-roles-y-puntos.ts`; `imageUrl`, que hoy esta
+             * en null en los 26 cursos, lo pone `scripts/academy-imagenes.ts`.
+             * Este seed es dueño del CONTENIDO, y de nada mas.
+             *
+             * En `create` si van, porque un curso que nace necesita un valor.
+             */
+            const existente = await prisma.course.findUnique({
+                where: { id: compositeId },
+                select: { content: true },
+            })
+            if (DRY) {
+                const estado = !existente ? '+ crea     '
+                    : existente.content !== course.content ? '↻ actualiza'
+                    : '= igual    '
+                console.log(`  ${estado} ${course.title}`)
+                continue
+            }
+
             await prisma.course.upsert({
                 where: { id: compositeId },
                 update: {
@@ -4593,11 +4628,8 @@ async function main() {
                     durationMins: course.durationMins,
                     bonusCompliance: course.bonusCompliance,
                     emoji: course.emoji,
-                    imageUrl,
                     category: course.category || 'General',
                     order: course.order || 0,
-                    isGlobal: true,
-                    isActive: true,
                 },
                 create: {
                     id: compositeId,
