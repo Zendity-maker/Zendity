@@ -30,321 +30,375 @@ export const ACADEMY_SEED_COURSES: AcademySeedCourse[] = [
     order: 1,
     content: `---META---
 TITULO: Acceso y Roles en Zendity
-PROMPT_ZENDI: Evalua si el empleado comprende la importancia de la seguridad de datos, los roles del sistema, y puede identificar situaciones donde debe proteger las credenciales y escalar un problema de acceso.
-TERMINOS_CLAVE: roles, permisos, HIPAA, PIN, seguridad, Sede, trazabilidad, sesion, confidencialidad, modulos
-PREGUNTA_REFLEXION: Imagina que un companero de trabajo te pide prestado tu PIN para registrar un medicamento porque "el suyo no funciona". Que harias y por que? Relaciona tu respuesta con los principios de seguridad y roles que aprendiste en este curso.
+PROMPT_ZENDI: Evalúa si el empleado conecta su sesión abierta con lo que queda firmado a su nombre: busca que cuente una situación real de su turno con la tableta compartida, que reconozca que el registro sigue a la sesión y no a quien teclea, y que proponga un cambio concreto que pueda hacer mañana, no una promesa general de tener más cuidado.
+TERMINOS_CLAVE: Sede, rol, doble rol, PIN, sesión, trazabilidad, HIPAA, hub de cuidado, Corporate HQ, Clinical Care, grupo de color, entregar turno, formación asignada
+PREGUNTA_REFLEXION: Piensa en la tableta que usas en tu turno: desde que la abres con tu PIN hasta que entregas el turno, ¿cuántas veces se queda sin ti al lado? Cuenta una situación real de esta semana y di qué vas a hacer distinto mañana para que lo que se registre ahí sea tuyo de verdad.
 
 ---SECCION_1---
 LECTURA:
-# Bienvenida a Zendity
+# Tu Sede, y por qué todo lleva tu nombre
 
-Zendity es una plataforma digital de gestion integral disenada especificamente para facilidades de cuido de adultos mayores (senior living). La plataforma centraliza todas las operaciones: desde la admision de residentes, el manejo clinico diario, la administracion de medicamentos, hasta la comunicacion con familias.
+Zéndity es donde vive el trabajo del hogar: quién entró, qué se le dio, qué cambió y quién lo vio. No sustituye lo que tú sabes hacer. Guarda lo que haces para que quien entre después no tenga que adivinar.
 
-**Por que importa la transformacion digital?**
+**La Sede**
 
-En el cuidado de adultos mayores, cada minuto cuenta. Los sistemas manuales — papeles, carpetas, notas adhesivas — generan errores, retrasos y riesgos para los residentes. Zendity elimina estos problemas al digitalizar cada proceso critico:
+Cada hogar es una **Sede**: un espacio digital propio, separado del de los demás. Vivid Cupey y Vivid Mayagüez son dos Sedes distintas. Lo que se escribe en una no aparece en la otra, ni por error ni pidiéndolo.
 
-- **Trazabilidad**: Cada accion queda registrada con fecha, hora y responsable
-- **Acceso inmediato**: La informacion del residente esta disponible en tiempo real desde cualquier dispositivo
-- **Coordinacion**: Todos los departamentos trabajan sobre la misma plataforma unificada
-- **Cumplimiento regulatorio**: HIPAA y regulaciones locales integradas en cada modulo
+Quien dirige más de una sede las mira con el selector **Sede Activa**, en la barra de arriba. Lo que se pinta en pantalla depende de cuál esté escogida. Solo lo ven Director Ejecutivo y Administrador de Red.
 
-**Concepto clave: La Sede**
+**Todo lleva tu nombre. También lo que solo miras.**
 
-En Zendity, cada facilidad opera como una "Sede" (tenant). Una Sede es un espacio digital aislado y seguro donde toda la informacion de esa facilidad — residentes, empleados, horarios, medicamentos — vive completamente separada de otras facilidades. Esto garantiza que los datos de tu Sede nunca se mezclan con los de otra organizacion.
+Cada acción guarda quién, cuándo y sobre quién. Eso ya lo sabías de lo que escribes. Lo que casi nadie sabe es que **abrir un expediente también queda grabado**: el sistema anota la lectura igual que anota una firma. Si entras al expediente de Rosa Medina (204), lees una nota y sales sin escribir nada, ahí queda tu nombre y la hora.
+
+No es para vigilarte. Es lo que hace que la regla de no abrir el expediente de quien no está bajo tu cuidado signifique algo de verdad.
+
+**Si un día no puedes entrar**
+
+Puede pasar que la pantalla de entrada te conteste con el nombre de tu hogar y te diga que no tiene el servicio activo. No perdiste tu cuenta ni te dieron de baja: es un asunto de facturación de la Sede. El propio sistema lo dice con estas palabras: la operación **debe continuar con documentación manual**. Documentas en papel, avisas a dirección y sigues trabajando.
 
 PREGUNTAS:
-P: Cual es el proposito principal de Zendity?
-a) Servir como red social para familias de adultos mayores
-*b) Gestionar integralmente las operaciones de facilidades de cuido de adultos mayores
-c) Procesar pagos y facturacion medica exclusivamente
-d) Ofrecer servicios de telemedicina remota
-EXPLICACION: Zendity es una plataforma de gestion integral que centraliza todas las operaciones de facilidades de senior living: clinicas, administrativas y de comunicacion.
+P: ¿Qué es una Sede en Zéndity?
+*a) El espacio digital propio de cada hogar, separado del resto
+b) La oficina de la empresa Zéndity en San Juan
+c) El área del hogar donde duermen los residentes
+d) El grupo de cuidadoras que trabajan el mismo turno de mañana
+EXPLICACION: Cupey y Mayagüez son dos Sedes distintas: lo que se escribe en una no aparece en la otra, ni por error ni a propósito.
 
-P: Que ventaja ofrece la trazabilidad en Zendity?
-a) Permite eliminar los turnos de trabajo
-*b) Cada accion queda registrada y firmada
-c) Reduce automaticamente los costos de medicamentos
-d) Elimina la necesidad de supervision clinica
-EXPLICACION: Con fecha, hora y responsable. La trazabilidad significa que cada accion —administrar un medicamento, cambiar un horario, registrar una nota— queda documentada con quien lo hizo y cuando.
+P: ¿Qué quiere decir que Zéndity tenga trazabilidad?
+a) Que funciona sin internet desde cualquier tableta del piso
+b) Que los residentes consultan su expediente
+*c) Que cada acción guarda quién, cuándo y sobre quién
+d) Que el sistema corrige solo los errores de quien documenta tarde
+EXPLICACION: Por eso ninguna nota es anónima: el nombre que queda es el de la sesión que estaba abierta en ese aparato.
 
-P: Que es una "Sede" en el contexto de Zendity?
-a) La oficina central de la empresa Zendity
-*b) Un espacio digital aislado donde opera cada facilidad de cuido independientemente
-c) El area fisica donde se atienden los residentes
-d) Un grupo de empleados asignados al mismo turno
-EXPLICACION: Una Sede (tenant) es un espacio digital aislado para cada facilidad. Garantiza que los datos de una facilidad nunca se mezclan con los de otra.
+P: Abres el expediente de Rosa Medina (204), lees una nota y sales sin escribir nada. ¿Qué queda guardado?
+a) Nada, porque el registro solo se activa cuando escribes
+b) Una notificación al supervisor para que apruebe esa consulta
+c) Solo queda si la residente no es tuya
+*d) Que tú abriste ese expediente y a qué hora lo hiciste
+EXPLICACION: Zéndity audita las lecturas, no solo lo que escribes: abrir un expediente deja tu nombre igual que firmar un medicamento.
 
-P: Cual de estos problemas resuelve la digitalizacion con Zendity?
-a) La necesidad de contratar mas personal
-b) La eliminacion total de enfermedades
-*c) Los errores y retrasos causados por sistemas manuales de papel
-d) La reduccion automatica de residentes en la facilidad
-EXPLICACION: Los sistemas manuales (papeles, carpetas, notas) generan errores humanos y retrasos. Zendity digitaliza estos procesos para reducir riesgos y mejorar la eficiencia.
+P: Ana dirige el hogar y abre una segunda sede en Mayagüez. ¿Cómo mira los datos de cada una?
+a) Entra con un correo distinto para cada una de las dos sedes
+*b) Con el selector Sede Activa de la barra de arriba
+c) Aparecen juntos y se separan por el número de habitación
+d) Pide a Zéndity un reporte aparte cada vez que lo necesita
+EXPLICACION: Solo Director Ejecutivo y Administrador de Red lo ven, y lo que se pinta en pantalla depende de cuál sede esté escogida.
 
-P: Que garantiza el modelo de Sede aislada en Zendity?
-a) Que todos los empleados comparten la misma contrasena
-b) Que la plataforma funciona sin internet
-*c) Que los datos de una facilidad nunca se mezclan
-d) Que los residentes pueden ver datos de otras facilidades
-EXPLICACION: Con los de otra. El modelo multi-tenant asegura aislamiento completo de datos entre facilidades, protegiendo la privacidad y el cumplimiento regulatorio.
+P: Un lunes a las 7 de la mañana la entrada contesta con el nombre de tu hogar y dice que no tiene el servicio activo. ¿Qué pasa?
+a) Tu PIN venció: pide uno nuevo
+b) El internet se cayó: reinicia la tableta y vuelve a entrar
+*c) La sede está suspendida: documenta en papel y avisa
+d) Te dieron de baja: no trabajes hasta que te llamen de RRHH
+EXPLICACION: Ese mensaje es de la facturación de la Sede, no de tu cuenta; el propio sistema avisa que la operación sigue con documentación manual.
 
 ---SECCION_2---
 LECTURA:
-# Roles y Permisos del Sistema
+# Los roles: el tuyo y el de al lado
 
-Zendity utiliza un sistema de roles para controlar que puede ver y hacer cada usuario dentro de la plataforma. Esto es fundamental para la seguridad y el cumplimiento de HIPAA.
+El rol te lo pone la administración cuando te da de alta. Decide dónde caes al entrar y qué botones te aparecen.
 
-**Roles Administrativos:**
-- **ADMIN**: Acceso total a la Sede. Puede gestionar empleados, configurar modulos, ver reportes financieros y modificar cualquier dato. Solo los directores de la facilidad deben tener este rol.
-- **DIRECTOR**: Similar al ADMIN pero enfocado en operaciones diarias. Tiene acceso a reportes, gestion de personal y supervision clinica.
-- **SUPERVISOR**: Coordina equipos de trabajo. Puede ver dashboards de rendimiento, asignar turnos y aprobar cambios operativos.
+| Como se lee en pantalla | Lo que hace en Zéndity |
+|---|---|
+| **Cuidador(a)** | La tableta del piso. Administra y firma medicamentos, toma vitales, registra baño, comidas, rotación y rondas, levanta alertas y cierra el turno. |
+| **Enfermería** | Todo lo anterior, más piel y úlceras, caídas, plan de cuido y los cambios que reporta el piso. |
+| **Supervisor(a)** | Triage, horarios, firma de relevos y desempeño del personal. |
+| **Director Ejecutivo** y **Administrador de Red** | Dentro del hogar, prácticamente el mismo poder: sedes, facturación, acuerdos, kioscos. |
+| **Recursos Humanos** | Personal, observaciones, asistencia, horarios y evaluaciones. No entra al expediente ni al eMAR. |
+| **Trabajo Social** | Evaluaciones sociales, beneficios y su propio tablero. Entra al expediente y lee el eMAR, pero no administra medicamentos. |
+| **Comunicación Familiar** | Mensajes, citas y llamadas con las familias. No se escoge en el alta de personal: lo habilita dirección. |
+| **Terapeuta** y **Especialista (Belleza)** | Su propia pantalla de especialistas. |
+| **Cocina y Nutrición**, **Limpieza & Sanitización**, **Mantenimiento** | Su módulo de trabajo. |
+| **Socio / Inversor** | Los números del negocio, sin nada clínico. |
 
-**Roles Clinicos:**
-- **NURSE (Enfermera)**: Acceso al modulo clinico completo. Puede registrar notas medicas, administrar medicamentos via eMAR y revisar historiales.
-- **CAREGIVER (Cuidador)**: Acceso limitado al piso de cuido. Puede registrar actividades diarias, signos vitales basicos y notas de observacion.
-- **THERAPIST**: Acceso a evaluaciones terapeuticas y planes de tratamiento.
-- **SOCIAL_WORKER**: Acceso a planes de vida y coordinacion familiar.
+Aparte queda **SUPER_ADMIN**: ese es Zéndity, no el hogar. Da de alta las sedes y es el único que puede entrar cuando una sede está cerrada.
 
-**Roles de Soporte:**
-- **MAINTENANCE, KITCHEN, CLEANING**: Acceso a sus modulos especificos de operaciones sin ver datos clinicos de residentes.
-- **FAMILY**: Portal externo para familiares con acceso limitado al estado de su residente.
-- **INVESTOR**: Vista de reportes financieros sin acceso a datos clinicos.
+Y aparte quedan las **familias**. No son un rol del sistema: tienen su propia cuenta con su PIN familiar, y el portal se cierra solo cuando el residente egresa o fallece. Quien busque un rol llamado FAMILY en el alta de personal no lo va a encontrar nunca.
 
-> **Regla de oro**: Cada rol solo ve lo que necesita para hacer su trabajo. Esto no es una limitacion — es proteccion para ti y para los residentes.
+**Lo que hace una cuidadora, y lo que no**
+
+| Lo que SÍ | Lo que NO |
+|---|---|
+| Administrar y firmar el pack de medicamentos del turno | Dar de alta a otro empleado |
+| Tomar y escribir signos vitales | Publicar el horario de la semana |
+| Registrar seco, húmedo, evacuación y rotación en sus rondas | Cambiar el plan de cuido de un residente |
+| Levantar alerta de caída, de piel y de cambio de condición | Revisar y cerrar un cambio de condición |
+| Cerrar su turno firmando el relevo | Abrir expedientes desde el menú corporativo |
+
+Sí: la cuidadora administra los medicamentos y los firma. Es el acto de más consecuencia de su turno, y queda con su nombre.
+
+**Una persona, dos roles**
+
+En el alta de personal hay una fila que dice **Doble Rol (Accesos Simultáneos)**. Ahí se marcan los puestos que esa persona también hace. El sistema te deja hacer todo lo de cualquiera de tus roles, no solo el principal. En este hogar pasa todos los días: la enfermería la lleva la dirección con Enfermería de secundario, y una supervisora con Cuidador(a) de secundario puede abrir turno en la tableta.
+
+**Cocina también ve datos del residente**
+
+La pantalla de Cocina y Nutrición lista a cada residente con su nombre, su cuarto y su dieta prescrita: PEG, majada, licuada, renal, diabética. Eso es información clínica, porque una dieta PEG o renal dice algo del diagnóstico. No se fotografía, no se comenta fuera y no sale de la plataforma. Lo mismo vale para limpieza y mantenimiento con lo que ven dentro de las habitaciones.
 
 PREGUNTAS:
-P: Quien deberia tener el rol de ADMIN en una facilidad?
-a) Todos los empleados para facilitar el trabajo
-b) Los cuidadores del turno de noche
-*c) Solo los directores o administradores de la facilidad
-d) Los familiares de los residentes
-EXPLICACION: El rol ADMIN otorga acceso total a la Sede. Solo debe asignarse a directores o administradores que necesiten gestionar toda la operacion.
+P: Carmen, cuidadora, tiene el pack de las 8:00 AM de Rosa Medina (204). ¿Qué le toca hacer?
+a) Esperar a la enfermera, que es quien firma los medicamentos
+b) Dejarlos en la mesa de noche y anotarlo en el relevo
+c) Darlos y después escribir una nota diciendo cuáles dio
+*d) Darlos y firmar el pack con el dedo en la tableta
+EXPLICACION: El eMAR acepta la firma de la cuidadora: administrar es su acto y queda con su nombre, no con el de la enfermera.
 
-P: Que puede hacer un CAREGIVER en Zendity?
-a) Modificar la configuracion de la Sede
-*b) Registrar actividades diarias y observaciones en el piso de cuido
-c) Aprobar reportes financieros
-d) Gestionar los turnos de todo el personal
-EXPLICACION: Los cuidadores tienen acceso al piso de cuido donde registran actividades diarias, signos vitales y notas de observacion de los residentes.
+P: Zuleyka entra como supervisora, pero hoy cubre el piso y necesita abrir turno de cuidadora. ¿Qué hace falta?
+*a) Que tenga Cuidador(a) marcado como rol secundario
+b) Que le presten el correo y el PIN de una cuidadora
+c) Que dirección le cambie el rol principal cada vez
+d) Nada, cualquier rol puede abrir turno en la tableta
+EXPLICACION: En el alta de personal hay una fila que dice Doble Rol (Accesos Simultáneos), y el sistema deja hacer lo de cualquiera de tus roles.
 
-P: Por que un empleado de KITCHEN no puede ver datos clinicos de residentes?
-a) Porque Zendity tiene un error de programacion
-b) Porque los datos clinicos no existen en el sistema
-*c) Porque cada rol accede solo a lo necesario para su funcion
-d) Porque el personal de cocina no tiene cuenta en el sistema
-EXPLICACION: Y eso es lo que protege la privacidad del residente. El principio de "minimo privilegio" significa que cada rol solo ve la informacion que su trabajo necesita, cumpliendo con HIPAA.
+P: La pantalla de Cocina lista a cada residente con su nombre, su cuarto y su dieta: PEG, majada, renal. ¿Qué es eso?
+a) Datos de logística para la compra de la semana
+*b) Datos clínicos del residente, y se protegen igual
+c) Datos públicos del hogar, porque no hay diagnóstico escrito
+d) Datos de dieta sin valor clínico, porque no son medicamentos
+EXPLICACION: Una dieta PEG o renal dice algo del diagnóstico; esa pantalla no se fotografía ni se comenta fuera del hogar.
 
-P: Que rol tiene acceso al portal externo de Zendity?
-a) ADMIN
-b) SUPERVISOR
-c) NURSE
-*d) FAMILY
-EXPLICACION: El rol FAMILY es para familiares de residentes. Tienen acceso a un portal externo con informacion limitada sobre el estado de su ser querido.
+P: Una directora quiere dar acceso a la hija de Rosa Medina y busca el rol FAMILY en el alta de personal. ¿Qué se encuentra?
+a) Lo encuentra al final de la lista de roles operativos
+b) Lo encuentra, pero tiene que marcarlo también como secundario
+*c) No está: la familia se invita aparte, con su propio PIN
+d) Lo encuentra solo si la residente sigue activa en el hogar
+EXPLICACION: El familiar no es empleado ni tiene rol del sistema; su cuenta va aparte y el portal se cierra cuando la residente egresa o fallece.
 
-P: Cual es la "regla de oro" del sistema de roles?
-a) Todos deben compartir el mismo nivel de acceso
-*b) Cada rol solo ve lo que necesita para hacer su trabajo
-c) Los supervisores deben tener acceso a todo
-d) Los roles se pueden cambiar libremente entre empleados
-EXPLICACION: La regla de oro es el principio de minimo privilegio: cada usuario solo accede a lo necesario para su funcion, protegiendo datos sensibles.
+P: Recursos Humanos lleva observaciones, asistencia, horarios y evaluaciones. ¿A qué no entra?
+*a) Al expediente clínico y al eMAR de los residentes
+b) Al directorio de empleados y a sus evaluaciones
+c) A las observaciones que se escriben desde el piso
+d) Al constructor de horarios de la semana del personal
+EXPLICACION: Es un rol propio justamente por eso: quien lleva personal no necesita ver un diagnóstico para hacer su trabajo.
 
 ---SECCION_3---
 LECTURA:
-# Navegacion del Sistema
+# Dónde aterrizas y cómo te mueves
 
-Zendity tiene dos espacios de trabajo principales, cada uno con su propio diseno visual para que siempre sepas donde estas:
+**No eliges dónde entras.** Escribes tu correo y tu PIN, y Zéndity te lleva a la pantalla de tu puesto.
 
-**Corporate HQ (Sede Corporativa)** — Sidebar oscuro
-Este es el espacio administrativo. Aqui los roles ADMIN, DIRECTOR y SUPERVISOR acceden a:
-- **Pacientes/Residentes**: Expediente completo, admisiones, altas
-- **Empleados (HR)**: Gestion de personal, horarios, evaluaciones
-- **CRM**: Pipeline de prospectos y admisiones nuevas
-- **Academy**: Cursos de capacitacion y certificaciones
-- **Reportes**: Dashboards de rendimiento y cumplimiento
+| Tu rol | Dónde caes al entrar |
+|---|---|
+| Cuidador(a) | Tu hub de cuidado |
+| Cocina | El tablero de cocina |
+| Limpieza | El tablero de limpieza |
+| Mantenimiento | El tablero de mantenimiento |
+| Terapeuta y Especialista | La pantalla de especialistas |
+| Comunicación Familiar | Inicio de coordinación |
+| Trabajo Social | Su tablero de trabajo social |
+| Administrador de Red | Corporate HQ |
+| Enfermería, Supervisión, Dirección | La pantalla de Insights |
 
-**Care Floor (Piso de Cuido)** — Sidebar blanco
-Este es el espacio clinico diario. Los roles NURSE y CAREGIVER acceden a:
-- **Dashboard de residentes**: Vista de todos los residentes activos con su grupo de color
-- **Notas clinicas**: Registro de observaciones y eventos
-- **eMAR**: Administracion electronica de medicamentos
-- **Rondas**: Registro de rondas de supervision
-- **Alertas**: Notificaciones de eventos criticos
+**El hub del cuidador**
 
-**Grupos de Color**:
-Los residentes se organizan en grupos de color (Rojo, Amarillo, Verde, Azul) para facilitar la asignacion de cuidadores y la coordinacion de turnos. Cada cuidador es responsable de su grupo asignado.
+![Tres puertas y nada más. Fíjate en el número naranja de Mis Observaciones: eso es lo que está esperando respuesta tuya, no del turno.](/academy/capturas/care-hub-aterrizaje.jpg)
 
-**Navegacion movil**:
-En tablets y celulares, el sidebar se colapsa automaticamente. Usa el boton de hamburguesa (tres lineas horizontales) para abrir el menu de navegacion. En escritorio, el sidebar esta siempre visible.
+**Iniciar Turno** abre la tableta del piso. **Academy** es tu formación. **Mis Observaciones** son las que alguien te escribió a ti. Cuando ya llevas turnos trabajados, arriba te sale tu puntuación del momento con una frase de qué la está moviendo.
+
+**La tableta del piso**
+
+![Arriba está todo lo que necesitas del turno: que es Mañana, tu color del día (BLUE) y Entregar Turno. Debajo, cuántos residentes son tuyos y cuál llevas por cobertura.](/academy/capturas/care-turno-lista.jpg)
+
+**Los dos entornos, para quien trabaja en los dos**
+
+Supervisión y dirección se mueven entre dos espacios, y el color de la barra lateral dice en cuál estás: **Corporate HQ** con barra oscura, **Clinical Care** con barra blanca. Se cambia con la pastilla de la barra de arriba, que va rotulada con el sitio donde estás; al tocarla ofrece **Entorno Clínico** y **Global Corporativo**.
+
+En celular y tableta la barra lateral se esconde. El botón de tres rayas la abre.
+
+Si tocas una opción del menú y la pantalla te devuelve a tu inicio, no es culpa tuya ni un error que hayas hecho: es un enlace que no te corresponde. Repórtalo y sigue.
+
+**Los grupos de color**
+
+Los residentes se reparten en cuatro colores, Rojo, Amarillo, Verde y Azul, y además hay residentes todavía sin asignar, que el sistema trata aparte.
+
+Tu color **no lo eliges tú**. Sale del horario de la semana que publica tu supervisora, y el sistema te lo aplica al abrir turno. Si abres turno y la lista de residentes sale vacía, casi siempre es lo mismo: el horario de esa semana está en borrador, sin publicar. Avisa a tu supervisora; no es algo que se arregle desde la tableta.
 
 PREGUNTAS:
-P: Como se distingue visualmente el espacio Corporate HQ del Care Floor?
-a) Ambos tienen el mismo diseno
-*b) Corporate HQ tiene sidebar oscuro y Care Floor tiene sidebar blanco
-c) Corporate HQ es solo para celulares y Care Floor para computadoras
-d) Se distinguen por el tamano de la letra
-EXPLICACION: Corporate HQ usa un sidebar de color oscuro (dark mode) y Care Floor usa sidebar blanco, para que el usuario siempre sepa en que espacio esta trabajando.
+P: Carmen es cuidadora. Escribe su correo y su PIN. ¿Dónde cae?
+a) Escoge en un menú cuál módulo quiere abrir ese día
+b) Cae en el tablero corporativo y desde ahí baja al piso
+c) Cae donde se quedó la cuidadora del turno anterior
+*d) Cae directo en su hub de cuidado, sin escoger nada
+EXPLICACION: Cada rol tiene su pantalla de aterrizaje: cocina cae en cocina, limpieza en limpieza y el Administrador de Red en Corporate HQ.
 
-P: Que modulo usaria un Supervisor para ver el rendimiento del personal?
-a) eMAR
-b) CRM
-c) Care Floor Dashboard
-*d) Reportes en Corporate HQ
-EXPLICACION: Los dashboards de rendimiento y cumplimiento estan en el modulo de Reportes dentro de Corporate HQ, accesible para roles ADMIN, DIRECTOR y SUPERVISOR.
+P: Desde el hub del cuidador salen tres puertas. ¿Cuáles son?
+a) Residentes, Medicamentos y Vitales del turno
+*b) Iniciar Turno, Academy y Mis Observaciones
+c) eMAR, Rondas y Reporte de relevo firmado
+d) Mi Perfil, Notificaciones y Horario semanal
+EXPLICACION: El turno se abre desde Iniciar Turno; las otras dos son tu formación y las observaciones que alguien te escribió.
 
-P: Para que sirven los grupos de color en el piso de cuido?
-a) Para decorar la interfaz del sistema
-*b) Para organizar residentes y asignar cuidadores por grupo
-c) Para indicar el nivel de gravedad de cada residente
-d) Para clasificar los tipos de medicamentos
-EXPLICACION: Los grupos de color (Rojo, Amarillo, Verde, Azul) organizan a los residentes y facilitan la asignacion de cuidadores, asegurando que cada cuidador sabe exactamente de cuales residentes es responsable.
+P: Ana es supervisora, está en una pantalla corporativa y quiere volver al piso. ¿Cómo lo hace?
+*a) Con la pastilla de Cambiar Entorno de la barra de arriba
+b) Cerrando sesión y volviendo a entrar con su correo y su PIN
+c) Bajando hasta el final del menú oscuro y tocando Salir
+d) Escribiendo a mano la dirección de la tableta del piso
+EXPLICACION: La pastilla dice dónde estás, Corporate HQ o Clinical Care, y el desplegable ofrece Entorno Clínico y Global Corporativo.
 
-P: Como se accede al menu de navegacion en un dispositivo movil?
-a) El menu no esta disponible en dispositivos moviles
-b) Deslizando el dedo hacia la derecha en la pantalla
-*c) Presionando el boton de hamburguesa (tres lineas horizontales)
-d) Haciendo doble tap en la esquina superior
-EXPLICACION: En tablets y celulares, el sidebar se colapsa y aparece un boton de hamburguesa que, al presionarlo, abre el menu completo de navegacion.
+P: ¿De dónde sale tu grupo de color?
+a) Lo escoges tú al abrir el turno en la tableta
+b) Lo hereda del color de la cuidadora anterior
+c) Lo reparte el sistema al azar entre las que están de turno
+*d) Del horario de la semana que publica tu supervisora
+EXPLICACION: Hay cuatro colores, Rojo, Amarillo, Verde y Azul, y además residentes todavía sin asignar, que el sistema trata aparte.
 
-P: Que modulo es exclusivo del espacio Care Floor?
-a) CRM
-b) Academy
-*c) eMAR (administracion de medicamentos)
-d) Gestion de empleados
-EXPLICACION: El eMAR (Electronic Medication Administration Record) es un modulo clinico del piso de cuido donde enfermeras registran la administracion de medicamentos en tiempo real.
+P: Carmen abre turno un lunes y la lista de residentes le sale vacía. ¿Qué pasó?
+a) Se le venció el PIN y tiene que pedir uno nuevo
+b) Le toca escoger su grupo de color a mano primero
+*c) El horario de esa semana no está publicado todavía
+d) Todos sus residentes están hoy en el hospital o de alta
+EXPLICACION: Pasa a principio de semana: la pauta existe en borrador, nadie le dio a publicar, y el sistema no lee borradores. Avisa a supervisión.
 
 ---SECCION_4---
 LECTURA:
-# Seguridad y Autenticacion
+# Entrar, firmar, y lo que queda con tu nombre
 
-La seguridad en Zendity es critica porque maneja informacion medica protegida por la ley HIPAA (Health Insurance Portability and Accountability Act). Cada empleado es responsable de proteger su acceso.
+**Dos cosas, no una**
 
-**Sistema de PIN**:
-Zendity utiliza un sistema de autenticacion basado en PIN personal. Tu PIN es unico e intransferible. Funciona como tu firma digital: todo lo que hagas en el sistema queda registrado bajo tu identidad.
+La pantalla de entrada pide dos datos: **Identificación (Email)** y **PIN Clínico / Familiar**. El correo te lo da la administración al darte de alta; el PIN es tuyo. Sin los dos no entras.
 
-**Reglas fundamentales del PIN:**
-1. **Nunca compartas tu PIN** con nadie, ni siquiera con tu supervisor
-2. **Nunca uses el PIN de otro** empleado, incluso si te lo ofrecen
-3. **Reporta inmediatamente** si crees que alguien conoce tu PIN
-4. Si olvidas tu PIN, contacta al administrador — nunca intentes adivinar el de otro
+La sesión dura **ocho horas como máximo** y después se cierra sola. Es un tope, no una promesa: si se te cierra a mitad del turno, vuelves a entrar y sigues.
 
-**Sesiones y Timeout**:
-Tu sesion en Zendity tiene una duracion maxima de 8 horas. Despues de ese tiempo, el sistema cierra tu sesion automaticamente y deberas ingresar tu PIN nuevamente. Esto previene acceso no autorizado si dejas un dispositivo desatendido.
+**Esto es lo que hay que entender del PIN**
 
-**HIPAA y tu responsabilidad**:
-HIPAA protege la informacion de salud de los residentes. Como empleado de una facilidad de cuido, tienes la obligacion legal de:
-- No acceder a informacion de residentes que no estan bajo tu cuidado
-- No compartir datos clinicos fuera de la plataforma (capturas de pantalla, fotos, mensajes)
-- No dejar sesiones abiertas en dispositivos compartidos
-- Reportar cualquier violacion de privacidad que observes
+El PIN abre la sesión. **De ahí en adelante, todo lo que se registre en ese aparato lleva tu nombre, aunque lo teclee otra persona.**
 
-> **Importante**: Una violacion de HIPAA puede resultar en multas de hasta $50,000 por incidente y consecuencias legales para ti y la facilidad.
+La tableta no te vuelve a pedir el PIN para firmar. Cuando firmas el pack de medicamentos, lo que dejas es un trazo con el dedo, y ese trazo se guarda a nombre de la sesión que está abierta. Nadie comprueba de quién es la mano.
+
+Por eso la regla no es solo no prestes tu PIN. Es esta:
+
+- La tableta con tu sesión abierta **es tu firma**. Si la dejas sola, la dejas firmada.
+- Al terminar, entregas el turno y cierras sesión. En cada aparato que usaste.
+- Si crees que alguien sabe tu PIN, se dice ese mismo día. No se espera a que pase algo.
+
+**El único sitio donde el PIN firma solo**
+
+En el kiosco del lobby, cuando llega una visita fuera de horario, la tableta pide un PIN para autorizarla. Ahí sí el PIN funciona como firma suelta, y solo lo pueden teclear supervisión, enfermería y dirección (Director Ejecutivo o Administrador de Red). El PIN se comprueba y se descarta, no se guarda en ninguna parte. Lo que queda escrito en el registro de la visita es el nombre de quien autorizó.
+
+**HIPAA, en dos líneas**
+
+El dato clínico no sale de la plataforma: ni foto, ni captura de pantalla, ni mensaje, ni comentario con alguien de fuera del hogar. Y no se abre el expediente de quien no está bajo tu cuidado, acordándote de que esa lectura también queda grabada.
 
 PREGUNTAS:
-P: Como funciona el PIN en Zendity?
-a) Es una contrasena compartida por todo el equipo del turno
-*b) Es un codigo personal unico que sirve como firma digital de cada empleado
-c) Es un codigo que cambia cada hora automaticamente
-d) Es opcional y solo se usa para acceder a reportes financieros
-EXPLICACION: El PIN es personal, unico e intransferible. Todo lo registrado en el sistema queda vinculado al PIN del empleado que realizo la accion, funcionando como firma digital.
+P: ¿Qué te pide la pantalla de entrada de Zéndity?
+a) Solo tu PIN de cuatro dígitos
+*b) Tu correo y tu PIN, hacen falta los dos
+c) Tu nombre completo y tu PIN clínico
+d) Tu número de empleado, tu correo y tu PIN
+EXPLICACION: El primer campo dice Identificación (Email) y el segundo PIN Clínico / Familiar; el correo te lo da la administración al darte de alta.
 
-P: Que debes hacer si un companero te pide tu PIN?
-a) Darselo si es una emergencia
-b) Darselo solo si es tu supervisor
-*c) Negarte y explicar que el PIN es personal e intransferible
-d) Compartirlo pero pedirle que no lo use mas de una vez
-EXPLICACION: El PIN nunca debe compartirse con nadie, independientemente del motivo. Si un companero necesita acceso, debe usar su propio PIN o contactar al administrador.
+P: ¿Cuánto dura como máximo una sesión abierta?
+*a) Ocho horas: pasado ese rato se cierra sola
+b) Lo que dure tu turno, hasta que lo entregues
+c) Hasta que entre otra persona
+d) Sin límite: queda abierta hasta que tú la cierres
+EXPLICACION: Es un tope, no una promesa: si se te cierra a mitad del turno, vuelves a entrar con tu correo y tu PIN y sigues trabajando.
 
-P: Cuanto dura una sesion activa en Zendity?
-a) 24 horas
-b) Indefinidamente hasta que cierres sesion
-*c) Maximo 8 horas antes de cerrarse automaticamente
-d) 30 minutos
-EXPLICACION: Las sesiones tienen un timeout automatico de 8 horas para prevenir acceso no autorizado en caso de que un dispositivo quede desatendido.
+P: Carmen deja su sesión abierta en la tableta y va al baño. Otra compañera registra ahí el baño de Luis Ortega (112). ¿Con qué nombre queda?
+a) Con el de la compañera, que es quien lo escribió
+b) Con los dos, porque la tableta guarda quién la usa
+*c) Con el de Carmen: el registro va a la sesión abierta
+d) Sin nombre, hasta que alguien firme el reporte del turno
+EXPLICACION: La tableta no vuelve a pedir el PIN para firmar; por eso prestarla con tu sesión abierta es lo mismo que prestar tu firma.
 
-P: Cual de estas acciones constituye una violacion de HIPAA?
-a) Registrar un medicamento usando tu propio PIN
-b) Consultar el expediente de un residente bajo tu cuidado
-*c) Tomar una captura de pantalla del historial clinico y enviarla por mensaje
-d) Cerrar sesion al terminar tu turno
-EXPLICACION: Compartir datos clinicos fuera de la plataforma (capturas, fotos, mensajes) es una violacion directa de HIPAA que puede resultar en multas y consecuencias legales.
+P: En el kiosco del lobby llega un hijo a las nueve de la noche. La tableta pide un PIN para autorizar la visita. ¿Quién lo teclea?
+a) El hijo, con el PIN familiar que le dieron al ingresar
+b) La cuidadora de turno, con el PIN del propio kiosco
+c) Nadie: fuera de horario el kiosco no deja entrar a nadie
+*d) Supervisión, enfermería o dirección, con su propio PIN
+EXPLICACION: Es el único sitio donde el PIN se teclea suelto como firma; se valida y se descarta, y lo que queda guardado es quién autorizó.
 
-P: Que debes hacer si sospechas que alguien conoce tu PIN?
-a) Ignorarlo si no ha pasado nada malo
-b) Cambiar tu turno de trabajo
-*c) Reportarlo inmediatamente al administrador
-d) Crear una cuenta nueva en el sistema
-EXPLICACION: Cualquier sospecha de compromiso del PIN debe reportarse inmediatamente al administrador para que lo cambie y se investigue si hubo acceso no autorizado.
+P: ¿Cuál de estas cosas es una violación de HIPAA?
+*a) Mandar por mensaje la foto de una nota clínica del piso
+b) Abrir el expediente de un residente que tienes hoy
+c) Firmar un medicamento con tu propio dedo en la tableta
+d) Cerrar sesión en la tableta cuando terminas de documentar
+EXPLICACION: El dato clínico no sale de la plataforma: ni foto, ni captura, ni mensaje, ni comentario con alguien de fuera del hogar.
 
 ---SECCION_5---
 LECTURA:
-# Buenas Practicas y Soporte
+# Tu día, de la entrada al cierre
 
-Para aprovechar Zendity al maximo y mantener la seguridad de los datos, sigue estas practicas diarias:
+**Al entrar**
 
-**Al iniciar tu turno:**
-1. Inicia sesion con TU PIN personal
-2. Verifica que estas en el espacio correcto (Corporate HQ o Care Floor)
-3. Revisa las notificaciones y alertas pendientes
-4. Confirma tu grupo de color asignado (si aplica)
+1. Tu correo y tu PIN.
+2. Caes en la pantalla de tu puesto. Mira las alertas y el contador de Mis Observaciones antes de subir.
+3. Abre turno y comprueba que te salen tus residentes. Si la lista sale vacía, avisa antes de empezar.
 
-**Durante tu turno:**
-- Registra eventos en tiempo real — no al final del turno. La documentacion tardia pierde valor clinico
-- Si ves algo inusual en un residente, documentalo inmediatamente en las notas clinicas
-- Usa el sistema de alertas para situaciones urgentes en lugar de buscar a alguien verbalmente
-- Nunca dejes un dispositivo con sesion abierta sin supervision
+**Durante el turno: nota o alerta**
 
-**Al terminar tu turno:**
-1. Asegurate de que todas tus notas y registros estan completos
-2. Cierra sesion en todos los dispositivos que usaste
-3. No te lleves informacion clinica fuera del sistema
+Se registra en el momento, no al final. Un registro tardío ya no sirve para decidir nada.
 
-**Cuando contactar soporte tecnico:**
-- Tu PIN no funciona o fue comprometido
-- Ves datos incorrectos en el expediente de un residente
-- El sistema muestra errores o no carga correctamente
-- Necesitas acceso a un modulo que no aparece en tu menu
+Desde **Acciones**, en la tableta, lo primero es escoger **qué traes**. Hay seis botones: Cambio Clínico u Observación, Señalamiento de Familia, Incidente de Mantenimiento, Alerta Piel / UPP, Medicamento sin administrar y Alerta Crítica: Caída.
 
-**Reportar problemas:**
-Si detectas un error en el sistema o una situacion que compromete la seguridad de los datos, reportalo al administrador de tu Sede. No intentes "arreglarlo" por tu cuenta modificando datos que no te corresponden.
+Y dentro del primero —**Cambio Clínico u Observación**— viene la segunda pregunta, que es la que decide quién se entera y cuándo:
 
-> **Recuerda**: Zendity es una herramienta que te ayuda a dar mejor cuidado. La tecnologia complementa tu experticia — nunca la reemplaza.
+| Nota de turno | Alerta clínica |
+|---|---|
+| Algo que hiciste o notaste | Necesita que alguien lo atienda |
+| Queda en el expediente | Va al supervisor |
+| Pedro Santana (103) comió poco hoy | Pedro Santana (103) lleva dos días sin comer y está confuso |
+
+Los otros cinco botones no preguntan esto: ya saben lo que son. Una caída es **Alerta Crítica: Caída** y va por su camino; una gotera es **Incidente de Mantenimiento** y va al suyo. Escoger bien el botón —y dentro del primero, escoger bien entre nota y alerta— decide si alguien se entera ahora o dentro de ocho horas.
+
+**Al cerrar: tu turno se cierra cuando firmas**
+
+![Lo dice el aviso de arriba a la derecha: tu turno se cierra cuando firmes este reporte. Cerrar sesión no lo cierra, y el recuadro verde te dice adónde va lo que firmas.](/academy/capturas/care-turno-entregar.jpg)
+
+Tocas **Entregar Turno**. El asistente arma el reporte con lo que hiciste (medicamentos, baños, comidas, vitales, incidentes), tú lo lees, lo corriges si algo está mal y lo firmas con el dedo.
+
+**Cerrar sesión no cierra el turno.** Son dos cosas distintas. Si te vas sin firmar, quien entra no sabe qué pasó en el tuyo, y ese turno queda contado en tu pantalla de Mi Desempeño, en la medida Turnos cerrados con el relevo. No te descuenta puntos. Se ve, que es peor y es justo.
+
+**La formación te llega sola**
+
+![La franja amarilla no la pediste tú. Fíjate en la línea de abajo de cada curso: dice de dónde salió, si es la certificación geriátrica o un incidente de cuidado del residente.](/academy/capturas/academy-entrada.jpg)
+
+Nadie tiene que acordarse de inscribirte. Al darte de alta, tu rol recibe una ruta de cursos, y este es el primero de todas ellas. Una observación de personal puede añadirte otro, con siete días de plazo. Mientras te falte uno, un aviso te sigue por la app y se pone rojo en los últimos tres días.
+
+**Cuándo avisar a la administración**
+
+- Tu PIN no funciona, o crees que alguien lo sabe.
+- Ves un dato que no cuadra en un expediente. Lo avisas; no lo corriges tú.
+- Tocas una opción del menú y te devuelve a tu pantalla.
+- Una pantalla no carga o se queda dando vueltas.
+
+Lo que no se hace es arreglar por cuenta propia datos que no te tocan. Cuando alguien corrige lo ajeno, el expediente deja de decir quién cambió qué.
 
 PREGUNTAS:
-P: Cuando debes registrar un evento clinico en Zendity?
-a) Al final del turno, cuando tengas tiempo
-b) Solo si el supervisor te lo pide
-*c) En tiempo real, en el momento que ocurre
-d) Una vez a la semana en un reporte resumen
-EXPLICACION: La documentacion en tiempo real es critica porque preserva la precision clinica. Registrar eventos al final del turno aumenta el riesgo de errores y omisiones.
+P: Carmen nota que Pedro Santana (103) comió poco y está más callado que de costumbre. No hay nada urgente. ¿Qué escoge?
+a) Alerta clínica, que va al supervisor
+*b) Nota de turno, que queda escrita en el expediente
+c) Alerta Caída, que es el botón que abre el reporte más rápido
+d) Nada por escrito: lo cuenta de palabra al entregar el turno
+EXPLICACION: La alerta es para lo que necesita que alguien lo atienda; la nota es para lo que hiciste o notaste y tiene que quedar escrito.
 
-P: Que debes hacer al terminar tu turno?
-a) Dejar la sesion abierta para el proximo turno
-*b) Completar tus registros y cerrar sesion en todos los dispositivos
-c) Compartir tu PIN con el empleado del turno entrante
-d) Desinstalar la aplicacion del dispositivo
-EXPLICACION: Al terminar el turno debes asegurarte de que todos tus registros esten completos y cerrar sesion en cada dispositivo usado para prevenir acceso no autorizado.
+P: Carmen termina, cierra sesión en la tableta y se va a su casa. ¿Quedó cerrado su turno?
+a) Sí: cerrar sesión es lo que cierra el turno
+b) Sí, siempre que haya firmado todos los medicamentos
+c) Lo cierra sola la supervisora cuando revisa los reportes
+*d) No: el turno se cierra al firmar el reporte de relevo
+EXPLICACION: El asistente arma el reporte con lo que hiciste, tú lo lees, lo corriges si hace falta y lo firmas con el dedo en la tableta.
 
-P: En cual de estas situaciones debes contactar al soporte tecnico?
-a) Cuando quieras cambiar el color de tu grupo
-b) Cuando un residente no quiera comer
-*c) Cuando tu PIN no funciona o crees que fue comprometido
-d) Cuando termines tu turno antes de tiempo
-EXPLICACION: Problemas con el PIN, errores del sistema o acceso comprometido son situaciones que requieren atencion inmediata del soporte tecnico o el administrador.
+P: A Carmen le sale un aviso rojo: le falta una certificación y quedan dos días. ¿De dónde salió ese curso?
+a) Lo escogió ella del catálogo y se le olvidó terminarlo
+b) Lo pidió la familia de un residente después de una queja
+*c) Se lo asignó el sistema, y viene con fecha límite
+d) Se lo puso Zéndity a todo el personal del país a la vez
+EXPLICACION: Al darte de alta, tu rol recibe una ruta de cursos, y una observación de personal puede añadirte otro con siete días de plazo.
 
-P: Que debes hacer si ves datos incorrectos en el expediente de un residente?
-a) Corregirlos tu mismo inmediatamente
-b) Ignorarlos si no afectan tu trabajo
-*c) Reportarlo al administrador de la Sede
-d) Borrar el expediente y crear uno nuevo
-EXPLICACION: Sin modificar datos que no te corresponden: hacerlo puede causar mas errores y rompe la trazabilidad, porque el expediente deja de decir quien cambio que.
+P: Carmen toca Cocina y Nutrición en el menú y la pantalla la devuelve a su hub. ¿Qué hace?
+*a) Lo reporta a la administración: no es culpa suya
+b) Lo toca otra vez hasta que cargue
+c) Entra con el correo de una compañera de cocina para verlo
+d) Deja de usar el menú y escribe las direcciones a mano
+EXPLICACION: Un enlace visible que rebota es un fallo del sistema, no un castigo ni un error de quien lo toca; se avisa, se anota y se sigue.
 
-P: Que complementa la tecnologia de Zendity segun las buenas practicas?
-a) Reemplaza completamente la necesidad de personal capacitado
-b) Elimina la responsabilidad legal del empleado
-*c) Complementa la experticia del profesional de cuido sin reemplazarla
-d) Automatiza todas las decisiones clinicas
-EXPLICACION: Zendity es una herramienta que complementa tu experticia profesional. La tecnologia ayuda a organizar, documentar y coordinar, pero las decisiones clinicas siguen dependiendo del juicio profesional.
+P: ¿Dónde ve Carmen cuántos de sus turnos cerró con el relevo firmado?
+a) En la pantalla de reportes de turno de la supervisora
+b) En el hub, debajo de las tres puertas
+*c) En su pantalla de Mi Desempeño, entre sus medidas
+d) En un correo que le llega al final de cada semana
+EXPLICACION: Aparece como Turnos cerrados con el relevo, con cuántos de cuántos; es una medida que se ve, no un puntaje que castigue.
 `
 },
 
@@ -698,348 +752,361 @@ EXPLICACION: Las familias acceden a traves de un portal separado, completamente 
     category: 'Protocolos Clinicos',
     order: 10,
     content: `---META---
-TITULO: eMAR - Administracion Electronica de Medicamentos
-PROMPT_ZENDI: Evalua si el empleado comprende el flujo completo de administracion de medicamentos en el eMAR, los protocolos de seguridad (verificacion, documentacion, excepciones) y puede describir como manejar situaciones comunes como rechazos o dosis omitidas.
-TERMINOS_CLAVE: eMAR, administracion, verificacion, dosis, PRN, medicamento, documentacion, rechazo, omision, auditoria, los 5 correctos, registro en tiempo real
-PREGUNTA_REFLEXION: Un residente se niega a tomar su medicamento programado de la manana. Describe exactamente los pasos que seguirias: como lo documentas en el eMAR, a quien notificas, y que precauciones tomas para asegurar la seguridad del residente. Se especifico.
+TITULO: eMAR: Administracion Electronica de Medicamentos
+PROMPT_ZENDI: Evalua si la persona distingue lo que la tableta hace sola de lo que depende de ella: que el pack se cierra con una firma suya, que nadie avisa de una dosis que se quedo sin dar, que las alergias no se cruzan solas, y si sabe contar con un caso propio como resolvio una omision o un PRN con su motivo y su efecto.
+TERMINOS_CLAVE: eMAR, pack, firma del pack, los 5 correctos, cuando se hizo, omitir, motivo de omision, rechazado, suspendido, PRN, efecto del PRN, solo ciertos dias, borrador de admision, Cardex, PDF del eMAR
+PREGUNTA_REFLEXION: Cuenta la ultima vez que un residente tuyo no se tomo un medicamento. Que motivo elegiste al omitirlo, que escribiste en el texto, y a quien se lo dijiste ademas de la tableta. Si no te ha pasado todavia, cuenta el ultimo PRN que administraste y como supiste si hizo efecto.
 
 ---SECCION_1---
 LECTURA:
-# Que es eMAR y Por Que Importa
+# Lo que el eMAR hace por ti, y lo que no
 
-**eMAR** (Electronic Medication Administration Record) es el sistema digital de Zendity para registrar y rastrear la administracion de medicamentos a cada residente. Reemplaza las hojas de papel tradicionales donde se marcaban los medicamentos dados.
+El eMAR es el expediente de medicamentos de Zendity. Sustituye la hoja de papel donde se marcaba con una X lo que se daba. Vive en la tableta, dentro de la tarjeta de cada residente, en el boton teal que dice **Medicamentos**.
 
-**Por que es critico el eMAR?**
+Vale la pena empezar por lo que NO hace, porque ahi es donde se pierden las dosis.
 
-Los errores de medicacion son una de las principales causas de eventos adversos en facilidades de cuido de adultos mayores. Las causas mas comunes son:
-- Dar el medicamento equivocado
-- Dar la dosis incorrecta
-- Dar el medicamento a la hora equivocada
-- Olvidar dar un medicamento programado
-- Dar un medicamento al residente equivocado
+**No te avisa de lo que se queda sin dar.** No hay alarma de dosis atrasada. Si la dosis de las 8:00 AM de Rosa Medina 204 no se toca, dos horas despues un proceso automatico la marca como perdida y no le avisa a nadie: ni a ti, ni a enfermeria, ni a tu supervisora. Entrar a la tableta en cada ronda sigue siendo trabajo tuyo.
 
-El eMAR reduce estos errores al:
-- **Programar automaticamente** los horarios de cada medicamento
-- **Alertar en tiempo real** cuando una dosis esta pendiente o atrasada
-- **Registrar cada administracion** con fecha, hora y quien la realizo
-- **Prevenir duplicados** al mostrar si un medicamento ya fue administrado
+**No cruza alergias con medicamentos.** Las alergias del residente estan escritas en texto libre en el expediente y salen impresas en el formulario de traslado y en el resumen del residente. Pero el pack no las pinta nunca y nadie te va a detener si lo que tienes en la mano choca con una. Esa comprobacion es tuya. Y cuidado con lo contrario: un campo de alergias vacio no dice "no tiene alergias", dice que nadie lo pregunto.
 
-**Los 5 Correctos de la administracion:**
-Antes de administrar cualquier medicamento, verifica siempre:
-1. **Residente correcto** — Confirma la identidad del residente
-2. **Medicamento correcto** — Verifica el nombre del medicamento
-3. **Dosis correcta** — Confirma la cantidad prescrita
-4. **Via correcta** — Oral, topica, inyectable, etc.
-5. **Hora correcta** — Dentro de la ventana de administracion programada
+Lo que si hace, y hace bien:
 
-> **Recuerda**: El eMAR es tu aliado, pero no reemplaza tu juicio profesional. Si algo no se ve bien, detenlo y verifica.
+| Lo que el eMAR SI hace | Lo que NO hace |
+|---|---|
+| Junta en un pack los medicamentos de la misma hora | Recordarte que entres a mirar |
+| Etiqueta Firmado lo que ya se dio, para que nadie lo repita | Avisar cuando una dosis se queda sin dar |
+| Descarta una segunda firma del mismo medicamento en la misma hora del mismo dia | Comprobar alergias contra el medicamento |
+| Avisa a enfermeria y supervision cuando omites algo | Avisar de lo que se administro con normalidad |
+| Guarda tu firma y las dos horas: la que declaras y la del tecleo | Dejarte escribir una nota dentro del pack |
+
+**Los 5 correctos** no te los pregunta la pantalla, pero el boton de firmar lleva escrito que los estas certificando: residente correcto, medicamento correcto, dosis correcta, via correcta y hora correcta.
+
+**Quien puede hacer que.** No todos hacen lo mismo con el eMAR:
+
+| Puesto | Que puede |
+|---|---|
+| Cuidadora | Administrar, omitir y registrar PRN. No receta ni descontinua |
+| Enfermeria y de ahi para arriba | Todo lo anterior, mas recetar, descontinuar y la pantalla de Auditoria eMAR |
+| Trabajo social | Leer el eMAR del residente. No escribe nada |
+| Cocina y mantenimiento | No ven el eMAR |
+
+Si eres cuidadora y buscas el boton de recetar, no esta roto: no lo tienes.
 
 PREGUNTAS:
-P: Cual es la funcion principal del eMAR?
-a) Calcular el costo de los medicamentos
-*b) Registrar y rastrear la administracion de medicamentos a cada residente de forma digital
-c) Ordenar medicamentos automaticamente a la farmacia
-d) Reemplazar las recetas medicas del doctor
-EXPLICACION: El eMAR es el sistema digital para registrar y rastrear cada administracion de medicamentos, reemplazando las hojas de papel tradicionales y reduciendo errores.
+P: Nadie toca la dosis de las 8:00 AM de Rosa Medina. Que hace Zendity?
+*a) A las dos horas la marca como perdida, en silencio
+b) Manda una alerta a enfermeria y a la supervisora del turno
+c) Deja el pack abierto y bloquea el resto del turno hasta resolverlo
+d) Suena en la tableta hasta que alguien la atienda
+EXPLICACION: Un proceso automatico la pasa a perdida dos horas despues de su hora y no avisa a nadie, y por eso entrar a la tableta en cada ronda es trabajo tuyo y no del sistema.
 
-P: Cual de los siguientes NO es uno de los "5 Correctos" de la administracion de medicamentos?
-a) Residente correcto
-b) Medicamento correcto
-*c) Farmacia correcta
-d) Dosis correcta
-EXPLICACION: Los 5 Correctos son: residente correcto, medicamento correcto, dosis correcta, via correcta y hora correcta. "Farmacia correcta" no forma parte de este protocolo.
+P: El campo de alergias de Rosa Medina esta vacio. Que significa?
+a) Que no tiene alergias conocidas
+b) Que sus alergias estan en el formulario de traslado
+*c) Que nadie se lo ha preguntado todavia
+d) Que el expediente no ha terminado de cargar
+EXPLICACION: Vacio significa sin documentar, no sin alergias: de 33 residentes de Cupey 28 tenian ese campo sin llenar de verdad, asi que se confirma con enfermeria antes de medicar.
 
-P: Como previene el eMAR la administracion duplicada de un medicamento?
-a) Bloqueando el acceso al modulo despues de cada dosis
-b) Enviando un email al supervisor automaticamente
-*c) Mostrando si un medicamento ya fue administrado, previniendo que se registre dos veces
-d) Eliminando el medicamento de la lista despues de administrarlo
-EXPLICACION: El eMAR muestra el estado de cada medicamento en tiempo real. Si una dosis ya fue administrada, aparece marcada, previniendo que otro miembro del equipo la administre de nuevo.
+P: Eres cuidadora. El medico cambio la dosis de Luis Ortega 112 y quieres actualizarla en Zendity. Que pasa?
+a) Puedes cambiarla desde el pack si escribes una razon de auditoria
+b) Puedes cambiarla, pero solo durante tu propio turno
+c) Puedes cambiarla desde la pantalla de Auditoria eMAR del menu lateral
+*d) No tienes ese boton: recetar es de enfermeria para arriba
+EXPLICACION: La cuidadora administra, omite y registra PRN; escribir o quitar una receta es de enfermeria, supervision, direccion y administracion.
 
-P: Que debes hacer si algo no "se ve bien" con un medicamento antes de administrarlo?
-a) Administrarlo de todas formas y notificar despues
-b) Pedirle a otro cuidador que lo administre
-*c) Detener la administracion y verificar antes de proceder
-d) Documentar tu preocupacion y seguir con el siguiente medicamento
-EXPLICACION: Ante cualquier duda sobre un medicamento, debes detener la administracion y verificar. El juicio profesional siempre tiene prioridad sobre seguir una rutina.
+P: Cual de estas cosas SI impide la tableta?
+a) Que se de un medicamento al que el residente es alergico
+*b) Que se firme dos veces el mismo medicamento en la misma hora
+c) Que se le de el medicamento al residente equivocado de la misma habitacion
+d) Que se recete un medicamento con un horario que la tableta no sabe leer
+EXPLICACION: Lo ya resuelto sale etiquetado y el servidor descarta lo que ya tiene registro de hoy en esa hora; las otras tres pasan sin que el sistema diga una palabra.
 
-P: Cual es una de las principales causas de errores de medicacion que el eMAR ayuda a prevenir?
-a) Que el residente no quiera tomar el medicamento
-*b) Olvidar administrar un medicamento programado
-c) Que la farmacia envie el medicamento equivocado
-d) Que el medico cambie la receta sin aviso
-EXPLICACION: El eMAR previene omisiones al alertar en tiempo real cuando una dosis esta pendiente o atrasada, asegurando que ningun medicamento programado se olvide.
+P: En que dos situaciones el eMAR avisa solo a enfermeria y supervision?
+*a) Cuando se omite un medicamento y cuando un PRN no hizo efecto
+b) Cuando se firma un pack completo y cuando se cierra el turno
+c) Cuando se administra fuera de hora y cuando llega un medicamento nuevo de farmacia
+d) Cuando se abre el turno y cuando el residente sale del hogar
+EXPLICACION: Toda omision manda aviso con el motivo y tu nombre, y un PRN contestado como sin efecto o como mejoro en parte hace lo mismo.
 
 ---SECCION_2---
 LECTURA:
-# Registro de Medicamentos en el Sistema
+# Como llega un medicamento a tu tableta
 
-Antes de que un medicamento aparezca en el eMAR de un residente, debe ser registrado correctamente en el sistema. Este registro generalmente proviene del IntakeData (para nuevos residentes) o de ordenes medicas posteriores.
+Un medicamento no aparece en el pack porque exista. Aparece porque alguien lo dio de alta bien. Cuando falta uno, casi siempre es por una de estas dos razones.
 
-**Informacion requerida por cada medicamento:**
-- **Nombre del medicamento** (nombre generico y comercial si aplica)
-- **Dosis**: Cantidad exacta (ej: 500mg, 10ml, 2 tabletas)
-- **Frecuencia**: Cada cuantas horas o cuantas veces al dia (ej: cada 8 horas, 3 veces al dia, una vez al acostarse)
-- **Via de administracion**: Oral, sublingual, topica, intramuscular, intravenosa, rectal, oftalmica, etc.
-- **Horarios programados**: Las horas exactas en que debe administrarse (ej: 6:00 AM, 2:00 PM, 10:00 PM)
-- **Instrucciones especiales**: Con alimentos, en ayunas, con agua completa, etc.
+**Razon 1: se quedo en borrador.** Lo que enfermeria escribe en el asistente de admision, en el paso que se llama Inventario Farmacologico (eMAR), entra al sistema como BORRADOR. Un borrador no llega a ninguna tableta: no sale en el pack, no sale en el Cardex, no existe para el piso. Para que un medicamento llegue al piso hay que darlo de alta en **Med & Zoning**. Si Pedro Santana 103 entro ayer y hoy su pack sale vacio, no es que el sistema falle: es que nadie los activo todavia. Eso se dice, no se asume.
 
-**Tipos de medicamentos:**
+![El paso de medicamentos de la admision: fijate en el rotulo "Borradores listos para insertar". Lo que se escribe aqui queda esperando; hasta que enfermeria lo active, no aparece en la tableta de nadie.](/academy/capturas/intake-paso-4-emar.jpg)
 
-1. **Medicamentos Programados (Scheduled)**: Se administran a horas fijas del dia, todos los dias. Ejemplo: Metformina 500mg oral cada 12 horas.
+**Razon 2: el horario lleva palabras.** El campo de horario solo acepta horas separadas por coma: 08:00 AM, 08:00 PM. Nada mas. Si alguien escribe 08:00 AM (Semanal) para avisar que es semanal, la tableta no sabe leer esa linea y el medicamento **desaparece del pack para siempre**. No es una teoria: el 5 de septiembre de 2026 habia 17 medicamentos activos en Cupey sin una sola administracion por esto, y uno era Warfarin, un anticoagulante, con 107 dias sin darse.
 
-2. **Medicamentos PRN (Pro Re Nata / Segun Necesidad)**: Se administran solo cuando el residente presenta un sintoma especifico. Ejemplo: Acetaminofen 500mg oral PRN para dolor. Requieren documentar el motivo de administracion.
+**Las tres frecuencias que existen**, y son tres, no cuatro:
 
-3. **Medicamentos de Orden Unica (One-Time)**: Se administran una sola vez por orden medica especifica. Ejemplo: Antibiotico pre-procedimiento.
+| Frecuencia | Que hace |
+|---|---|
+| Todos los dias | Sale en el pack de su hora, todos los dias |
+| Solo ciertos dias | Sale solo los dias marcados en la fila D-L-M-X-J-V-S |
+| Por razon necesaria (PRN) | No sale en ningun pack; se registra cuando se da |
 
-**Alergias y contraindicaciones:**
-El sistema muestra las alergias del residente de forma prominente. Si un medicamento nuevo coincide con una alergia registrada, el sistema genera una alerta que debe ser revisada antes de proceder.
+No existe la orden unica. Un tratamiento de siete dias se receta igual que cualquiera y se le pone fecha de fin.
+
+**Que se llena al recetar.** Esto lo hace enfermeria, pero te conviene saberlo para pedirlo bien: el farmaco se elige del catalogo, y de ahi salen la dosis y la via, no se teclean. Despues se llena cada cuando, que dias si son ciertos dias, las horas exactas, quien lo prescribio y una razon de auditoria que es obligatoria.
+
+**Y una cosa que la tableta no trae: las instrucciones especiales.** Con alimentos, en ayunas, triturado. Ningun formulario de Zendity las pide hoy, asi que el pack solo pinta nombre, dosis y via. Si un medicamento tiene una condicion asi, se sabe antes de la ronda preguntando a enfermeria.
 
 PREGUNTAS:
-P: De donde proviene inicialmente la lista de medicamentos de un nuevo residente en el eMAR?
-a) De la farmacia directamente
-*b) Del IntakeData completado por enfermeria durante la admision
-c) De la familia del residente
-d) Del modulo de reportes financieros
-EXPLICACION: La lista de medicamentos iniciales se registra en el IntakeData durante la evaluacion de enfermeria en la admision, y esta alimenta directamente el eMAR.
+P: Pedro Santana 103 entro ayer. Enfermeria lleno sus medicamentos en la admision y hoy su pack sale vacio. Que paso?
+a) Los medicamentos de un residente nuevo aparecen 24 horas despues
+b) Falta que la familia autorice por escrito la administracion de medicamentos
+c) El residente todavia no tiene color de grupo asignado
+*d) Quedaron en borrador; hay que darlos de alta en Med & Zoning
+EXPLICACION: Lo que se escribe en el asistente de admision entra como borrador y no llega a ninguna pantalla del piso hasta que enfermeria lo da de alta.
 
-P: Que diferencia a un medicamento PRN de un medicamento programado?
-a) Los PRN son mas caros
-b) Los PRN solo los puede administrar el doctor
-*c) Los PRN se dan solo si hay sintoma
-d) Los PRN no requieren documentacion
-EXPLICACION: Un sintoma especifico —dolor, fiebre, ansiedad— y no a horas fijas. Eso es lo que distingue al PRN (Pro Re Nata) del programado, que se da segun reloj.
+P: Carmen Delgado 210 toma Alendronate solo los lunes. Como se registra para que aparezca?
+a) Escribiendo 08:00 AM (Semanal) en el horario, para que se entienda
+*b) Marcando Solo ciertos dias y pulsando la L en la fila de dias
+c) Poniendolo como PRN y dandolo cuando llegue el lunes
+d) Dandolo de alta como todos los dias y omitiendolo los otros seis
+EXPLICACION: El horario admite solo horas, y escribir la palabra semanal dentro de el hace que la tableta no sepa leer esa linea y el medicamento no aparezca nunca.
 
-P: Que informacion adicional se requiere al administrar un medicamento PRN?
-a) El costo del medicamento
-*b) El motivo de administracion (que sintoma presenta el residente)
-c) La autorizacion verbal de la familia
-d) La aprobacion del director
-EXPLICACION: Al administrar un PRN, se debe documentar el motivo (ej: "residente reporta dolor de cabeza nivel 6/10") porque la administracion debe justificarse clinicamente.
+P: Cuantas frecuencias maneja Zendity y cuales son?
+*a) Tres: todos los dias, solo ciertos dias y por razon necesaria
+b) Cuatro: todos los dias, ciertos dias, PRN y orden unica
+c) Dos: programado y por razon necesaria, y lo demas se ajusta con la fecha de fin
+d) Tres: oral, topico e inyectable, segun la via que lleve el medicamento
+EXPLICACION: Son tres y no existe la orden unica: un tratamiento temporal se receta igual que cualquiera y se le pone fecha de fin.
 
-P: Que sucede si se registra un medicamento nuevo que coincide con una alergia del residente?
-a) El sistema lo administra automaticamente con precaucion
-b) El medicamento se elimina del sistema automaticamente
-*c) El sistema genera una alerta que debe ser revisada antes de proceder
-d) No pasa nada, las alergias son solo informativas
-EXPLICACION: El sistema genera una alerta de alergia que el equipo clinico debe revisar. Esta alerta es un mecanismo de seguridad critico para prevenir reacciones adversas.
+P: Un medicamento hay que triturarlo y darlo con compota. Donde lo ves en la tableta?
+a) En la etiqueta de instrucciones especiales, debajo del nombre del medicamento
+b) En la ficha del residente, en la pestana de instrucciones de administracion
+*c) En ningun sitio: eso se pregunta a enfermeria antes de la ronda
+d) En el aviso ambar que sale al abrir el pack de esa hora
+EXPLICACION: Ningun formulario de Zendity pide instrucciones especiales hoy, asi que el pack solo pinta nombre, dosis y via.
 
-P: Cuales son los tres tipos de medicamentos que maneja el eMAR?
-a) Genericos, comerciales y experimentales de investigacion
-b) Urgentes, normales y opcionales segun la prioridad
-*c) Programados, PRN y de orden unica
-d) Orales, inyectables y topicos segun la via
-EXPLICACION: El eMAR maneja tres tipos: programados (horarios fijos), PRN (segun necesidad del residente) y de orden unica (una sola administracion por orden medica).
+P: Al recetar en Med & Zoning, de donde salen la dosis y la via?
+a) Vienen del expediente de admision del residente
+*b) Del catalogo de farmacia: se eligen al elegir el farmaco
+c) Se teclean a mano en dos campos del formulario de receta
+d) Las escribe la cuidadora la primera vez que administra el medicamento
+EXPLICACION: El formulario no pide dosis ni via; lo que si pide es frecuencia, dias, horas, quien lo prescribio y la razon de auditoria.
 
 ---SECCION_3---
 LECTURA:
-# Proceso de Administracion de Dosis
+# El pack: como se administra de verdad
 
-El momento de administrar un medicamento es el punto mas critico del proceso. Cada paso debe seguirse rigurosamente para garantizar la seguridad del residente.
+Aqui esta el cambio mas grande respecto a lo que se enseñaba antes. **La tableta no se usa medicamento por medicamento.** Junta todos los que tocan a la misma hora dentro de tu turno y te los da juntos, en un pack.
 
-**Flujo de administracion paso a paso:**
+![La tarjeta de Rosa Medina 204. Fijate en el boton teal Medicamentos y en el numero rojo: dice cuantos medicamentos tiene pautados en este turno. Arriba, MEDS PM en ambar es la misma informacion resumida.](/academy/capturas/care-turno-tarjeta.jpg)
 
-**Paso 1: Identificar al residente**
-Antes de dar cualquier medicamento, confirma que estas con el residente correcto. Usa al menos dos identificadores: nombre completo y otro dato como habitacion o foto en el sistema.
+Entras por ese boton. Arriba sale la pastilla teal con la hora, **Pack 8:00 AM**, cuantos medicamentos lleva, y el contador **Pack 1 de 3**. Los packs son secuenciales: sale el primero sin resolver y no se avanza al siguiente hasta cerrarlo.
 
-**Paso 2: Revisar el eMAR**
-Abre el eMAR del residente y revisa:
-- Que medicamentos estan programados para esta hora
-- Si alguno ya fue administrado (evitar duplicados)
-- Si hay alertas o instrucciones especiales
-- Si hay alergias activas
+Por cada medicamento la pantalla pinta **nombre, dosis y via**. Nada mas. Lo que ya esta resuelto hoy sale etiquetado: Firmado en verde, Omitido en rojo, Rechazado en ambar, Suspendido en gris.
 
-**Paso 3: Preparar el medicamento**
-Verifica los 5 Correctos: residente, medicamento, dosis, via y hora. Lee la etiqueta del medicamento tres veces: al tomarlo del almacen, al prepararlo, y al momento de administrar.
+![El pack abierto. Arriba, la pastilla teal con la hora y "Pack 1 de 2 · 0/2 completados". El medicamento con su dosis y via, y a su derecha OMITIR. Debajo, "¿Cuando se hizo?" con Ahora / hace 30 min / hace 1 h / hace 2 h, el recuadro de la firma, y la linea que certificas al firmar.](/academy/capturas/care-pack-meds.jpg)
 
-**Paso 4: Administrar**
-Entrega el medicamento al residente. Observa que efectivamente lo tome (para medicamentos orales). Algunos residentes pueden esconder tabletas en la boca — verifica discretamente.
+**El orden importa:**
 
-**Paso 5: Registrar inmediatamente**
-Documenta la administracion en el eMAR **inmediatamente** despues de darla. Nunca registres antes de administrar ("pre-charting") ni mucho despues. El registro debe incluir la hora exacta.
+1. Primero resuelves lo que NO vas a dar, uno por uno, con el boton **Omitir**.
+2. Despues declaras la hora en **Cuando se hizo**.
+3. Y al final firmas **una sola vez**, con el dedo, por todo lo que si diste.
 
-**Paso 6: Observar**
-Permanece atento a cualquier reaccion adversa inmediata: dificultad para tragar, cambio de color, nauseas, etc.
+Debajo del boton de firmar hay una linea que dice: *Al firmar certifico haber comprobado Las 5 Categorias Clinicas Correctas*. Esa firma no es un tramite, es tu certificacion, y queda guardada con el registro. Sin firma el servidor no acepta el pack.
 
-> **Regla critica**: NUNCA hagas "pre-charting" (registrar antes de dar el medicamento). Si el residente rechaza el medicamento despues de que lo registraste como dado, el registro sera falso.
+**Cuando se hizo: las dos horas.** Encima de la firma hay un bloque que por defecto dice **Ahora**. Si te sientas con la tableta mas tarde, lo cambias a la hora real en que administraste: hay botones de hace 30 min, hace 1 h y hace 2 h, y un reloj para poner cualquier hora. Cuando no es ahora, el bloque se pone ambar para que no se te pase. El sistema guarda **las dos horas**, la que declaras y la del tecleo, y en la auditoria se leen juntas: administrado 8:00, registrado 11:30.
+
+Hasta doce horas hacia atras. Hacia adelante, nunca: una hora futura se rechaza con un error. Eso es lo que sigue prohibido de siempre, **firmar antes de dar el medicamento**. Si firmas primero y el residente lo rechaza despues, el expediente ya quedo falso.
+
+**Lo clinico no lo pregunta la pantalla, pero sigue siendo tuyo:**
+
+| Lo que hace la tableta | Lo que haces tu |
+|---|---|
+| Junta los medicamentos de la hora | Confirmar que estas con el residente correcto usando dos datos a la vez |
+| Muestra nombre, dosis y via | Leer la etiqueta tres veces: al sacarlo, al prepararlo y al darlo |
+| Guarda tu firma y las dos horas | Ver que se lo trague y que no lo esconda en la boca |
+| Etiqueta lo que ya se resolvio | Comprobar alergias e instrucciones especiales, que la pantalla no trae |
 
 PREGUNTAS:
-P: Cuantas veces debes leer la etiqueta del medicamento durante la preparacion?
-a) Una vez es suficiente
-b) Dos veces: al tomarlo y al darlo
-*c) Tres veces: al tomarlo del almacen, al prepararlo, y al administrar
-d) No es necesario si ya conoces el medicamento
-EXPLICACION: La regla de las tres lecturas es un protocolo de seguridad estandar: leer la etiqueta al tomar el medicamento, al prepararlo, y al momento de administrarlo al residente.
+P: Tienes cuatro medicamentos en el pack de las 8:00 AM y Rosa rechaza uno. Que haces?
+*a) Omites ese primero con su motivo, y despues firmas los otros tres
+b) Firmas el pack completo y despues avisas a enfermeria de cual no tomo
+c) Cancelas el pack entero y lo vuelves a abrir con los tres que si tomo
+d) Firmas los tres y dejas el cuarto sin tocar
+EXPLICACION: La firma cubre unicamente lo que quedaba pendiente cuando la dibujaste, asi que primero se resuelve lo que no se da y se firma despues.
 
-P: Que es "pre-charting" y por que esta prohibido?
-a) Es registrar medicamentos en la noche anterior y es permitido en emergencias
-*b) Es registrar un medicamento como administrado ANTES de darlo
-c) Es preparar los medicamentos del dia anterior y es una practica recomendada
-d) Es verificar el chart del residente antes de administrar
-EXPLICACION: Y esta prohibido porque si el residente lo rechaza despues, el registro ya quedo falso. Siempre se registra inmediatamente DESPUES de administrar, nunca antes.
+P: Son las 11:30 y te sientas a registrar el pack que diste a las 8:00. Que haces?
+a) Escribes en la nota del turno que lo diste a las 8:00
+b) Le pides a tu supervisora que corrija la hora despues de que firmes
+c) Lo registras y lo dejas en Ahora; una diferencia de tres horas no es grande
+*d) Cambias Cuando se hizo a las 8:00 antes de firmar el pack
+EXPLICACION: El bloque se pone ambar cuando no es ahora, y el expediente conserva las dos horas: administrado 8:00, registrado 11:30.
 
-P: Que debes verificar en el eMAR ANTES de administrar un medicamento?
-a) Solo el nombre del medicamento
-b) Solo si hay alergias activas
-*c) Medicamentos programados para la hora, si alguno ya fue administrado, alertas, instrucciones especiales y alergias
-d) Solo el numero de habitacion del residente
-EXPLICACION: Antes de administrar, debes revisar todos los medicamentos programados, verificar que no haya duplicados, revisar alertas, instrucciones especiales y alergias activas.
+P: Que pasa si intentas cerrar el pack sin dibujar la firma?
+a) Se guarda como pendiente de firma y se te recuerda al cerrar el turno
+b) Se guarda igual: tu usuario ya identifica quien administro
+*c) No se guarda: el servidor pide la firma para aceptar el pack
+d) Se guarda pero sale marcado en rojo en la auditoria
+EXPLICACION: La firma es la certificacion de los 5 correctos y sin ella el pack no se acepta, asi que no queda registro de nada.
 
-P: Que debes hacer despues de entregar un medicamento oral al residente?
-a) Retirarte inmediatamente a atender al siguiente residente
-*b) Observar que el residente efectivamente lo trague y verificar que no lo esconda
-c) Registrar la administracion al final del turno
-d) Pedirle al residente que firme un recibo
-EXPLICACION: Algunos residentes pueden esconder tabletas en la boca. Es importante verificar discretamente que el medicamento fue tragado antes de registrar la administracion.
+P: Abres el pack de Luis Ortega y ves un medicamento con la etiqueta verde Firmado. Que significa?
+a) Que el medicamento esta activo y vigente en su receta
+*b) Que alguien ya lo administro hoy en esa hora y lo firmo
+c) Que el medicamento ya esta preparado en el carrito y listo para darse
+d) Que el medico lo autorizo y la farmacia ya lo entrego al hogar
+EXPLICACION: Firmado, Omitido, Rechazado y Suspendido son los cuatro estados de lo ya resuelto hoy en ese horario; lo que no lleva etiqueta es lo que falta.
 
-P: Cuando exactamente debes registrar la administracion en el eMAR?
-a) Al inicio del turno, anticipando las dosis del dia
-b) Al final del turno, una vez terminada toda la ronda
-*c) Inmediatamente despues de administrar el medicamento al residente
-d) Cuando el supervisor lo solicite
-EXPLICACION: El registro debe hacerse inmediatamente despues de la administracion, con la hora exacta. Registrar antes (pre-charting) o mucho despues compromete la precision y legalidad del registro.
+P: Entras al 210 a dar el pack de Carmen Delgado. Como confirmas que es ella?
+a) Por el numero de habitacion, que es unico en el hogar
+b) Porque es la que estaba ahi cuando recibiste el turno esta manana
+c) Porque la tableta ya abrio su tarjeta y trae su foto y su nombre
+*d) Con dos datos a la vez: su nombre completo y la habitacion
+EXPLICACION: Un identificador solo falla, porque hay camas que se cambian y nombres que se parecen; por eso se usan dos antes de sacar nada del carrito.
 
 ---SECCION_4---
 LECTURA:
-# Alertas y Excepciones
+# Cuando no se da: omitir, rechazo y lo que llega tarde
 
-No toda administracion de medicamentos sale segun lo planeado. El eMAR de Zendity tiene mecanismos para documentar correctamente las situaciones excepcionales.
+Un turno honesto tiene omisiones. Durante meses este eMAR solo sabia decir que si: 24,534 administraciones contra TRES omisiones en Cupey. Eso no es un hogar con 99.99 por ciento de cumplimiento, es un registro que no dice la verdad.
 
-**Dosis Omitida (Missed Dose):**
-Ocurre cuando un medicamento programado no se administra dentro de su ventana de tiempo. Causas comunes:
-- El residente estaba en una cita medica fuera de la facilidad
-- El residente estaba dormido y el medicamento no era urgente
-- Error del personal (olvido)
+**Registrar una omision no te resta puntos.** Se decidio a proposito: los medicamentos omitidos quedaron fuera de los negativos de tu desempeño. Omitir con su motivo es trabajo bien hecho, no una falta.
 
-Documentacion requerida: Seleccionar "Dosis Omitida" en el eMAR, indicar la razon, y notificar al supervisor. Si la omision fue por error, se activa un protocolo de seguimiento.
+**Como se omite.** Junto al medicamento, boton **Omitir**. Se abre un panel rojo que pregunta por que se omite y pide dos cosas:
 
-**Rechazo del Residente (Refused):**
-El residente tiene derecho a rechazar cualquier medicamento. Cuando esto ocurre:
-1. Intenta educadamente explicar la importancia del medicamento
-2. Si sigue rechazando, respeta su decision
-3. Documenta el rechazo en el eMAR con el motivo (si el residente lo expresa)
-4. Notifica a enfermeria o al supervisor
-5. Si es un medicamento critico (ej: insulina, antihipertensivo), notifica al medico
+- **Un motivo de una lista de siete.** Ninguno viene marcado: el desplegable arranca en "Elija el motivo" y hay que elegir. Antes venia preseleccionado en "Residente lo rechazo", y quien no lo tocaba culpaba al residente sin querer.
+- **Un texto de al menos 10 caracteres.** El servidor tambien lo exige.
 
-**Administracion Tardia (Late Administration):**
-Si un medicamento se administra fuera de su ventana programada:
-- Registra la hora real de administracion (no la hora programada)
-- Documenta la razon del retraso
-- Evalua si el retraso puede afectar la siguiente dosis
+**El motivo que eliges decide el expediente.** No son siete formas de decir lo mismo:
 
-**Reaccion Adversa:**
-Si observas una reaccion despues de administrar:
-1. Atiende al residente inmediatamente
-2. Notifica a enfermeria / medico
-3. Documenta la reaccion en el eMAR y en las notas clinicas
-4. No administres la siguiente dosis hasta que el medico lo autorice
+| Si eliges | Queda en el expediente como |
+|---|---|
+| Residente lo rechazo | Rechazado |
+| Residente en procedimiento | Suspendido |
+| Indicacion medica | Suspendido |
+| Medicamento no disponible | Omitido |
+| Fuera del hogar (hospital, cita, salida) | Omitido |
+| Residente fallecio | Omitido |
+| Otro | Omitido |
 
-> **Importante**: Documentar correctamente las excepciones protege al residente, a ti y a la facilidad. Nunca "maquilles" un registro para que parezca que todo salio bien.
+Por eso se pregunta. No quiso, el medico lo suspendio y no habia son tres cosas distintas, y la pregunta cuantas veces lo rechazo solo tiene respuesta si se eligio bien. En cuanto confirmas, **enfermeria y supervision reciben el aviso** con el residente, el medicamento, la hora, tu motivo y tu nombre.
+
+**Si el residente rechaza.** Explicale con calma para que es. Si sigue diciendo que no, se respeta: el residente tiene derecho a rechazar cualquier medicamento. Omites con el motivo Residente lo rechazo y escribes lo que dijo. Y si es un medicamento critico, como insulina o un anticoagulante, ademas se lo dices a enfermeria de viva voz sin esperar a que lea la notificacion.
+
+**Si llegas tarde.** Hay dos casos y solo uno se resuelve desde la tableta:
+
+| Situacion | Que haces |
+|---|---|
+| La hora era de tu propio turno | Administras y declaras la hora real en Cuando se hizo |
+| La hora cayo en un turno anterior | En tu tableta no aparece. Lo avisas a enfermeria o supervision y lo dejas escrito en la nota del turno |
+
+Lo que no se hace nunca es buscarle otro hueco ni firmarlo dentro de un pack que no le corresponde. Y no existe campo de razon del retraso para medicamentos: esa explicacion va a la nota del turno.
+
+**Si ves una reaccion.** Atiende al residente primero. Avisa a enfermeria de viva voz. Y deja el registro escrito donde si cabe: en la nota del turno y como **cambio de condicion** desde la tarjeta del residente, en Piel, Dolor, Animo o conducta, u Otra cosa. El eMAR no tiene casilla de reaccion adversa y dentro del pack no se puede escribir nada, asi que si no lo escribes ahi no queda escrito en ningun sitio.
 
 PREGUNTAS:
-P: Que derecho tiene el residente respecto a sus medicamentos?
-a) Solo puede rechazar medicamentos no esenciales
-b) No tiene derecho a rechazar ningun medicamento
-*c) Tiene derecho a rechazar cualquier medicamento
-d) Solo puede rechazar si la familia lo autoriza
-EXPLICACION: El residente tiene el derecho autonomo de rechazar cualquier medicamento. El personal debe respetar esta decision, documentarla y notificar al equipo clinico.
+P: Abres el panel para omitir Losartan. Que motivo viene marcado por defecto?
+*a) Ninguno viene marcado: hay que elegir uno de la lista
+b) Viene marcado Otro, y se afina con el texto libre
+c) Viene marcado el mismo motivo que usaste la vez anterior
+d) Viene marcado Residente lo rechazo, que es el motivo mas frecuente
+EXPLICACION: El desplegable arranca en Elija el motivo a proposito, porque un valor por defecto que reparte culpa no es un valor por defecto, es una acusacion silenciosa.
 
-P: Que debes hacer si un residente rechaza un medicamento critico como insulina?
-a) Obligar al residente a tomarlo
-b) Documentar el rechazo y no hacer nada mas
-*c) Documentar el rechazo, notificar al supervisor y al medico por ser medicamento critico
-d) Administrar el medicamento en la siguiente comida sin que el residente se de cuenta
-EXPLICACION: Ante el rechazo de un medicamento critico, ademas de documentar y notificar al supervisor, se debe notificar al medico porque la omision de medicamentos como insulina puede tener consecuencias serias.
+P: Carmen Delgado salio al hospital y por eso no recibio su pack de las 8:00. Que motivo eliges?
+a) Residente en procedimiento, porque una salida al hospital lo es
+b) Otro, y lo explicas en el texto libre de la omision
+c) Medicamento no disponible, porque no se le pudo dar
+*d) Fuera del hogar, que cubre el hospital, la cita y la salida
+EXPLICACION: El hospital, la cita y la salida tienen su propio motivo desde septiembre; antes se registraban como rechazo del residente, que era falso.
 
-P: Si administras un medicamento tarde, que hora debes registrar en el eMAR?
-a) La hora originalmente programada para que no se vea como error
-*b) La hora real de administracion con documentacion de la razon del retraso
-c) No registrarlo para evitar problemas
-d) La hora del siguiente turno
-EXPLICACION: Siempre se registra la hora real de administracion, nunca la hora programada. Falsificar la hora es una violacion de protocolos de documentacion y puede poner en riesgo al residente.
+P: Eliges el motivo Residente lo rechazo. Como queda esa dosis en el expediente?
+a) Como Omitido, igual que todas las demas dosis que no se dieron
+*b) Como Rechazado, que es un estado distinto de Omitido
+c) Como Suspendido hasta nueva orden del medico
+d) Como Pendiente, para que el turno siguiente lo vuelva a intentar
+EXPLICACION: Rechazado, Suspendido y Omitido son tres estados distintos, y solo eligiendo bien el motivo se puede contestar despues cuantas veces lo rechazo.
 
-P: Que es lo primero que debes hacer si observas una reaccion adversa a un medicamento?
-*a) Atender al residente inmediatamente
-b) Documentar la reaccion en el eMAR
-c) Llamar a la familia
-d) Investigar si el medicamento estaba vencido
-EXPLICACION: La prioridad absoluta es la atencion inmediata al residente. La documentacion y notificaciones son importantes pero vienen despues de asegurar que el residente esta estable.
+P: Son las 3:00 PM, turno de tarde. Te enteras de que el pack de las 8:00 AM de Rosa nunca se dio. Que haces?
+a) Lo buscas en la tableta y lo firmas declarando la hora real de las 8:00 AM
+b) Lo firmas dentro del pack de las 4:00 PM
+*c) Avisas a enfermeria o a supervision y lo escribes en la nota del turno
+d) Lo omites con el motivo Otro para que quede constancia de que no se dio
+EXPLICACION: Un horario de otro turno no se dibuja en tu tableta, asi que desde el piso no hay forma de registrarlo: lo resuelve quien puede y tu dejas por escrito lo que viste.
 
-P: Por que es importante documentar correctamente las excepciones en el eMAR?
-a) Solo para cumplir con los requisitos del sistema
-b) Para que el turno siguiente no tenga que investigar
-*c) Porque protege al residente, al empleado y a la facilidad legalmente
-d) Para que el supervisor pueda hacer reportes
-EXPLICACION: La documentacion correcta de excepciones (omisiones, rechazos, retrasos, reacciones) es proteccion legal para todos. Registros falsos o incompletos pueden tener consecuencias legales y clinicas.
+P: Luis Ortega se pone rojo y le cuesta tragar diez minutos despues de su medicamento. Donde queda escrito?
+*a) En la nota del turno y como cambio de condicion desde su tarjeta
+b) En la casilla de reaccion adversa del eMAR, junto a la dosis
+c) En el campo de notas del pack, que se abre al firmar
+d) En el formulario de traslado, que es el unico papel que recoge reacciones
+EXPLICACION: Lo primero es atenderlo y avisar de viva voz; el eMAR no tiene casilla de reaccion y dentro del pack no se escribe, asi que ahi es donde de verdad queda.
 
 ---SECCION_5---
 LECTURA:
-# Reportes y Auditoria
+# El PRN y el papel que queda
 
-El eMAR no solo es una herramienta de administracion diaria — tambien genera datos valiosos para la supervision, auditoria y mejora continua de la calidad del cuidado.
+Un PRN, por razon necesaria, no sale en ningun pack. Se da cuando hace falta, y por eso se registra aparte, desde el mismo panel de medicamentos: **Registrar dosis PRN (S.O.S.)**.
 
-**Reportes disponibles:**
-- **Reporte de cumplimiento**: Muestra el porcentaje de dosis administradas a tiempo vs. omitidas o tardias
-- **Reporte de PRN**: Frecuencia de uso de medicamentos PRN, util para detectar patrones (ej: un residente que necesita analgesicos PRN cada dia puede necesitar un ajuste en su prescripcion)
-- **Reporte de excepciones**: Lista todos los rechazos, omisiones y administraciones tardias con sus razones
-- **Historial por residente**: Cronologia completa de todas las administraciones de un residente
+**Se registra de uno en uno.** Eliges que medicamento se dio de la lista del residente (los PRN salen con etiqueta ambar, y si lo que diste no esta marcado como PRN hay un enlace para ver todos). Despues escribes **para que** se dio, con al menos 5 caracteres: agitacion al bañarlo, dolor en la cadera, diarrea. Y firmas. Si aprendiste el boton viejo, que mandaba el turno entero, olvidalo: hoy devuelve un error que dice que el PRN se registra de uno en uno.
 
-**Auditoria y trazabilidad:**
-Cada registro en el eMAR incluye:
-- Quien administro el medicamento (vinculado al PIN del empleado)
-- Fecha y hora exacta de la administracion
-- Que medicamento, dosis y via se uso
-- Si hubo alguna excepcion y cual fue la razon
+**La segunda pregunta es la que decide algo.** Dar el PRN es la mitad. La otra mitad es si hizo efecto, porque de ahi sale lo que pasa despues: repetir, cambiar o llamar al medico. En el mismo panel aparece el bloque ambar con la dosis, para que se dio y a que hora, y cuatro botones:
 
-Esta trazabilidad es fundamental durante inspecciones regulatorias. Los auditores pueden verificar que cada dosis fue administrada correctamente, por quien, y a que hora.
+| Respuesta | Cuando se usa |
+|---|---|
+| Resolvio | El sintoma cedio y no hizo falta nada mas |
+| Mejoro en parte | Bajo pero no cedio del todo |
+| Sin efecto | Se dio y el sintoma siguio igual |
+| No se pudo evaluar | Se durmio, cambio el turno, salio; no hubo forma de saberlo |
 
-**Mejora continua:**
-Los supervisores y directores deben revisar los reportes del eMAR regularmente para:
-- Identificar patrones de omision o retraso (puede indicar falta de personal o problemas de turno)
-- Detectar uso excesivo de PRN (puede indicar que un residente necesita ajuste en su plan de medicacion)
-- Verificar cumplimiento general del equipo
-- Prepararse para auditorias regulatorias
+La pregunta queda abierta **doce horas**, que cubren el turno completo y el relevo, y la puede contestar quien no lo administro: si quien lo dio se fue a casa, le toca al que entra cerrar lo que vio. No se pudo evaluar esta ahi a proposito, porque sin esa salida "no lo pude ver" se registra como "resolvio", que es una mentira comoda.
 
-**Tu rol en la auditoria:**
-Como empleado, tu contribucion a una auditoria exitosa es simple: **documenta correctamente, en tiempo real, cada vez.** Si cada administracion se registra con precision, la auditoria no es motivo de estres.
+Si contestas **Mejoro en parte** o **Sin efecto**, enfermeria y supervision reciben el aviso. Un PRN que no funciono es una decision clinica pendiente, no un dato de archivo. Lo que nadie contesta se acumula en la lista de trabajo de enfermeria:
 
-> **Dato clave**: Un eMAR bien documentado puede ser la diferencia entre pasar una inspeccion regulatoria y recibir una citacion. Tu registro es evidencia legal.
+![La lista de enfermeria. Fijate en la fila "PRN sin saber si hizo efecto": son las dosis que se dieron y nadie cerro. Esa fila baja cuando tu contestas los cuatro botones, y sube cuando no.](/academy/capturas/enfermeria-lista-de-trabajo.jpg)
+
+**El papel que queda.** Cada linea del eMAR guarda quien administro, la hora declarada, la hora del tecleo, el medicamento con su dosis y su via, el estado, tu firma, y en un PRN el motivo y el efecto. Con eso se arman los tres documentos que existen de verdad:
+
+| Documento | Donde esta | Para que sirve |
+|---|---|---|
+| PDF del eMAR | Boton Cardex, arriba del pack — lo abre enfermeria para arriba | El eMAR de un residente por rango de fechas, con el recuento de dosis por estado. Es lo que se le entrega a un inspector |
+| Historial del residente | Expediente, pestaña eMAR | Ver todas sus dosis y su adherencia semanal |
+| Cumplimiento eMAR | Pantalla corporativa de direccion | La tendencia del porcentaje administrado de la sede |
+
+El PDF pide rango de fechas y no es por gusto: el residente con mas historial lleva 1,978 dosis, que en papel son 71 hojas. Sin rango salen los ultimos 30 dias.
+
+**Tu parte en una auditoria** no se prepara el dia de la auditoria. Es esto: la hora real cuando no fue ahora, el motivo correcto cuando no se dio, el para que del PRN y su efecto. Un expediente que solo sabe decir que si no protege a nadie, y menos a ti.
 
 PREGUNTAS:
-P: Que puede indicar el uso excesivo de medicamentos PRN en un residente?
-a) Que el residente es dificil de manejar
-b) Que la farmacia envio demasiados medicamentos
-*c) Que el residente puede necesitar un ajuste en su plan de medicacion regular
-d) Que el eMAR tiene un error de programacion
-EXPLICACION: Si un residente necesita PRN frecuentemente para el mismo sintoma, puede indicar que su medicacion programada no es suficiente y necesita revision medica para ajustar el plan.
+P: Le das un PRN a Rosa Medina para la agitacion. Que pide la tableta ademas de la firma?
+a) La autorizacion verbal de enfermeria
+b) Que elijas el medicamento y adjuntes la nota del medico que lo ordeno
+c) Que marques el turno completo, como se hacia en el boton viejo
+*d) Que elijas el medicamento y escribas para que se dio
+EXPLICACION: Un PRN se registra de uno en uno con su motivo de al menos 5 caracteres, porque sin saber para que se dio no hay forma de evaluarlo despues.
 
-P: Que informacion incluye cada registro del eMAR para efectos de auditoria?
-a) Solo el nombre del medicamento y la fecha
-*b) Quien administro (PIN), fecha y hora exacta, medicamento, dosis, via y cualquier excepcion
-c) Solo si el residente acepto o rechazo el medicamento
-d) Solo el turno en que se administro
-EXPLICACION: Cada registro del eMAR incluye trazabilidad completa: quien (vinculado al PIN), cuando (fecha y hora exacta), que (medicamento, dosis, via) y cualquier excepcion documentada.
+P: Administraste un PRN a las 10:00 PM y te fuiste a casa sin contestar si hizo efecto. Que pasa?
+a) Se pierde la pregunta: solo la puede contestar quien administro
+*b) Queda abierta doce horas y la puede cerrar quien entra al relevo
+c) El sistema la contesta solo como No se pudo evaluar a las doce horas
+d) Se convierte en un cambio de condicion que revisa enfermeria al dia siguiente
+EXPLICACION: La ventana de doce horas cubre el turno y el relevo justamente porque quien lo dio pudo irse, y entonces el que entra cierra lo que vio.
 
-P: Que pueden indicar los patrones de omision o retraso en los reportes del eMAR?
-a) Que los medicamentos son muy caros
-*b) Falta de personal o problemas en la organizacion de turnos
-c) Que los residentes no cooperan
-d) Que el sistema tiene errores frecuentes
-EXPLICACION: Los patrones de omision o retraso pueden indicar problemas operativos como falta de personal, turnos mal organizados o sobrecarga de trabajo, informacion valiosa para los supervisores.
+P: Contestas Sin efecto a un PRN de dolor. Que pasa despues?
+*a) Enfermeria y supervision reciben el aviso enseguida
+b) Se repite la dosis a las cuatro horas
+c) Se marca el medicamento como no efectivo y desaparece de su lista
+d) Queda guardado en el expediente y se revisa en la proxima visita del medico
+EXPLICACION: Mejoro en parte y Sin efecto son las dos respuestas que avisan, porque un PRN que no funciono es una decision clinica pendiente.
 
-P: Cual es tu contribucion mas importante para una auditoria exitosa del eMAR?
-a) Memorizar los nombres de todos los medicamentos
-b) Revisar los reportes del mes anterior
-*c) Documentar correctamente en tiempo real cada administracion y excepcion
-d) Preparar un informe especial el dia de la auditoria
-EXPLICACION: La mejor preparacion para una auditoria es la practica diaria de documentacion correcta y en tiempo real. Si cada registro es preciso, la auditoria es simplemente una verificacion de tus buenas practicas.
+P: Un inspector pide el eMAR de Carmen Delgado del mes pasado. Que le entregas?
+a) Una impresion de la pantalla del pack de cada dia del mes
+b) La tendencia de Cumplimiento eMAR de la sede en ese periodo
+*c) El PDF del eMAR desde el boton Cardex, con el rango del mes
+d) El historial completo de la pestaña eMAR de su expediente, sin recortar
+EXPLICACION: El PDF pide rango a proposito, porque el residente con mas historial lleva 1,978 dosis y eso en papel son 71 hojas que nadie pidio.
 
-P: Por que se dice que el registro del eMAR es "evidencia legal"?
-a) Porque solo lo puede leer un abogado
-b) Porque requiere firma notarizada
-*c) Porque documenta quien hizo que y cuando
-d) Porque esta encriptado con tecnologia militar
-EXPLICACION: Y puede usarse en una inspeccion regulatoria o en un procedimiento legal. Por eso cada registro se hace con precision: quien administro que medicamento, a que hora y en que circunstancias.
+P: De estas cosas, cual NO queda guardada en una linea del eMAR?
+a) La hora que declaraste y, aparte, la hora en que lo escribiste
+b) El motivo de la omision y el estado que le corresponde
+c) Quien administro, con su firma dibujada
+*d) La razon del retraso cuando un medicamento se da tarde
+EXPLICACION: No existe campo de razon del retraso para medicamentos, asi que cuando algo se da tarde la explicacion va a la nota del turno.
 `
 }
 
@@ -2094,297 +2161,474 @@ EXPLICACION: Despues de una caida, se realiza un ajuste ambiental que incluye in
     order: 4,
     content: `---META---
 TITULO: El Cuidador en Zendity
-PROMPT_ZENDI: Evalua si el empleado comprende su flujo de trabajo diario como cuidador en Zendity, desde el inicio del turno hasta el cierre, incluyendo eMAR y manejo de MISSED.
-TERMINOS_CLAVE: workspace /care, Prologo del Turno, grupo de color, eMAR, Daily Log, MISSED, Override Forzado, cierre de turno, ZendiAssist, handover
-PREGUNTA_REFLEXION: Es tu primer turno como cuidador. Zendi lee el Prologo. Tienes 3 residentes asignados, uno con medicamentos MISSED del turno anterior. Cual es tu primer paso?
+PROMPT_ZENDI: Evalua si la cuidadora sabe abrir el turno en el orden real (color, censo, ficha, prologo), firmar un pack de medicamentos, elegir donde reportar cada cosa sabiendo quien la lee, y cerrar el turno firmando el relevo.
+TERMINOS_CLAVE: care, grupo de color, censo de entrada, ventana de vitales, prologo, pack de medicamentos, firma con el dedo, omitir, PRN, bitacora general, preventiva, algo cambio, Acciones, hora del registro, entregar turno, relevo
+PREGUNTA_REFLEXION: Piensa en tu ultimo turno. Hubo algo que notaste de un residente y que al final no escribiste en ningun sitio. Que era, y por que boton de tu tableta deberia haber entrado?
 
 ---SECCION_1---
 LECTURA:
-# Tu Workspace: La Pantalla /care
+# Tu tableta: del inicio a la tarjeta del residente
 
-Como cuidador en Zendity, tu espacio de trabajo principal es la pantalla **/care** — el Care Floor. Esta interfaz esta disenada para que puedas gestionar tu turno completo sin salir de ella. Todo lo que necesitas esta a un tap de distancia.
+Cuando entras a Zendity no caes en el piso directo. Caes en una pantalla oscura que te saluda por tu nombre y te ofrece **tres puertas**:
 
-**Que ves al entrar a /care:**
+| Puerta | Para que |
+|---|---|
+| **Iniciar Turno** | El piso: residentes, medicamentos, cierre |
+| **Academy** | Cursos y certificaciones, como este |
+| **Mis Observaciones** | Lo que el supervisor te señalo y espera tu explicacion |
 
-- **Tu grupo de color asignado**: Los residentes estan organizados en grupos de color (Rojo, Amarillo, Verde, Azul). Tu grupo aparece destacado en la parte superior. Solo ves los residentes que te corresponden.
-- **Tarjetas de residente**: Cada residente tiene una tarjeta con su foto, nombre, habitacion y alertas activas. Las tarjetas con bordes rojos indican tareas urgentes pendientes.
-- **Barra de estado del turno**: Muestra el progreso de tu turno — cuantas tareas has completado versus cuantas quedan pendientes.
-- **Boton de ZendiAssist**: Acceso directo al asistente de voz que te puede guiar si tienes dudas sobre un procedimiento.
+**Mis Observaciones no es decorado.** Si trae un numero en ambar, hay algo escrito sobre tu trabajo esperando que contestes. Mientras no contestes se queda en "Esperando tu explicacion". Cuando contestas pasa a "Respuesta enviada" y el supervisor decide: la aplica o la desestima. Callarse no la borra.
 
-**Navegacion clave:**
+## El piso
 
-Al tocar una tarjeta de residente, accedes a su perfil con tres pestanas principales: Medicamentos (eMAR), Notas (Daily Log) y Alertas. La navegacion esta disenada para uso con una sola mano en tablet, porque frecuentemente la otra mano esta asistiendo al residente.
+Al entrar a Iniciar Turno ves la lista de tus residentes en tarjetas. Arriba del todo, una barra oscura con: el turno (Mañana, Tarde, Noche), tu color de grupo, un chip rojo **N SLA** si el supervisor te despacho tareas con reloj, el chat del piso, la campana y el boton **Entregar Turno**.
+
+## La tarjeta: donde se lee lo que falta
+
+Esto es lo que mas se malentiende, asi que va directo:
+
+| Lo que SI significa | Lo que NO significa |
+|---|---|
+| La franja de color de arriba es **el color de tu grupo**. Azul arriba = Grupo Azul | No es una alerta. No cambia si hay algo urgente |
+| El borde de la tarjeta es **gris siempre**, para todos | No existe el "borde rojo = urgente" |
+| Lo pendiente se lee en la **franja de cuatro columnas**: Baño, Comidas, Rotacion, Meds PM | No se lee en el color del marco ni en la foto |
+
+Ademas de esa franja, la tarjeta te avisa con cosas concretas:
+
+- **Vitales de entrada · Vence en 48m** — la cuenta regresiva de la ventana de vitales. Si vence, el aviso se pone rojo.
+- El **numero rojo** dentro del boton Medicamentos: cuantos tiene ese residente en este turno. Ojo, no baja segun los vas dando — es el total del turno, no lo que falta.
+- **UPP · cambie aposito** en rojo: es un boton. Se toca para registrar que cambiaste el aposito.
+- **COBERTURA VERDE** en ambar: ese residente no es de tu grupo, te llego por cobertura.
+
+![La tarjeta de Rosa Medina: la franja azul de arriba es su grupo, no una alerta. Lo que falta se lee en la fila de Baño, Comidas, Rotacion y Meds PM.](/academy/capturas/care-turno-tarjeta.jpg)
+
+## La tarjeta no se abre
+
+No hay perfil ni pestañas. Cada boton hace una cosa y te la abre directo, agrupados por como es tu dia:
+
+| Grupo | Botones |
+|---|---|
+| **Lo de siempre** | Medicamentos (y Salida a Dialisis, si le toca) |
+| **Algo cambio** | Vitales, Bitacora, Preventiva, Algo cambio en el residente |
+| **Algo paso** | Alerta Caida, Trasladar ER, Reportar fallecimiento |
+
+Ese orden es a proposito: arriba lo que tocas cien veces al dia, abajo y separado por una linea lo que casi no se toca y no se puede deshacer.
+
+## Zendi, en su sitio
+
+Zendi no te va guiando por voz mientras trabajas. Lo que hay es **Escritura Inteligente**, un boton dentro de los cuadros de nota: escribes con tus palabras, Zendi te propone otra version y **tu decides** si la usas. Lo tuyo no se pierde y hay "volver a lo mio". La unica voz de Zendi es la del prologo, al abrir el turno.
 
 PREGUNTAS:
-P: Cual es el espacio de trabajo principal del cuidador en Zendity?
-a) La pantalla /admin
-b) El modulo de Reportes
-*c) La pantalla /care (Care Floor)
-d) El portal de familias
-EXPLICACION: El Care Floor (/care) es el espacio disenado especificamente para cuidadores, donde gestionan su turno completo con acceso a residentes, medicamentos y notas.
+P: La tarjeta de Pedro Santana 103 tiene una franja azul arriba. Que te dice esa franja?
+a) Que ese residente tiene una alerta sin atender
+*b) El color del grupo de turno que te toco
+c) Que le quedan medicamentos por dar
+d) Que enfermeria lo quiere ver hoy
+EXPLICACION: Es el color de tu grupo: se pinta igual en todas tus tarjetas, tengan o no algo pendiente, y no cambia en todo el turno.
 
-P: Como se organizan los residentes en el Care Floor?
-a) Por orden alfabetico
-b) Por nivel de gravedad medica
-*c) Por grupos de color (Rojo, Amarillo, Verde, Azul)
-d) Por numero de habitacion unicamente
-EXPLICACION: Los residentes se organizan en grupos de color para facilitar la asignacion. Cada cuidador ve destacado su grupo asignado y solo los residentes que le corresponden.
+P: Donde lees lo que te falta por hacer con Rosa Medina 204?
+a) En el borde exterior, que se pinta de rojo cuando urge
+b) En la foto, que se le pone un marco ambar
+c) En el nombre, que se subraya si hay pendientes
+*d) En la franja de cuatro columnas de la tarjeta
+EXPLICACION: Baño Listo o Pendiente, N de 3 comidas, Rotacion Al dia, Proxima o Atrasado, y Meds PM Listo o Pendiente: esa fila es el resumen de tu trabajo con ese residente.
 
-P: Que indica una tarjeta de residente con borde rojo?
-a) Que el residente esta de cumpleanos
-b) Que el residente fue dado de alta
-*c) Que tiene tareas urgentes pendientes
-d) Que pertenece al grupo de color rojo
-EXPLICACION: Los bordes rojos en las tarjetas de residente indican que hay tareas urgentes pendientes que el cuidador debe atender, como medicamentos sin administrar o alertas activas.
+P: La tarjeta de Luis Ortega 112 dice "Vitales de entrada · Vence en 48m". Que significa?
+*a) Que te quedan 48 minutos para tomarle los vitales
+b) Que hay que repetirle los vitales cada 48 minutos
+c) Que enfermeria le tomo los vitales hace 48 minutos
+d) Que sus ultimos vitales salieron altos
+EXPLICACION: Es la cuenta regresiva de la ventana de vitales de entrada; cuando llega a cero el aviso se pone rojo y hay que justificar el retraso.
 
-P: Para que sirve el boton de ZendiAssist en /care?
-a) Para llamar al supervisor directamente
-b) Para enviar mensajes a la familia
-*c) Para acceder al asistente de voz que guia en procedimientos
-d) Para cerrar sesion rapidamente
-EXPLICACION: ZendiAssist es el asistente de voz de Zendity que puede guiar al cuidador cuando tiene dudas sobre un procedimiento, protocolo o funcionalidad del sistema.
+P: Que hace el boton de Escritura Inteligente que ves en los cuadros de nota?
+a) Guarda la nota y se la manda a la familia
+b) Corrige la nota y la sustituye al instante
+*c) Propone otra version y tu decides si la usas
+d) Dicta en voz alta los pasos del procedimiento
+EXPLICACION: Zendi propone y la persona decide: tu texto se queda hasta que pulses usar esta version, y despues todavia puedes volver a lo tuyo.
 
-P: Por que la navegacion del Care Floor esta disenada para uso con una sola mano?
-a) Porque los dispositivos son muy pequenos
-b) Porque es mas rapido
-*c) Porque frecuentemente la otra mano esta asistiendo al residente
-d) Porque solo se usa en celulares, no en tablets
-EXPLICACION: La interfaz permite uso con una mano en tablet porque los cuidadores frecuentemente estan asistiendo fisicamente al residente con la otra mano mientras documentan.
+P: En la pantalla de inicio, Mis Observaciones te sale con un numero en ambar. Que es?
+a) Las notas que escribiste esta semana
+*b) Avisos del supervisor que esperan tu respuesta
+c) Los residentes que todavia no has visitado hoy
+d) Los cursos de Academy que te faltan por terminar
+EXPLICACION: Son observaciones o amonestaciones que esperan tu explicacion; mientras no contestes se quedan pendientes y el supervisor no puede cerrarlas.
 
 ---SECCION_2---
 LECTURA:
-# El Prologo del Turno y Grupos de Color
+# Abrir el turno: cuatro pasos, en este orden
 
-Cada turno en Zendity comienza con el **Prologo del Turno** — un resumen narrado por Zendi (el asistente de voz) que te prepara para las proximas horas. Este prologo se activa automaticamente cuando inicias sesion al comienzo de tu turno.
+El turno no empieza cuando entras a la aplicacion. Empieza cuando haces estos cuatro pasos, y van en este orden:
 
-**Que incluye el Prologo del Turno:**
+**1. Eliges tu color.** La pantalla te pregunta "Cual es tu color de Turno?" con cuatro botones: ROJO, AMARILLO, VERDE, AZUL. Tu color sale del horario que armo el supervisor, pero **la tableta te lo pregunta igual**: hay que pulsarlo.
 
-- **Resumen de handover**: Informacion clave que dejo el turno anterior — caidas, cambios de medicamento, comportamientos inusuales
-- **Tus residentes asignados**: Lista de residentes en tu grupo de color con sus alertas activas
-- **Medicamentos MISSED**: Si algun medicamento del turno anterior no fue administrado, Zendi lo anuncia para que lo priorices
-- **Tareas pendientes del turno**: Medicamentos programados, rondas pendientes, citas medicas del dia
-- **Alertas especiales**: Residentes nuevos, cambios recientes en ordenes medicas, restricciones dieteticas
+En esa misma pantalla puede haber:
 
-**El sistema de grupos de color:**
+- La **nota del supervisor** para tu turno, en ambar.
+- Un aviso ambar tipo **"1 grupo sin cubrir — toca aqui si eres sustituto o vas a cubrir"**. Si vas a cubrir, se toma ahi mismo. No hay que esperar a que nadie te lo asigne.
+- Debajo de cada color, quien lo esta cubriendo hoy.
 
-Tu grupo de color determina de cuales residentes eres responsable. La asignacion la hace el supervisor antes del turno usando el Schedule Builder. Los colores no tienen jerarquia — son simplemente una forma de distribuir la carga de trabajo equitativamente.
+Si eres la unica en el piso, la tableta te enseña a todos los residentes sin que lo pidas.
 
-Si un compuesto de tu turno tiene una emergencia con uno de sus residentes, el supervisor puede reasignarte temporalmente residentes de otro color. Esto se refleja automaticamente en tu pantalla /care.
+**2. Verificas el censo.** Antes de fichar sale la lista de tu grupo, residente por residente, con cuatro marcas: Presente, Hospital, Dialisis (solo a quien le toca) y Familia. Marcas lo que hay **en el piso**, no lo que crees.
+
+Si lo que marcas no cuadra con lo que dice el sistema, la pantalla te lo dice ahi mismo: "El sistema dice que salio por hospital". Se marca lo que ves. Esa discrepancia queda escrita, y es justo lo que sirve para arreglarla.
+
+**3. Fichas.** Al pulsar "Confirmar Censo y Escuchar Zendi" quedas dentro del turno. En ese momento el sistema abre una **ventana de vitales de 4 horas** por cada residente tuyo y te avisa: "Tienes 4 horas para tomar vitales a tus N residentes". En turno de noche no se abren.
+
+Un aviso: esa notificacion enlaza a una pantalla de enfermeria en la que tu no entras. **Los vitales se toman desde el boton Vitales de la tarjeta del residente.**
+
+**4. Escuchas el prologo.** Zendi te narra el arranque del turno.
+
+## Que dice el prologo y que no dice
+
+| Zendi SI te anuncia | Zendi NO te anuncia |
+|---|---|
+| Temperatura elevada de algun residente | Los medicamentos que faltan por dar |
+| Quien comio poco o nada en la ultima comida | Lo que el turno anterior dejo sin dar |
+| Las citas medicas del dia | Las rotaciones atrasadas |
+| Los eventos de la sede | |
+
+**Lo que falta de medicamentos no sale en el prologo.** Lo ves abriendo Medicamentos en cada tarjeta: el numero rojo del boton dice cuantos tiene ese residente en este turno, y dentro ves cuales estan dados y cuales no.
+
+Si tocas "Omitir Audio (Lectura Rapida)" pasas a la version escrita, con dos bloques distintos:
+
+- **Relevo de tu turno anterior** — el reporte que firmo quien salio, con su nombre y la hora, y un enlace a "Ver reporte completo".
+- **Prologo del Dia — Zendi** — el de la sede entera.
+
+Y tres contadores: alertas de vitales, inapetencias y citas de hoy.
+
+Si el prologo no suena o se corta, el relevo escrito sigue estando — pero el enlace a el vive en esa misma pantalla de entrada. Si ya la pasaste, lo encuentras en Reportes de Turno.
+
+![La lista del turno abierto: arriba el chip del color, el chip rojo de tareas SLA y Entregar Turno; abajo Residentes (5) con "4 tuyos · 1 por cobertura".](/academy/capturas/care-turno-lista.jpg)
+
+## Cuando falta alguien
+
+Si un grupo se queda sin cuidadora, sus residentes se reparten: los reparte el sistema solo, o los reparte el supervisor. A ti te llegan a la tarjeta marcados **COBERTURA** con el color de donde vienen. Y el encabezado te lo dice en claro: "4 tuyos · 1 por cobertura".
 
 PREGUNTAS:
-P: Que es el Prologo del Turno en Zendity?
-a) Un formulario que el cuidador debe llenar al iniciar
-b) Una reunion presencial con el supervisor
-*c) Un resumen narrado por Zendi al empezar
-d) Un examen de conocimientos al inicio de cada turno
-EXPLICACION: El Prologo del Turno es un resumen automatico narrado por Zendi (el asistente de voz) que incluye handover, residentes asignados, medicamentos MISSED y tareas pendientes.
+P: En que orden se abre el turno?
+a) Fichas, eliges color y luego verificas el censo
+b) Oyes a Zendi, eliges tu color, fichas y verificas el censo
+*c) Eliges color, verificas el censo, fichas y oyes a Zendi
+d) Verificas el censo, oyes a Zendi, eliges tu color y fichas
+EXPLICACION: El prologo suena de ultimo, despues de fichar; si lo esperas al entrar a la aplicacion no va a llegar nunca.
 
-P: Cuando se activa el Prologo del Turno?
-a) Cuando el supervisor lo solicita manualmente
-b) 30 minutos antes del inicio del turno
-*c) Automaticamente cuando el cuidador inicia sesion al comienzo del turno
-d) Solo los lunes de cada semana
-EXPLICACION: El Prologo se activa automaticamente al iniciar sesion al comienzo del turno, asegurando que todo cuidador reciba la informacion critica antes de comenzar a trabajar.
+P: Carmen Delgado 210 salio a dialisis y el sistema la da por presente. Que marcas en el censo?
+*a) La marcas en Dialisis, que es lo que hay hoy
+b) La dejas en Presente y lo escribes en la bitacora
+c) No fichas hasta que el supervisor lo corrija
+d) La marcas Presente y avisas al supervisor
+EXPLICACION: El censo se llena con lo que hay en el piso; la pantalla te avisa de la diferencia con lo que creia el sistema y esa diferencia es informacion, no un error tuyo.
 
-P: Si hay medicamentos MISSED del turno anterior, como se entera el cuidador?
-a) Leyendo un correo electronico
-b) El supervisor le llama por telefono
-*c) Zendi lo anuncia como parte del Prologo del Turno
-d) No se entera hasta que revisa el eMAR manualmente
-EXPLICACION: Los medicamentos MISSED del turno anterior se anuncian en el Prologo del Turno para que el cuidador entrante los priorice inmediatamente.
+P: Al fichar se te abre una ventana de vitales. De cuanto es, y para quien?
+a) De 2 horas, solo para los residentes de alto riesgo
+b) De 8 horas, para todos los residentes de la sede
+c) De 12 horas, para los que no tuvieron vitales ayer
+*d) De 4 horas, para los residentes que te tocaron hoy
+EXPLICACION: Se abre una orden por cada residente asignado al fichar, menos en turno de noche, y la cuenta regresiva la ves en su tarjeta.
 
-P: Quien asigna los grupos de color a los cuidadores?
-a) El cuidador elige su propio grupo cada dia
-b) Se asignan aleatoriamente por el sistema
-*c) El supervisor los asigna antes del turno usando el Schedule Builder
-d) Se rotan automaticamente cada semana
-EXPLICACION: El supervisor asigna los grupos de color antes de cada turno mediante el Schedule Builder, distribuyendo la carga de trabajo equitativamente entre los cuidadores disponibles.
+P: Que te anuncia Zendi en el prologo del turno?
+a) Los medicamentos que no dio el otro turno
+*b) Fiebre, quien comio poco y las citas del dia
+c) Las ulceras que hay que curar antes del mediodia
+d) El horario de la semana que viene y los relevos
+EXPLICACION: Tambien te entrega el relevo del turno anterior y los eventos de la sede; de medicamentos no dice nada, eso se ve en el boton de cada tarjeta.
 
-P: Que sucede si un companero tiene una emergencia con uno de sus residentes?
-a) Nada, cada cuidador solo atiende su grupo
-b) Se cancela el turno completo
-*c) El supervisor puede reasignar temporalmente residentes de otro color a tu pantalla
-d) El residente queda sin atencion hasta el proximo turno
-EXPLICACION: El supervisor puede reasignar temporalmente residentes de otro grupo de color al cuidador disponible. El cambio se refleja automaticamente en la pantalla /care.
+P: Ves el aviso ambar "1 grupo sin cubrir" y vas a cubrirlo. Que haces?
+a) Esperas a que el supervisor te lo asigne
+b) Pulsas tu color normal y avisas despues
+*c) Tocas el aviso y tomas el grupo ahi mismo
+d) Fichas dos veces, una por cada grupo que cubras
+EXPLICACION: Ese aviso es el camino de la sustituta y de quien cubre: se reclama desde ahi y los residentes te llegan marcados con la etiqueta de cobertura.
 
 ---SECCION_3---
 LECTURA:
-# eMAR Basico para Cuidadores
+# Medicamentos: se firma el pack, no la pastilla
 
-El eMAR (Electronic Medication Administration Record) es el modulo donde se registra la administracion de medicamentos. Como cuidador, tu rol en el eMAR es ejecutar las administraciones programadas bajo la supervision de la enfermera de turno.
+Abres Medicamentos en la tarjeta y no ves una lista suelta. Ves **packs por hora**: "Pack 8:00 AM", y arriba a la derecha "Pack 1 de 3 · 0/3 completados". Se trabaja un pack a la vez, y cuando queda resuelto entero pasa al siguiente.
 
-**Tu flujo en el eMAR:**
+Dentro del pack, cada linea te dice **nombre, dosis y via**. La hora es el titulo del pack. No hay foto del medicamento: la comprobacion visual la haces contra el **Cardex**, el boton de arriba del modal.
 
-1. **Revisa la lista de medicamentos** de tu residente. Cada medicamento muestra: nombre, dosis, via de administracion, hora programada y una foto de referencia
-2. **Verifica los "5 correctos"**: Residente correcto, medicamento correcto, dosis correcta, via correcta, hora correcta
-3. **Administra el medicamento** siguiendo las instrucciones en pantalla
-4. **Registra la administracion** tocando el boton de confirmacion. Zendity registra tu PIN, la hora exacta y el medicamento
+## La firma
 
-**Estados de un medicamento en el eMAR:**
+Abajo del pack hay un recuadro para firmar con el dedo y un boton teal: **"Administrar pack · 8:00 AM"**, con el rotulo "Una firma para los 3 meds pendientes".
 
-- **PENDIENTE** (gris): Aun no es hora de administrarlo
-- **LISTO** (azul): Es hora de administrarlo — requiere tu accion
-- **ADMINISTRADO** (verde): Se registro la administracion correctamente
-- **MISSED** (rojo): La ventana de tiempo para administrarlo paso sin registro. Requiere atencion inmediata
-- **RECHAZADO**: El residente se nego a tomar el medicamento — debe documentarse el motivo
+| Como es hoy | Como NO es |
+|---|---|
+| Una firma manuscrita para todo el pack | Un PIN por cada medicamento |
+| Al firmar certificas que comprobaste las 5 correctas | Un boton de confirmar en cada linea |
+| Puedes declarar la hora real arriba, en "Hora del registro" | Una hora automatica que no puedes tocar |
 
-**Importante**: Como cuidador, NO puedes modificar ordenes medicas, cambiar dosis ni reprogramar horarios. Esas acciones requieren el rol NURSE o superior.
+Debajo del boton, la pantalla lo dice con esas palabras: al firmar certificas haber comprobado **las 5 Categorias Clinicas Correctas**. Son las de siempre: residente correcto, medicamento correcto, dosis correcta, via correcta, hora correcta.
+
+Y la **hora real**: si diste el pack a las 8:00 pero lo estas firmando a las 9:20, pon 8:00 en "Hora del registro". Se acepta hasta 12 horas atras y nada en el futuro. El expediente guarda las dos horas, la del cuido y la del tecleo.
+
+## Los estados que ves en tu tableta
+
+| Etiqueta | Que quiere decir |
+|---|---|
+| **Firmado**, verde | Se administro y esta firmado |
+| **Omitido**, rojo | No se dio, con su motivo |
+| **Rechazado**, ambar | El residente no quiso |
+| **Suspendido**, gris | Lo paro el medico o hay un procedimiento |
+| Sin etiqueta, con boton **Omitir** | Todavia no se ha resuelto |
+
+"Suspendido" no es una falta tuya. Y hay un estado, MISSED, que el sistema pone solo dos horas despues de la hora pautada: **existe en el expediente pero en tu tableta no se ve**, asi que no lo busques ahi.
+
+## Cuando no se da
+
+Se toca **Omitir** en esa linea y se abre un panel rojo: "Por que se omite Losartan?". Hay que hacer dos cosas, y hasta que no estan las dos el boton sigue gris:
+
+1. Elegir el motivo de una lista de siete: Residente lo rechazo · Medicamento no disponible · Residente en procedimiento · Indicacion medica · Fuera del hogar · Residente fallecio · Otro.
+2. Escribir el detalle, **minimo diez caracteres**.
+
+**El motivo que elijas decide como queda en el expediente.** "Residente lo rechazo" queda como Rechazado. "Indicacion medica" y "en procedimiento" quedan como Suspendido. El resto queda como Omitido. No es lo mismo "no quiso" que "lo paro el medico", asi que elige el verdadero. Enfermeria y supervision se enteran de **toda** omision en el momento.
+
+## PRN, el de razon necesaria
+
+El PRN no va en ningun pack. Se registra desde "+ Registrar dosis PRN (S.O.S.)":
+
+- **Uno solo.** Eliges que medicamento.
+- **Para que.** Obligatorio. Ejemplo: agitacion al bañarlo, dolor en la cadera.
+- Firma con el dedo.
+
+Y despues Zendity te pregunta **si hizo efecto**, con cuatro respuestas: Resolvio, Mejoro en parte, Sin efecto, No se pudo evaluar. Esa pregunta es la que decide si se repite, se cambia o se llama al medico. "No se pudo evaluar" existe para que nunca tengas que inventar una respuesta.
+
+## Lo que no te toca
+
+Como cuidadora **no puedes crear ni editar una orden de medicamento**: ni la dosis, ni el horario, ni suspenderla. Eso es de enfermeria para arriba. Tu los das y los registras, y documentas por que no se dio cuando no se da.
 
 PREGUNTAS:
-P: Cual es el rol del cuidador en el eMAR?
-a) Crear ordenes medicas para residentes nuevos
-*b) Ejecutar las administraciones de medicamentos programadas bajo supervision de enfermera
-c) Modificar dosis segun su criterio clinico
-d) Aprobar cambios en los horarios de medicamentos
-EXPLICACION: El cuidador ejecuta las administraciones programadas en el eMAR. No puede crear ordenes, modificar dosis ni reprogramar horarios — eso requiere rol NURSE o superior.
+P: Como se firman los medicamentos de las 8:00 AM de Rosa Medina 204?
+a) Uno por uno, poniendo tu PIN en cada medicamento
+b) Uno por uno, con una firma para cada dosis
+c) Con la huella del residente y tu contraseña
+*d) Con una firma con el dedo para todo el pack
+EXPLICACION: El boton dice "Administrar pack" y debajo "Una firma para los N meds pendientes": esa firma cubre todos los que quedan sin resolver en ese pack.
 
-P: Cuales son los "5 correctos" que debe verificar el cuidador?
-a) Nombre, apellido, habitacion, turno y fecha
-*b) Residente correcto, medicamento correcto, dosis correcta, via correcta, hora correcta
-c) Color, tamano, forma, olor y sabor del medicamento
-d) PIN, sesion, dispositivo, ubicacion y permiso
-EXPLICACION: Los 5 correctos son: residente correcto, medicamento correcto, dosis correcta, via correcta y hora correcta. Es un estandar de seguridad en la administracion de medicamentos.
+P: Luis Ortega 112 estaba en el hospital a la hora de su Tamsulosina. Tocas Omitir. Que te pide la pantalla?
+a) Nada mas: se guarda al tocar el boton
+*b) Un motivo de la lista y una explicacion corta
+c) Un codigo del supervisor y la firma de enfermeria
+d) La hora exacta en que el residente volvio al piso
+EXPLICACION: Hay siete motivos y un minimo de diez caracteres de detalle; sin las dos cosas el boton de confirmar se queda gris.
 
-P: Que indica el estado MISSED (rojo) en el eMAR?
-a) Que el medicamento fue administrado exitosamente
-b) Que el residente fue trasladado a otro centro
-*c) Que la ventana para administrarlo paso sin registro
-d) Que el medicamento esta en backorder
-EXPLICACION: MISSED significa que el medicamento no fue registrado dentro de su ventana de tiempo programada. Es un estado critico que requiere atencion inmediata y seguimiento.
+P: En tu tableta un medicamento sale Suspendido. Que quiere decir?
+a) Que el residente lo escupio y hubo que repetirlo
+b) Que la farmacia no lo ha traido todavia
+*c) Que lo paro el medico o hay un procedimiento
+d) Que pasaron dos horas de la hora pautada
+EXPLICACION: Se pinta en gris y no en rojo justamente porque no es una omision tuya: lo decidio alguien con autoridad para decidirlo.
 
-P: Que debe hacer el cuidador si un residente se niega a tomar su medicamento?
-a) Forzar al residente a tomarlo
-b) Ignorar el medicamento y pasar al siguiente
-*c) Documentar el rechazo y registrar el motivo en el eMAR
-d) Administrar el medicamento en la comida sin que el residente se de cuenta
-EXPLICACION: Si un residente rechaza su medicamento, el cuidador debe documentar el rechazo en el eMAR con el motivo. Nunca se debe forzar ni administrar medicamentos sin conocimiento del residente.
+P: Le das un PRN a Carmen Delgado 210 por dolor de cadera. Que te pide Zendity despues?
+*a) Que digas despues si le hizo efecto o no
+b) Que repitas la dosis cuando pasen cuatro horas
+c) Que avises a la familia por su portal
+d) Que imprimas el Cardex y se lo firmes
+EXPLICACION: Resolvio, Mejoro en parte, Sin efecto o No se pudo evaluar: sin esa respuesta nadie sabe si repetirlo, cambiarlo o llamar al medico.
 
-P: Que informacion registra Zendity automaticamente al confirmar una administracion?
-a) Solo el nombre del medicamento
-b) Unicamente la hora del registro
-*c) El PIN del cuidador, la hora exacta y el medicamento administrado
-d) Solo el estado de animo del residente
-EXPLICACION: Al confirmar una administracion, Zendity registra automaticamente el PIN del cuidador (quien lo hizo), la hora exacta (cuando) y el medicamento (que), creando un registro auditable.
+P: Que puede hacer una cuidadora con las ordenes de medicamento?
+a) Cambiar la dosis si el residente la tolera mal
+b) Mover la hora cuando el residente esta dormido
+c) Suspender el que pida la familia
+*d) Administrarlos y registrar lo que paso
+EXPLICACION: Crear una orden, cambiar dosis o reprogramar horarios necesita rol de enfermeria o superior; el sistema no te lo deja hacer aunque te lo pidan.
 
 ---SECCION_4---
 LECTURA:
-# Daily Log y Documentacion
+# Lo que registras, y quien lo va a leer
 
-El **Daily Log** es tu herramienta de documentacion continua durante el turno. Cada nota que escribes se convierte en parte del expediente oficial del residente, visible para enfermeras, supervisores y — en caso de auditorias — para reguladores.
+## Actividades Diarias y Comidas
 
-**Cuando documentar en el Daily Log:**
+El boton **Bitacora** de la tarjeta abre "Actividades Diarias y Comidas". Casi todo ahi es de boton, no de escribir:
 
-- **Observaciones de comportamiento**: Cambios de animo, agitacion, confusion, somnolencia inusual
-- **Ingesta de alimentos**: Si el residente comio bien, poco, o rechazo alimentos
-- **Actividades completadas**: Bano, cambio de ropa, ejercicios, actividades recreativas
-- **Signos vitales basicos**: Temperatura, presion, si el protocolo de tu Sede lo requiere
-- **Eventos inusuales**: Cualquier cosa fuera de lo normal — queja de dolor, visita inesperada, solicitud especial
+| Bloque | Que se toca |
+|---|---|
+| Higiene Matutina | Completar Baño de 6AM-10AM (con dos minutos de espera para no duplicar) |
+| Control de Continencia | Seco · Humedo · Evacuacion |
+| Piel | Rotacion Izquierda / Supino / Derecha. El recuadro de arriba dice "Protocolo UPP Activo" si el residente tiene rotacion indicada, y "Vigilancia Dermatologica" si no |
+| Registro Nutricional | Desayuno, Almuerzo o Cena, y luego Todo / Mitad / Poco / Nada |
+| Logistica | Lavar Ropa · Aseo Habitacion |
+| De noche | Control de Noche: Profundo · Despierto · Anomalia |
 
-**Buenas practicas de documentacion:**
+Si marcas que comio **Poco** o **Nada**, la pantalla te pregunta por que y **no te deja guardar sin contestar**. Hay diez motivos, y dos de ellos existen para que no tengas que inventar ninguno: "Rechazo y no dijo por que" y "Otro". Tres de esos motivos —nausea o vomito, dolor o malestar, dificultad para tragar— avisan a enfermeria.
 
-Escribe notas claras, objetivas y en tiempo real. No uses lenguaje subjetivo como "el residente parece triste" — en su lugar, documenta lo observable: "El residente no participo en la actividad grupal y permanecio en silencio durante el almuerzo." La diferencia es que lo observable es verificable y util clinicamente.
+Arriba del todo esta **Hora del registro**. Si bañaste a Pedro Santana 103 a las 7:15 y estas registrando a las 8:47, pon 7:15. Hasta 12 horas atras, nunca en el futuro.
 
-**Override Forzado:**
+Los **signos vitales no estan aqui**. Tienen su propio boton en la tarjeta, y ahi llenas solo lo que mediste: si solo tomaste la glucosa, registra solo la glucosa.
 
-Si necesitas registrar una accion fuera del flujo normal (por ejemplo, documentar un medicamento administrado tarde), Zendity te pedira un **Override Forzado**. Esto requiere ingresar tu PIN y un motivo obligatorio. El Override queda marcado en el sistema para revision del supervisor.
+## Los tres sitios donde escribes con tus palabras
+
+Esta es la decision con mas consecuencia que tomas en la tableta, porque **cada sitio lo lee gente distinta**:
+
+| Donde | Quien lo lee |
+|---|---|
+| **Bitacora General** (el ultimo cuadro de Actividades) | Enfermeria, supervision, una auditoria — **y la familia, en su portal** |
+| **Preventiva** (Reporte a Enfermeria) | Enfermeria y supervision. No se publica a la familia |
+| **Algo cambio en el residente** | Enfermeria, que tiene que contestarte |
+
+Leelo otra vez: **lo que escribes en la Bitacora General lo puede leer un hijo.** Escribe pensando en eso. Si es algo clinico que debe quedar dentro del equipo, no va ahi: va por **Preventiva**, que entra derecho a enfermeria.
+
+## Algo cambio en el residente
+
+Para lo que notas y todavia no es una emergencia. Dos pasos: eliges el area y escribes que viste, minimo 15 caracteres.
+
+Las areas son nueve: Se mueve distinto · Come o bebe distinto · Mas confundido · Animo o conducta · Piel · Dolor · Duerme distinto · Continencia · Otra cosa.
+
+Lo que hace util ese registro es **tu frase**, no la etiqueta. "Ya no se levanta solo del sillon. Hay que darle la mano cada vez que se para, y camina inclinado hacia la izquierda. Hace una semana cruzaba el pasillo sin ayuda." Eso se lee y se entiende. Y el circuito se cierra: enfermeria lo revisa y te contesta que se hizo.
+
+![Asi se ve del otro lado lo que tu escribiste: enfermeria lo tiene en cola, con tu nombre debajo, y arriba el aviso de que tres residentes tienen lo mismo.](/academy/capturas/cambios-lista.jpg)
+
+## Acciones: la puerta de lo que no es rutina
+
+En el menu de la izquierda, **Acciones** abre Operaciones Centrales con seis tarjetas:
+
+- Cambio Clinico u Observacion
+- Señalamiento de Familia
+- Incidente de Mantenimiento
+- Alerta Piel / UPP
+- Medicamento sin administrar (encontrado en cama, mesa o carrito)
+- Alerta Critica: Caida
+
+Dentro de **Cambio Clinico** tienes que elegir entre dos botones:
+
+| Nota de turno | Alerta clinica |
+|---|---|
+| Algo que hiciste o notaste | Necesita que alguien lo atienda |
+| Queda en el expediente | Escala a enfermeria y supervision |
+
+## Como se escribe
+
+Documenta **lo observable**, no tu conclusion. No "el residente parece triste": escribe "no participo en la actividad y permanecio en silencio durante el almuerzo". Lo que se ve es verificable y le sirve a quien tiene que decidir; una conclusion tuya, no.
+
+Y escribe **en el momento**. Lo que se deja para el final del turno se escribe peor y a veces no se escribe.
 
 PREGUNTAS:
-P: Que es el Daily Log en Zendity?
-a) Un resumen automatico generado por el sistema
-b) Un formulario que solo llena la enfermera
-*c) La herramienta de documentacion continua del cuidador durante el turno
-d) Un reporte mensual de rendimiento
-EXPLICACION: El Daily Log es donde el cuidador documenta continuamente observaciones, actividades y eventos durante su turno. Cada nota se convierte en parte del expediente oficial del residente.
+P: Escribes en la Bitacora General que Pedro Santana 103 estuvo callado todo el dia. Quien puede leer eso?
+a) Solo enfermeria y el supervisor que firma el relevo
+b) Solo tu, que la firmas con tu nombre
+*c) El equipo, y tambien la familia en su portal
+d) Nadie: la bitacora se borra al cerrar el turno
+EXPLICACION: La familia lee la nota de la bitacora en su portal, asi que lo clinico que debe quedar dentro del equipo va por Preventiva y no por ahi.
 
-P: Cual es la forma correcta de documentar un cambio de animo del residente?
-a) "El residente esta deprimido y triste ultimamente"
-b) "Creo que el residente no se siente bien emocionalmente hoy"
-*c) "No participo en la actividad y permanecio en silencio"
-d) "El residente tuvo un mal dia"
-EXPLICACION: Y mejor todavia con la hora: "durante el almuerzo". Lo que se ve es verificable; "esta triste" es una conclusion tuya, y no le sirve a quien tiene que decidir.
+P: Rosa Medina 204 lleva tres dias caminando inclinada. No es emergencia. Por donde lo reportas?
+a) En la Bitacora General, al final del turno
+*b) Con el boton de Algo cambio en el residente
+c) Con Trasladar ER para que la vea el medico del hogar
+d) Con Alerta Caida, aunque no se haya caido
+EXPLICACION: Ese boton existe justo para lo que cambio sin ser todavia una emergencia, y enfermeria tiene que revisarlo y contestarte que se hizo.
 
-P: Que es un Override Forzado en Zendity?
-a) Una funcion para eliminar registros erroneos
-*b) Un mecanismo para registrar fuera del flujo normal
-c) Una herramienta para cambiar ordenes medicas sin autorizacion
-d) Un boton para reiniciar el sistema
-EXPLICACION: Exige PIN y un motivo obligatorio, y queda marcado para que lo revise el supervisor. Sirve para cosas como un medicamento administrado tarde: se registra lo que paso, no se esconde.
+P: Marcas que Carmen Delgado 210 no comio nada en el almuerzo. Que pasa?
+a) Se avisa a la cocina y no hay nada mas que hacer
+*b) Te pide el motivo antes de dejarte guardar
+c) Se abre una alerta roja al supervisor
+d) Se descuenta de la comida del dia siguiente
+EXPLICACION: Son diez motivos y hay uno honesto para cuando no lo dijo; tres de ellos ademas avisan a enfermeria en el momento.
 
-P: Quien puede ver las notas que el cuidador escribe en el Daily Log?
-a) Solo el cuidador que las escribio
-b) Solo la familia del residente
-*c) Enfermeras, supervisores y reguladores en caso de auditorias
-d) Unicamente el administrador de la Sede
-EXPLICACION: Las notas del Daily Log son parte del expediente oficial. Son visibles para enfermeras, supervisores y, en caso de auditorias, para reguladores que revisen el cumplimiento de la facilidad.
+P: En Acciones, dentro de Cambio Clinico, eliges entre Nota de turno y Alerta clinica. Que decides ahi?
+a) Si el reporte lo escribes tu o lo escribe Zendi
+b) Si la nota se imprime para el expediente en papel
+c) Si el residente va o no va al hospital
+*d) Si el caso escala para que alguien lo atienda
+EXPLICACION: Nota de turno se queda en el expediente; Alerta clinica sube a enfermeria y supervision porque alguien tiene que hacer algo con ella.
 
-P: En que momento debe el cuidador escribir sus notas en el Daily Log?
-a) Al final del turno, cuando tenga tiempo libre
-b) Una vez a la semana en un resumen
-*c) En tiempo real, en el momento que ocurre la observacion o evento
-d) Solo cuando el supervisor lo solicita
-EXPLICACION: Las notas deben escribirse en tiempo real para garantizar precision. Documentar al final del turno aumenta el riesgo de omisiones y errores en los detalles.
+P: Bañaste a Pedro Santana 103 a las 7:15 y lo estas registrando a las 8:47. Que haces?
+a) Esperas al dia siguiente para registrarlo
+*b) Pones 7:15 arriba, en Hora del registro
+c) Pides al supervisor que la corrija
+d) Lo escribes en la bitacora y no tocas nada mas
+EXPLICACION: Acepta hasta 12 horas atras y nada en el futuro, y el expediente guarda las dos horas: la del cuido y la del tecleo.
 
 ---SECCION_5---
 LECTURA:
-# Cierre de Turno y Handover
+# Lo que pasa, y como entregas el turno
 
-El cierre de turno es tan importante como el inicio. Un turno bien cerrado protege a los residentes, protege al cuidador saliente y prepara al entrante para un turno exitoso. Zendity estructura este proceso para que nada quede pendiente.
+## Algo paso
 
-**Checklist de cierre de turno:**
+Los tres botones de abajo de la tarjeta son los que no se deshacen. Van separados por una linea a proposito.
 
-1. **Verificar medicamentos**: Confirma que todos los medicamentos programados para tu turno estan en estado ADMINISTRADO o tienen documentacion de por que no se administraron (RECHAZADO, MISSED con motivo)
-2. **Completar Daily Log**: Asegurate de que todas tus observaciones estan registradas. No dejes notas pendientes "en tu cabeza"
-3. **Resolver alertas**: Revisa si tienes alertas activas sin atender. Si no puedes resolverlas, escalala al supervisor antes de salir
-4. **Preparar handover**: Zendity genera un resumen automatico de tu turno, pero debes revisarlo y agregar notas adicionales si algo no quedo capturado
+**Alerta Caida.** Si la presenciaste, contestas lo que viste: si reacciona y esta consciente, si hay sangrado, el dolor de 0 a 10. Si **no** la presenciaste, marcas la casilla "No la presencie — me la reportaron" y entonces te pide dos cosas que solo tu sabes: **quien te la reporto** y **cuando fue**. La caida del turno de noche que te cuentan por la mañana no paso por la mañana, y si la registras con la hora de ahora el patron de caidas de ese residente deja de leerse.
 
-**El handover en Zendity:**
+**Trasladar ER.** Traslado al hospital. Te pregunta si fue por una caida.
 
-El handover es la transferencia formal de responsabilidad entre turnos. Zendity facilita este proceso con un modulo dedicado que incluye:
+**Reportar fallecimiento.** El residente deja de aparecer en el piso de inmediato y direccion recibe el aviso. **El cierre del expediente lo hace direccion, no tu.** Este boton existe para que nadie tenga que usar "Trasladar ER" para un fallecimiento, que es lo que pasaba antes.
 
-- Resumen automatico de eventos del turno
-- Lista de medicamentos MISSED y motivos
-- Alertas activas pendientes
-- Notas del cuidador saliente para el entrante
+Y cuando el residente vuelve: la tarjeta queda velada con el sello "En Hospital" o "En Dialisis" y un boton verde **"Registrar Retorno al Piso"**. Mientras esta fuera, el sistema no le pide medicamentos a nadie.
 
-**Que pasa si no cierras tu turno:**
+## Entregar Turno
 
-Si no completas el cierre de turno, Zendity genera una **sesion zombi** — una sesion que permanece abierta sin actividad. El supervisor recibe una alerta de sesion zombi y debe investigar. Las sesiones zombi son indicadores de problemas operativos y afectan el puntaje de cumplimiento.
+El boton esta arriba a la derecha. Abre un asistente de **tres pasos**, y el cartel lo dice sin rodeos: tu turno se cierra cuando firmes este reporte.
+
+**Paso 1 — Pendientes de tu turno.** Lo que quedo abierto, en dos grupos:
+
+| Bloqueos Criticos | Decisiones Requeridas |
+|---|---|
+| No te dejan cerrar | Se resuelven ahi mismo con un boton |
+| Hay que resolverlos en Triage Central | Ejemplo: Rehuso / Durmio / Trasladar |
+
+Si no hay nada, sale "Estado Limpio".
+
+**Paso 2 — Tu reporte de turno.** Zendi lo arma con lo que tu hiciste hoy y te enseña cuatro contadores: Meds, Baños, Comidas, Vitales. **Leelo completo.** Puedes corregir el texto en el cuadro si algo esta mal, y hay una casilla obligatoria: "He leido y confirmo que este reporte es correcto".
+
+**Paso 3 — Firma con el dedo.**
+
+Dos cosas que hay que saber de este paso:
+
+- **Si editas el texto despues de firmar, la firma se borra** y tienes que firmar otra vez. Es a proposito: firmas lo que leiste.
+- **Los medicamentos que omitiste salen solos**, con el motivo que escribiste al omitirlos. Leelos antes de firmar: si el motivo quedo corto, ahi es donde lo explicas.
+
+![El asistente de cierre. Izquierda, Paso 1: aqui salio "Estado Limpio" porque no quedaba nada pendiente. Derecha, el reporte que armo Zendi con los cuatro contadores del turno, y debajo la casilla sin marcar: hasta que no la marques y firmes, el turno sigue abierto.](/academy/capturas/care-turno-entregar.jpg)
+
+## Que pasa despues de tu firma
+
+1. Firmas tu reporte.
+2. Le llega al **supervisor** para su firma.
+3. El **proximo turno** lo recibe al entrar.
+
+## Y si no firmas
+
+No hay una multa ni te bloquean nada. Lo que pasa es peor y mas silencioso:
+
+- **La que entra detras de ti entra a ciegas.** No sabe de la fiebre de Carmen, ni de que Luis lleva dos dias sin baño.
+- Queda contado en tu **Mi Desempeño**, en "Turnos cerrados con el relevo: X de Y".
+- Tu sesion se queda abierta y el supervisor la ve en su panel, en **Sesiones Sin Cerrar**, con las horas que lleva.
 
 PREGUNTAS:
-P: Que es lo primero que debe verificar el cuidador al cerrar su turno?
-*a) Que todos los medicamentos tienen estado definido
-b) Que el supervisor aprobo su salida
-c) Que el dispositivo esta cargado
-d) Que la familia fue notificada de cada actividad
-EXPLICACION: ADMINISTRADO, o con el motivo documentado (RECHAZADO, MISSED). Lo que no puede quedar es un medicamento sin estado: eso no dice que paso, dice que nadie miro.
+P: Te cuentan por la mañana que Luis Ortega 112 se cayo de madrugada. Que haces?
+*a) Marcas que no la presenciaste y pones la hora real
+b) Esperas a que la registre quien estaba de noche
+c) La anotas en la bitacora, no en el modulo de caidas
+d) La registras con la hora de ahora, que es cuando te enteras
+EXPLICACION: Con esa casilla te pide quien te la reporto y cuando fue, y sin la fecha del evento el patron de caidas de ese residente queda ilegible.
 
-P: Que es una sesion zombi?
-a) Una sesion de entrenamiento nocturna
-b) Un tipo de alerta para residentes con insomnio
-*c) Una sesion que permanece abierta sin actividad porque el cuidador no cerro su turno
-d) Un error del sistema que se corrige automaticamente
-EXPLICACION: Una sesion zombi es una sesion que queda abierta sin actividad porque el cuidador no completo el cierre de turno. Genera una alerta al supervisor y afecta el cumplimiento.
+P: Que te enseña el Paso 1 del cierre de turno?
+a) El horario de la semana que viene
+b) La lista de residentes que te tocaron
+*c) Lo que quedo pendiente en tu turno
+d) Los cursos de Academy que te faltan
+EXPLICACION: Viene en dos grupos: los bloqueos criticos, que no te dejan cerrar, y las decisiones que se resuelven ahi mismo con un boton.
 
-P: Que genera Zendity automaticamente para facilitar el handover?
-a) Un mensaje de texto al cuidador entrante
-b) Una videollamada entre los dos turnos
-*c) Un resumen automatico de eventos del turno con medicamentos MISSED, alertas y notas
-d) Un formulario en blanco para llenar manualmente
-EXPLICACION: Zendity genera un resumen automatico del turno que incluye eventos, medicamentos MISSED con motivos, alertas activas pendientes y notas del cuidador saliente.
+P: Firmaste el reporte de cierre y despues corriges una linea del texto. Que pasa?
+a) El reporte se manda con la firma anterior
+b) El supervisor tiene que autorizar ese cambio y firmarlo
+c) El texto vuelve al que escribio Zendi
+*d) Se borra la firma y hay que firmar de nuevo
+EXPLICACION: Es a proposito, para que lo que quede firmado sea exactamente lo que leiste y no una version que cambio despues.
 
-P: Que debe hacer el cuidador si tiene alertas activas que no puede resolver antes de salir?
-a) Ignorarlas porque el siguiente turno las vera
-b) Eliminarlas del sistema para limpiar su pantalla
-*c) Escalarlas al supervisor antes de salir del turno
-d) Resolverlas rapidamente sin importar la calidad
-EXPLICACION: Las alertas activas que no se pueden resolver deben escalarse al supervisor antes de terminar el turno. No deben ignorarse ni resolverse apresuradamente sin calidad.
+P: Omitiste dos medicamentos en tu turno. Como llegan al reporte de cierre?
+*a) Salen solos, con el motivo que escribiste
+b) No salen: hay que escribirlos a mano en el texto
+c) Los añade enfermeria cuando firma el relevo
+d) Aparecen al dia siguiente dentro del expediente
+EXPLICACION: Por eso el motivo importa: lo que escribas al omitir es lo que va a leer el turno que entra, tal cual.
 
-P: Por que las sesiones zombi son un problema operativo?
-a) Porque consumen mucha bateria en el dispositivo
-*b) Porque indican que un turno no fue cerrado bien
-c) Porque el sistema deja de funcionar para todos los usuarios
-d) Porque generan costos adicionales de licencia
-EXPLICACION: Las sesiones zombi indican un cierre de turno incompleto, lo que afecta la continuidad del cuidado (informacion no transferida), el cumplimiento regulatorio y el puntaje operativo de la facilidad.
+P: Te vas a casa sin firmar el cierre. Cual es la consecuencia real?
+*a) El proximo turno entra sin saber que paso
+b) La tableta te bloquea la sesion de mañana
+c) Se te descuenta el turno de la nomina
+d) Los residentes quedan sin medicar esa noche
+EXPLICACION: Ademas queda contado en tu Mi Desempeño y tu sesion abierta le sale al supervisor en Sesiones Sin Cerrar.
 `
 },
 
