@@ -23,6 +23,13 @@ export const RUTAS_PUBLICAS = [
     '/verificar',
     /** Encuesta de servicio: llega por correo y se responde sin iniciar sesión. */
     '/encuesta',
+    /**
+     * Andamio de capturas para Academy. Monta pantallas reales con residentes
+     * inventados, para fotografiarlas. En producción devuelve 404 (ver
+     * src/app/capturas/andamio.tsx); es pública solo para que funcione en
+     * desarrollo, donde no hay sesión.
+     */
+    '/capturas',
 ] as const;
 
 /** ¿Esta ruta se abre sin sesión? */

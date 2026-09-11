@@ -309,6 +309,32 @@ export function Lectura({ markdown, tamano, c, ocultarPrimerTitulo = true }: {
                     ),
                     hr: () => <hr className="my-9 border-0 h-px" style={{ backgroundColor: c.filete }} />,
                     a: ({ children }) => <span style={{ color: c.realce }}>{children}</span>,
+
+                    /**
+                     * UNA FOTO DE LA APP, con su pie.
+                     *
+                     * Los 16 cursos que enseñan a USAR Zendity no tienen ni una
+                     * imagen: explican con palabras dónde está un botón. El
+                     * `alt` se usa como pie visible —numerado por quien escribe
+                     * el contenido— porque en un manual la foto sin pie no
+                     * enseña: hay que decir qué mirar dentro de ella.
+                     *
+                     * `loading="lazy"`: un curso con ocho capturas no puede
+                     * pedirlas todas al abrir la primera sección.
+                     */
+                    img: ({ src, alt }) => (
+                        <figure className="my-8 -mx-2 sm:mx-0">
+                            <img src={typeof src === 'string' ? src : ''} alt={alt ?? ''} loading="lazy"
+                                className="w-full rounded-lg"
+                                style={{ border: `1px solid ${c.filete}`, backgroundColor: c.hoja }} />
+                            {alt && (
+                                <figcaption className="mt-2.5 px-1 italic"
+                                    style={{ fontSize: e.px * 0.8, lineHeight: 1.5, color: c.suave }}>
+                                    {alt}
+                                </figcaption>
+                            )}
+                        </figure>
+                    ),
                     code: ({ children }) => (
                         <code className="px-1.5 py-0.5 rounded text-[0.9em]"
                             style={{ backgroundColor: c.realceSuave, fontFamily: 'ui-monospace, monospace' }}>{children}</code>
