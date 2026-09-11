@@ -997,7 +997,9 @@ export default function IntakeWizardPage() {
                                         Marca los que apliquen. Llegan solos al perfil del residente y a la
                                         pantalla de cocina — no hay que volver a ponerlos.
                                     </p>
-                                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                    {/* Dos columnas y no cuatro: la tarjeta es estrecha y a cuatro
+                                        "Diabetica" y "Vegetariana" salian cortadas. */}
+                                    <div className="grid grid-cols-2 gap-4">
                                         {MODIFICADORES_DIETA.map(m => {
                                             const puesto = modificadoresDieta.includes(m.id);
                                             return (
@@ -1013,7 +1015,7 @@ export default function IntakeWizardPage() {
                                                                 : [...modificadoresDieta, m.id],
                                                         ),
                                                     )}
-                                                    className={`p-5 rounded-[1.5rem] font-black text-sm transition-all border-4 active:scale-95 ${
+                                                    className={`px-3 py-5 rounded-[1.5rem] font-black text-sm leading-tight transition-all border-4 active:scale-95 ${
                                                         puesto
                                                             ? 'bg-teal-600 border-teal-700 text-white shadow-lg'
                                                             : 'bg-slate-50 border-transparent text-slate-600 hover:bg-slate-100 hover:border-slate-200'

@@ -26,8 +26,13 @@ interface Toma {
     esperar?: string;
     /** recorta a este selector en vez de a la página entera */
     recortar?: string;
-    /** clics previos, para fotografiar un modal o una pestaña */
-    clics?: string[];
+    /**
+     * Lo que hay que hacer antes de disparar, EN ORDEN: un selector suelto es
+     * un clic; {escribir, en} teclea en un campo. Van mezclados a proposito —
+     * una pauta semanal se fotografia escribiendo el nombre, marcando la hora,
+     * pulsando "Solo ciertos dias" y luego el dia, en ese orden y no en otro.
+     */
+    clics?: (string | { escribir: string; en: string })[];
     /**
      * Foto de la pagina ENTERA en vez de lo que cabe en pantalla.
      *
@@ -125,6 +130,30 @@ const TOMAS: Toma[] = [
     { nombre: "intake-paso-3-riesgos", ruta: '/capturas/intake', ancho: 1280, alto: 900, esperar: "text=Bloques de Admisión", recortar: "div.flex-1.bg-white", clics: ["text=Dieta, UPP, Caídas"] },
     //   El bloque de PAI y Riesgos: dieta, movilidad, continencia y los dos marcadores con sus escalas, Downton (caídas) y Braden (UPP), que cambian de teal a
     { nombre: "intake-paso-4-emar", ruta: '/capturas/intake', ancho: 1280, alto: 900, esperar: "text=Bloques de Admisión", recortar: "div.flex-1.bg-white", clics: ["text=eMAR Borrador"] },
+    { nombre: "intake-dieta-modificadores", ruta: '/capturas/intake', ancho: 1800, alto: 1000, esperar: "text=Modificadores", recortar: 'div.bg-white:has(> label:text-is("Régimen Dietético"))', clics: ["text=Dieta, UPP, Caídas", "text=Blanda", "text=Diabética", "text=Renal"] },
+    //   El bloque de dieta del paso 3 con la textura Blanda escogida arriba y dos
+    //   modificadores marcados en teal debajo (Diabetica y Renal). Es la foto de que
+    //   la dieta COMPLETA sale del ingreso y no hay que volver a marcarla en el perfil.
+    { nombre: "intake-medicamento-semanal", ruta: '/capturas/intake', ancho: 1280, alto: 1000, esperar: "text=Solo Viernes", recortar: "div.flex-1.bg-white", clics: [
+        "text=eMAR Borrador",
+        { escribir: "Alendronato 70 mg", en: 'input[placeholder*="Losartan"]' },
+        "text=08:00 AM",
+        "text=Solo ciertos días",
+        'button:text-is("V")',
+        'button:text-is("Añadir")',
+    ] },
+    //   El caso del alendronato de punta a punta: nombre, la hora de las 8, "Solo
+    //   ciertos dias", el viernes marcado, y abajo el borrador ya con la etiqueta
+    //   ambar "Solo Viernes". Antes esto habia que arreglarlo despues en Med & Zoning.
+    { nombre: "intake-medicamento-dias", ruta: '/capturas/intake', ancho: 1280, alto: 1000, esperar: "text=Marca al menos un día", recortar: 'div.bg-white:has(> label:text-is("Añadir Nuevo Medicamento"))', clics: [
+        "text=eMAR Borrador",
+        { escribir: "Alendronato 70 mg", en: 'input[placeholder*="Losartan"]' },
+        "text=08:00 AM",
+        "text=Solo ciertos días",
+    ] },
+    //   El selector de dias abierto, ANTES de marcar ninguno: las siete letras y el
+    //   aviso ambar "Marca al menos un dia, o quedara como todos los dias". Es la
+    //   unica trampa del paso, y por eso se fotografia sola.
     //   El Inventario Farmacológico: cómo se añade un medicamento y se le marcan los horarios de distribución (05:00 AM … 10:00 PM, PRN). Es el paso que deja 
     // ── /academy
     { nombre: "academy-entrada", ruta: '/capturas/academy-curso', ancho: 1440, alto: 900, esperar: "text=Centro de Formación" },
@@ -178,7 +207,11 @@ async function main() {
              * puede existir, y darlo por fallido.
              */
             await pag.waitForTimeout(1200); // que hidrate antes de tocar nada
-            for (const sel of t.clics ?? []) { await pag.click(sel); await pag.waitForTimeout(900); }
+            for (const paso of t.clics ?? []) {
+                if (typeof paso === 'string') await pag.click(paso);
+                else await pag.fill(paso.en, paso.escribir);
+                await pag.waitForTimeout(900);
+            }
             if (t.esperar) await pag.waitForSelector(t.esperar, { timeout: 15_000 });
 
             /**
