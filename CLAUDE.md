@@ -92,6 +92,8 @@ Solo hacer commit si TSC_EXIT: 0 y sin errores en archivos de producción (tests
 5. **Plaintext PINs en email** — eliminado en commit `34ddc60`. No volver atrás.
 6. **Escribir sin guarda contra doble envío** — ver abajo.
 7. **Listar personas sin filtrar a quien ya no está** — ver abajo.
+8. **Un examen que se aprueba sin leer** — ver abajo.
+9. **Medir un campo que no pediste en el `select`** — ver abajo.
 
 ---
 
@@ -150,6 +152,37 @@ que piden revisión una por una. No se tocan en bloque.
 
 ---
 
+## 📝 Contenido de Academy — la correcta no puede ser la más larga
+
+*Medido el 10-sep-2026.* En el **84%** de las 651 preguntas del catálogo la
+respuesta correcta era la opción **más larga**. Al azar sería 25%. Alguien que
+no leyera una palabra y marcara siempre la más larga **aprobaba 45 de las 130
+secciones**.
+
+Nadie lo puso ahí a propósito y no se ve leyendo las preguntas. Sale solo: al
+escribir, la opción correcta se lleva dentro su propia justificación
+—"...: la autonomía se mide actividad por actividad"— y las incorrectas no. La
+clave crece sin que el autor lo note.
+
+**La regla al escribir una pregunta:** la justificación va en la `EXPLICACION`,
+no dentro de la opción. Ahí además enseña mejor, porque se lee DESPUÉS de
+contestar, cuando la persona ya se comprometió con una respuesta. Cuando
+recortar rompería la pregunta —las que enseñan a *escribir* una nota, donde la
+respuesta correcta ES la descripción detallada— se engordan los distractores.
+
+**Después de tocar contenido, medir:**
+
+```bash
+npx tsx scripts/auditar-examenes.ts
+```
+
+Debe decir **0 de 130 secciones**. Comprueba también "siempre la más corta" y
+"siempre la misma letra". Y ojo con pasarse: 0% de claves largas es una
+sobrecorrección —lo repartido de verdad es 25%— aunque en la práctica no abra
+nada.
+
+---
+
 ## 🆘 Si Algo Sale Mal
 
 1. **PARAR** inmediatamente. No intentar arreglar con más comandos.
@@ -203,12 +236,21 @@ es señalar lo que tú ves que él no ve todavía. Lecciones aprendidas:
    "Los dos que más se repiten" arriba. Ya costó duplicados en vitales,
    caídas y admisión.
 
-9. **¿Esta consulta lista personas?**
+9. **¿Estoy midiendo un campo que de verdad pedí?**
+   El 11-sep-2026 afirmé que los 26 cursos no tenían portada. Miré
+   `imageUrl` en un JSON que yo mismo había generado con un `select` de
+   cinco campos donde `imageUrl` no estaba. Un campo que no pediste
+   devuelve `null` en TODAS las filas, y eso se lee igual que "ninguno
+   lo tiene". Antes de reportar un conteo de ceros, comprueba que el
+   campo esté en el `select` — y contrasta contra la base, no contra una
+   copia tuya recortada.
+
+10. **¿Esta consulta lista personas?**
    Si devuelve una lista o un conteo de residentes o empleados para una
    pantalla, una alerta o una métrica, ¿filtra a quien ya no está? Cuatro
    pantallas distintas señalaban a gente fallecida o dada de baja.
 
-10. **¿Esta lista carga TODO o pagina?**
+11. **¿Esta lista carga TODO o pagina?**
    `findMany` sin take en producción = OOM en cuanto crezcas. Default
    sano: `take: 50` con paginación.
 
