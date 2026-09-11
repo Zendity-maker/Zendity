@@ -51,6 +51,11 @@ const TOMAS: Toma[] = [
     // ── /care/caidas
     { nombre: 'caidas-panel', ruta: '/capturas/caidas', ancho: 1100, alto: 1000, esperar: 'text=Riesgo de caída' },
     //   El bloque de riesgo con los cuatro contadores y las caídas de 90 días con su gravedad.
+    { nombre: "caidas-downton-hoja", ruta: '/capturas/caidas', ancho: 1100, alto: 1100, esperar: "text=Riesgo de caída", recortar: 'div.fixed > div.bg-white.rounded-2xl', clics: ['button:has-text("Carmen Delgado")'] },
+    //   La hoja de Downton abierta: los once si/no por grupos y, abajo, el puntaje
+    //   en vivo con "Desde 3 es riesgo alto". Enseña lo que el curso mas se
+    //   equivocaba: Downton mide el RIESGO del residente, no la gravedad de la
+    //   caida, y tiene tres niveles, no cuatro.
     // ── /care/supervisor
     { nombre: 'supervisor-mission-control', ruta: '/capturas/supervisor', ancho: 1400, alto: 820, esperar: 'text=Mission Control' },
     //   El turno activo, los contadores del piso y los accesos del supervisor.
@@ -75,6 +80,15 @@ const TOMAS: Toma[] = [
     { nombre: "care-turno-ausente", ruta: '/capturas/care-turno', ancho: 1400, alto: 900, esperar: "text=En Hospital", recortar: "div.grid.grid-cols-2.gap-3 > div:nth-child(4)" },
     //   Pedro Santana (103) trasladado: sigue en el censo con el sello "🚑 En Hospital" y el botón "Registrar Retorno al Piso", y su tarjeta ya no pide medicam
     { nombre: "care-turno-notas", ruta: '/capturas/care-turno', ancho: 1400, alto: 900, esperar: "text=Notas y tareas pendientes", clics: ["text=Ver todas"] },
+    { nombre: "caidas-protocolo-tableta", ruta: '/capturas/care-turno', ancho: 1400, alto: 1100, esperar: "text=Protocolo de Caída", recortar: 'div.fixed > div.bg-white.rounded-xl', clics: ['button:has-text("Alerta Caída") >> nth=0'] },
+    //   LA FOTO QUE FALTABA: el modal que abre la cuidadora al pulsar "Alerta
+    //   Caida". Las TRES preguntas que deciden la gravedad del expediente
+    //   —consciente, sangrado, y el deslizador de dolor 0-10— y el boton rojo
+    //   "Evaluar Riesgo y Enviar Alerta Roja".
+    { nombre: "caidas-no-presenciada", ruta: '/capturas/care-turno', ancho: 1400, alto: 1100, esperar: "text=¿Cuándo fue?", recortar: 'div.fixed > div.bg-white.rounded-xl', clics: ['button:has-text("Alerta Caída") >> nth=0', 'text=No la presencié'] },
+    //   El mismo modal con "No la presencié — me la reportaron" marcado: aparecen
+    //   "¿Quién te la reportó?" y "¿Cuándo fue?" con su aviso. Es la trampa del
+    //   paso: la caida que te cuentan por la mañana no paso por la mañana.
     //   La bandeja de notas y tareas del supervisor con el texto completo y el botón "Marcar como atendida". La franja de arriba corta el texto; aquí se ve en
     // ── /Users/andresfloresruiz/Desktop/Zendity/src/app/capturas/care-hub/page.tsx
     { nombre: "care-hub-aterrizaje", ruta: '/capturas/care-hub', ancho: 820, alto: 760, esperar: "text=Iniciar Turno" },
