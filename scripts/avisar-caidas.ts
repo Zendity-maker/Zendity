@@ -318,6 +318,33 @@ async function sinPHI(hqId: string, cuerpo: string, nombreDestinataria = ''): Pr
         .filter(x => palabras.has(sinTildes(x)));
 }
 
+/**
+ * ¿LA CLAVE SIRVE? No basta con que exista.
+ *
+ * El 12-sep-2026 la guarda comprobaba `if (process.env.SENDGRID_API_KEY)` y la
+ * clave estaba ahí — pero revocada. El script escribió las 14 notificaciones en
+ * PRODUCCIÓN y las 14 personas se quedaron con la campana encendida y sin
+ * correo. Exactamente el aviso a medias que la guarda existía para evitar.
+ *
+ * `/v3/scopes` es un GET: pregunta qué permisos tiene la clave y no manda nada.
+ */
+async function laClaveSirve(): Promise<{ ok: boolean; porque: string }> {
+    const clave = process.env.SENDGRID_API_KEY;
+    if (!clave) return { ok: false, porque: 'no hay SENDGRID_API_KEY (vive en .env.local)' };
+    if (!process.env.SENDGRID_FROM_EMAIL) return { ok: false, porque: 'no hay SENDGRID_FROM_EMAIL' };
+    try {
+        const r = await fetch('https://api.sendgrid.com/v3/scopes', {
+            headers: { Authorization: `Bearer ${clave}` },
+            signal: AbortSignal.timeout(15_000),
+        });
+        if (r.status === 401) return { ok: false, porque: 'SendGrid la rechaza (401): está revocada o es de otra cuenta' };
+        if (!r.ok) return { ok: false, porque: `SendGrid responde ${r.status}` };
+        return { ok: true, porque: 'válida' };
+    } catch (e: any) {
+        return { ok: false, porque: `no se pudo comprobar: ${e?.message?.slice(0, 60)}` };
+    }
+}
+
 async function main() {
     console.log(APLICAR ? '📣 Enviando de verdad\n' : '🔍 SIMULACIÓN — no se manda nada\n');
 
@@ -329,15 +356,15 @@ async function main() {
      * medias es peor que ninguno: la persona ve la campana, no ve el correo, y
      * nadie se entera de que el correo no salio.
      */
-    if (APLICAR && !SOLO_APP && !process.env.SENDGRID_API_KEY) {
-        console.error('⛔ No hay SENDGRID_API_KEY. No se escribe nada.');
-        console.error('   Está en .env.local; si el script no la ve, comprueba que lo corres');
-        console.error('   desde la raíz del repo. Para avisar solo dentro de la app: --solo-app');
-        process.exit(1);
-    }
-    if (APLICAR && !SOLO_APP && !process.env.SENDGRID_FROM_EMAIL) {
-        console.error('⛔ No hay SENDGRID_FROM_EMAIL. El remitente no puede ser un literal inventado.');
-        process.exit(1);
+    if ((APLICAR || PRUEBA) && !SOLO_APP) {
+        const clave = await laClaveSirve();
+        if (!clave.ok) {
+            console.error(`⛔ El correo no puede salir: ${clave.porque}.`);
+            console.error('   NO se ha escrito nada. Si quieres avisar solo dentro de la app,');
+            console.error('   sin correo y a sabiendas: --solo-app');
+            process.exit(1);
+        }
+        console.log(`   Clave de SendGrid: ${clave.porque} · remitente ${process.env.SENDGRID_FROM_EMAIL}\n`);
     }
 
     const sedes = await prisma.headquarters.findMany({ select: { id: true, name: true } });
