@@ -345,8 +345,14 @@ async function laClaveSirve(): Promise<{ ok: boolean; porque: string }> {
     }
 }
 
-/** Dónde se deja la página de copiar: la raíz del repo, que es el escritorio de Andrés. */
-const REPO = process.cwd();
+/**
+ * Dónde se deja la página de copiar: el ESCRITORIO.
+ *
+ * Antes caía en la raíz del repo, que es una carpeta a la que hay que entrar.
+ * Esto lo abre Andrés con doble clic cuando va a mandar el correo, así que va
+ * donde lo va a ver.
+ */
+const ESCRITORIO = `${process.env.HOME}/Desktop`;
 
 /**
  * Una página con el correo listo y tres botones de copiar.
@@ -539,7 +545,7 @@ async function main() {
                 general.subject, general.html,
                 gente.map(u => u.email).filter(Boolean) as string[],
             );
-            const fCopiar = `${REPO}/Correo caidas — copiar y pegar.html`;
+            const fCopiar = `${ESCRITORIO}/Correo caidas — copiar y pegar.html`;
             writeFileSync(fCopiar, paraCopiar);
             console.log(`   ⇢ ÁBRELO Y COPIA DE UN CLIC:  ${fCopiar}`);
             console.log(`   Asunto: ${muestra.subject}`);

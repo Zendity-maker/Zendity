@@ -121,5 +121,6 @@ public/academy/_backup_old/
 # Cierra los avisos del panel del supervisor de mas de 30 dias
 !scripts/cerrar-avisos-viejos-del-panel.ts
 
-# La pagina de copiar se genera; no se versiona (lleva los correos del personal)
+# La pagina de copiar se genera en el ESCRITORIO, fuera del repo (lleva los
+# correos del personal). Esta linea queda por si alguien la copia aqui.
 Correo caidas — copiar y pegar.html
