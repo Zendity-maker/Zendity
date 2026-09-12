@@ -345,6 +345,89 @@ async function laClaveSirve(): Promise<{ ok: boolean; porque: string }> {
     }
 }
 
+/** Dónde se deja la página de copiar: la raíz del repo, que es el escritorio de Andrés. */
+const REPO = process.cwd();
+
+/**
+ * Una página con el correo listo y tres botones de copiar.
+ *
+ * El botón del cuerpo selecciona el nodo renderizado y copia con
+ * `execCommand('copy')`: eso deja en el portapapeles el HTML con formato, que
+ * es lo que Gmail pega bien. `navigator.clipboard.write` con ClipboardItem sería
+ * más moderno pero falla en algunos navegadores abriendo un file://, y aquí lo
+ * que importa es que funcione al primer clic.
+ */
+function paginaDeCopiar(asunto: string, cuerpoHtml: string, correos: string[]): string {
+    // Solo el interior del <body> del correo: el <html> entero dentro de otro
+    // <html> confunde al navegador y a Gmail.
+    const dentro = cuerpoHtml.split('<body')[1]?.split('>').slice(1).join('>').split('</body>')[0] ?? cuerpoHtml;
+    return `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Correo de caídas — copiar y pegar</title>
+<style>
+  body{margin:0;background:#EEF2F6;font:15px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#0F172A}
+  .env{max-width:720px;margin:28px auto;padding:0 16px}
+  h1{font-size:19px;margin:0 0 6px}
+  .ayuda{color:#64748B;font-size:14px;margin:0 0 22px}
+  .fila{background:#fff;border:1px solid #D8E0E8;border-radius:12px;padding:16px 18px;margin-bottom:14px;display:flex;gap:14px;align-items:flex-start}
+  .fila .txt{flex:1;min-width:0}
+  .et{font-size:11px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;color:#64748B;margin-bottom:4px}
+  .val{font-size:14px;word-break:break-word;color:#0F172A}
+  button{flex:0 0 auto;background:#0F6E56;color:#fff;border:0;padding:11px 18px;border-radius:9px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit}
+  button:hover{background:#0B5642}
+  button.ok{background:#047857}
+  .previa{background:#fff;border:1px solid #D8E0E8;border-radius:12px;overflow:hidden;margin-top:6px}
+  .previa .barra{padding:12px 18px;border-bottom:1px solid #E8EDF2;display:flex;justify-content:space-between;align-items:center;gap:14px}
+  .nota{color:#64748B;font-size:13px;margin:16px 2px 0}
+</style></head><body>
+<div class="env">
+  <h1>Correo de caídas — listo para pegar</h1>
+  <p class="ayuda">Un clic en cada botón y pégalo en Gmail. El del cuerpo copia <strong>con el diseño</strong>.</p>
+
+  <div class="fila">
+    <div class="txt"><div class="et">Asunto</div><div class="val" id="asunto">${asunto}</div></div>
+    <button onclick="copiarTexto('asunto', this)">Copiar</button>
+  </div>
+
+  <div class="fila">
+    <div class="txt"><div class="et">Destinatarios — ${correos.length}, para copia oculta (CCO)</div>
+      <div class="val" id="correos">${correos.join(', ')}</div></div>
+    <button onclick="copiarTexto('correos', this)">Copiar</button>
+  </div>
+
+  <div class="previa">
+    <div class="barra">
+      <div class="et" style="margin:0">Cuerpo del correo</div>
+      <button onclick="copiarCuerpo(this)">Copiar el correo con formato</button>
+    </div>
+    <div id="cuerpo">${dentro}</div>
+  </div>
+
+  <p class="nota">Si al pegar Gmail se come el fondo gris, no pasa nada: el texto, las negritas y el botón verde llegan bien.</p>
+</div>
+
+<script>
+function avisar(b, t){ const o = b.textContent; b.textContent = t; b.classList.add('ok');
+  setTimeout(() => { b.textContent = o; b.classList.remove('ok'); }, 1600); }
+
+function copiarTexto(id, b){
+  const t = document.getElementById(id).innerText;
+  navigator.clipboard.writeText(t).then(() => avisar(b, 'Copiado'))
+    .catch(() => { const a = document.createElement('textarea'); a.value = t; document.body.appendChild(a);
+      a.select(); document.execCommand('copy'); a.remove(); avisar(b, 'Copiado'); });
+}
+
+/** Selecciona el cuerpo renderizado y lo copia: así va el HTML con formato. */
+function copiarCuerpo(b){
+  const nodo = document.getElementById('cuerpo');
+  const sel = window.getSelection(); const r = document.createRange();
+  r.selectNodeContents(nodo); sel.removeAllRanges(); sel.addRange(r);
+  const ok = document.execCommand('copy');
+  sel.removeAllRanges();
+  avisar(b, ok ? 'Copiado con formato' : 'No se pudo — usa Cmd+A dentro del recuadro');
+}
+</script>
+</body></html>`;
+}
+
 async function main() {
     console.log(APLICAR ? '📣 Enviando de verdad\n' : '🔍 SIMULACIÓN — no se manda nada\n');
 
@@ -436,13 +519,29 @@ async function main() {
 
         if (!APLICAR) {
             const base = `/tmp/aviso-caidas-${hq.name.toLowerCase().replace(/[^a-z]+/g, '-')}`;
-            writeFileSync(`${base}.html`, muestra.html);
-            // La general es la que se copia para mandar en copia oculta a las 14.
             const general = correo(null, n, curso.durationMins);
             writeFileSync(`${base}-general.html`, general.html);
-            writeFileSync(`${base}-general.txt`, general.text);
-            console.log(`   Cuerpo personalizado: ${base}.html`);
-            console.log(`   Cuerpo GENERAL:       ${base}-general.html  (+ .txt)`);
+
+            /**
+             * LA PÁGINA DE COPIAR.
+             *
+             * Andrés manda este correo él, desde su Gmail. Abrir el .html en el
+             * navegador y hacer Cmd+A no sirve: arrastra el fondo de la página
+             * y a veces el código. Y abrirlo en un editor copia el HTML crudo,
+             * que es lo que le pasó.
+             *
+             * Esta página pone tres botones —asunto, destinatarios, cuerpo— y
+             * cada uno deja en el portapapeles exactamente lo que hace falta. El
+             * del cuerpo copia HTML CON FORMATO seleccionando el nodo y usando
+             * execCommand, que es lo que entiende Gmail al pegar.
+             */
+            const paraCopiar = paginaDeCopiar(
+                general.subject, general.html,
+                gente.map(u => u.email).filter(Boolean) as string[],
+            );
+            const fCopiar = `${REPO}/Correo caidas — copiar y pegar.html`;
+            writeFileSync(fCopiar, paraCopiar);
+            console.log(`   ⇢ ÁBRELO Y COPIA DE UN CLIC:  ${fCopiar}`);
             console.log(`   Asunto: ${muestra.subject}`);
             for (const u of gente) console.log(`     → ${u.name} <${u.email ?? 'sin correo'}> · ${u.role}`);
             avisados += gente.length;
