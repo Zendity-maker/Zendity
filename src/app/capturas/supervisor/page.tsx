@@ -34,7 +34,18 @@ instalar({
             { id: 's3', caregiverId: 'c3', startTime: HOY('06:05'), caregiver: { id: 'c3', name: 'Yarelis Cruz', role: 'CAREGIVER' }, colorGroup: 'GREEN' },
             { id: 's4', caregiverId: 'c4', startTime: HOY('06:00'), caregiver: { id: 'c4', name: 'Damaris Soto', role: 'CAREGIVER' }, colorGroup: 'YELLOW' },
         ],
-        zombieSessions: [],
+        /**
+         * UNA SESION SIN CERRAR, que es lo que la supervisora tiene que saber
+         * reconocer. Estaba vacio, asi que la franja roja "Sesiones Sin Cerrar"
+         * no salia en ninguna foto y el curso tenia que explicarla a ciegas.
+         *
+         * Las horas se cuentan desde `startTime` contra `Date.now()`: por eso va
+         * relativo y no anclado a un dia.
+         */
+        zombieSessions: [
+            { id: 'z1', caregiverId: 'c9', startTime: HACE_H(14.2), colorGroup: 'RED',
+              caregiver: { id: 'c9', name: 'Ivelisse Ramos', role: 'CAREGIVER' } },
+        ],
         /**
          * VACIO A PROPOSITO, Y NO ES UN OLVIDO.
          *

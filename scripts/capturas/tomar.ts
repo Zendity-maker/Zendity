@@ -74,6 +74,14 @@ const TOMAS: Toma[] = [
     //   La bandeja donde cae todo lo que el piso reporta: los contadores de
     //   Inminente y Atencion arriba, las pestañas por tipo, y los tickets con su
     //   urgencia. Es la pantalla en la que la supervisora decide a que va primero.
+    { nombre: "supervisor-sesion-sin-cerrar", ruta: '/capturas/supervisor', ancho: 1400, alto: 1000, esperar: "text=Sesiones Sin Cerrar", recortar: 'div.rounded-\\[2rem\\]:has(h3:has-text("Sesiones Sin Cerrar"))' },
+    //   La franja roja de un turno que quedo abierto: el nombre, la pastilla con
+    //   las horas que lleva ABIERTA y el boton "Forzar cierre". Se cuenta desde
+    //   que se abrio, no por inactividad.
+    { nombre: "supervisor-forzar-cierre", ruta: '/capturas/supervisor', ancho: 1400, alto: 1000, esperar: "text=Confirmar cierre de turno", recortar: 'div.fixed > div.bg-white.rounded-2xl', clics: ['button:has-text("Forzar cierre")'] },
+    //   El modal de cierre forzado. Las dos cosas que hay que leer con los ojos:
+    //   "Esta accion no se puede deshacer" y que la razon pone (opcional). No hay
+    //   PIN en ninguna parte, y ese turno queda sin relevo.
     { nombre: "supervisor-relevos", ruta: '/capturas/supervisor', ancho: 1400, alto: 1100, esperar: "text=Handovers Hoy", recortar: 'div.rounded-\\[2\\.5rem\\]:has(h3:has-text("Handovers Hoy"))' },
     //   Los relevos del dia: el de la noche esperando la firma de la supervisora,
     //   con el boton para firmarlo sin salir de la pantalla, y el de la mañana ya
@@ -187,6 +195,18 @@ const TOMAS: Toma[] = [
     //   La cabina entera tal como se abre: el panel rosa de revisiones arriba, la cabecera Intake Maestro con el indicador de sincronismo, y debajo el índice 
     { nombre: "intake-paso-1-identidad", ruta: '/capturas/intake', ancho: 1280, alto: 900, esperar: "text=Identidad Fundamental", recortar: "div.flex-1.bg-white" },
     //   El primer paso solo y en grande: el campo Nombre Completo (obligatorio) con su ejemplo, y el aviso de Punto de Control Operativo que explica que al es
+    { nombre: "intake-paso-2-triage", ruta: '/capturas/intake', ancho: 1280, alto: 900, esperar: "text=Triage Clínico Base", recortar: "div.flex-1.bg-white", clics: ["text=Alergias y Dx"] },
+    //   El paso de alergias y diagnosticos. Es el bloque que impide emitir el
+    //   ingreso si las alergias estan vacias: si no hay ninguna, hay que
+    //   escribirlo — "NINGUNA" — no dejarlo en blanco.
+    { nombre: "intake-validacion-final", ruta: '/capturas/intake', ancho: 1280, alto: 1200, esperar: "text=COMPLETAR INGRESO OFICIAL", recortar: 'div.rounded-\\[3rem\\]:has(span:text-is("Validación Final"))' },
+    //   El boton que cierra el ingreso, al final de la columna izquierda. Sale GRIS
+    //   y no se deja pulsar mientras el expediente no exista todavia — nace al
+    //   escribir el nombre. Cuando se puede pulsar se pone verde y añade debajo
+    //   "Bloqueara la edicion inicial", que es lo que hace: pasa el expediente a
+    //   pendiente de confirmacion clinica. Ese estado verde no se puede
+    //   fotografiar desde el andamio: depende de una server action, y el andamio
+    //   solo intercepta /api/.
     { nombre: "intake-paso-3-riesgos", ruta: '/capturas/intake', ancho: 1280, alto: 900, esperar: "text=Bloques de Admisión", recortar: "div.flex-1.bg-white", clics: ["text=Dieta, UPP, Caídas"] },
     //   El bloque de PAI y Riesgos: dieta, movilidad, continencia y los dos marcadores con sus escalas, Downton (caídas) y Braden (UPP), que cambian de teal a
     { nombre: "intake-paso-4-emar", ruta: '/capturas/intake', ancho: 1280, alto: 900, esperar: "text=Bloques de Admisión", recortar: "div.flex-1.bg-white", clics: ["text=eMAR Borrador"] },
