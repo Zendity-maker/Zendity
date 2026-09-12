@@ -27,6 +27,7 @@ import { prisma } from '@/lib/prisma';
 import type { ReporteSemanal, BloqueReporte, LineaReporte } from '@/lib/reporte-enfermeria';
 import { construirReporte } from '@/lib/reporte-enfermeria';
 import { construirReporteSupervision } from '@/lib/reporte-supervision';
+import { estadoDePlazo } from '@/lib/formacion-pendiente';
 import { HORAS_PARA_REVISAR_CAMBIO, pasoElCompromiso, horasEsperando, detectarPatrones, etiquetaArea } from '@/lib/cambios-de-condicion';
 
 /** Medicamentos cuyo hueco no admite espera. */
@@ -47,7 +48,7 @@ export async function construirReporteDireccion(sedeId: string, sedeNombre: stri
     const ahora = new Date();
     const desde = new Date(ahora.getTime() - 7 * 86400000);
 
-    const [enfermeria, supervision, sede, medsInvisibles, ulceras, obsParadas, acuerdos, quejasAbiertas, cambiosSinRevisar] = await Promise.all([
+    const [enfermeria, supervision, sede, medsInvisibles, ulceras, obsParadas, acuerdos, quejasAbiertas, formacionPendiente, cambiosSinRevisar] = await Promise.all([
         construirReporte(sedeId, sedeNombre),
         construirReporteSupervision(sedeId, sedeNombre),
         prisma.headquarters.findUnique({
@@ -69,6 +70,18 @@ export async function construirReporteDireccion(sedeId: string, sedeNombre: stri
         }),
         prisma.acuerdoSede.findMany({ where: { headquartersId: sedeId }, select: { tipo: true, aceptadoEn: true } }),
         prisma.complaint.count({ where: { patient: { headquartersId: sedeId }, status: 'PENDING' } }),
+        /**
+         * Formación asignada que sigue esperando.
+         *
+         * Medido el 12-sep-2026: 178 asignaciones pendientes entre las dos
+         * sedes, 19 de 22 personas con algo abierto, y la más vieja de 23 días.
+         * No aparecía en ningún reporte, así que la única forma de enterarse
+         * era entrar a una pantalla que tampoco está en el menú.
+         */
+        prisma.academyAssignment.findMany({
+            where: { headquartersId: sedeId, status: { in: ['PENDING', 'IN_PROGRESS'] } },
+            select: { reason: true, createdAt: true, user: { select: { name: true, isActive: true, isDeleted: true } } },
+        }),
         // Lo que el piso reporto y nadie ha mirado. Ver HORAS_PARA_REVISAR_CAMBIO.
         prisma.cambioDeCondicion.findMany({
             where: { headquartersId: sedeId, revisadoAt: null },
@@ -222,6 +235,37 @@ export async function construirReporteDireccion(sedeId: string, sedeNombre: stri
         });
     }
 
+    /**
+     * 9. FORMACIÓN VENCIDA.
+     *
+     * Solo se cuenta lo que TIENE plazo y ya pasó: un curso que salió de una
+     * observación de RRHH (7 días) o de la ruta de ingreso (14). La
+     * certificación geriátrica no entra — son diez módulos y cuatro horas, y no
+     * lleva fecha a propósito.
+     *
+     * Va con orden 4, entre lo clínico y lo administrativo. No es urgente como
+     * una úlcera; sí es lo que convierte una asignación en una tarea: hasta hoy
+     * el plazo solo existía dentro del texto de la notificación.
+     *
+     * Sin castigo y sin nombres en el cuerpo del correo — la regla 7. Los
+     * nombres van en el PDF, que es donde ya van los de residentes.
+     */
+    const vencidas = formacionPendiente
+        .filter(f => f.user?.isActive && !f.user?.isDeleted)
+        .map(f => ({ ...f, plazo: estadoDePlazo(f.reason, f.createdAt, ahora) }))
+        .filter(f => f.plazo.vencida);
+
+    if (vencidas.length > 0) {
+        const personas = new Set(vencidas.map(v => v.user?.name)).size;
+        const masVieja = Math.max(...vencidas.map(v => v.plazo.diasEsperando));
+        recs.push({
+            que: 'Preguntar por la formación que venció',
+            porque: `${vencidas.length} curso${vencidas.length !== 1 ? 's' : ''} con plazo pasado en ${personas} persona${personas !== 1 ? 's' : ''}. El más viejo lleva ${masVieja} días asignado`,
+            quien: 'Dirección',
+            orden: 4,
+        });
+    }
+
     if (quejasAbiertas > 0) {
         recs.push({
             que: 'Atender los señalamientos de familia sin resolver',
@@ -267,6 +311,27 @@ export async function construirReporteDireccion(sedeId: string, sedeNombre: stri
             { texto: 'Señalamientos de familia sin resolver', casos: [], total: quejasAbiertas },
             { texto: 'Datos de la sede sin completar', casos: faltaSede, total: faltaSede.length },
             { texto: 'Acuerdos sin aceptar', casos: sinBAA ? ['BAA — acuerdo de socio comercial'] : [], total: sinBAA ? 1 : 0 },
+            /**
+             * El pendiente de formación, con y sin plazo separados.
+             *
+             * Los nombres van en `casos`, que el generador pinta SOLO en el PDF
+             * adjunto — nunca en el cuerpo del correo. Regla 7.
+             */
+            {
+                texto: 'Formación asignada sin empezar',
+                casos: (() => {
+                    const vivas = formacionPendiente.filter(f => f.user?.isActive && !f.user?.isDeleted);
+                    const porPersona = new Map<string, number>();
+                    for (const f of vivas) {
+                        const n = f.user?.name ?? 'sin nombre';
+                        porPersona.set(n, (porPersona.get(n) ?? 0) + 1);
+                    }
+                    return [...porPersona.entries()]
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([n, c]) => `${n}: ${c} curso${c !== 1 ? 's' : ''}`);
+                })(),
+                total: formacionPendiente.filter(f => f.user?.isActive && !f.user?.isDeleted).length,
+            },
         ],
         total: 0,
     };

@@ -259,6 +259,15 @@ const TOMAS: Toma[] = [
     { nombre: "mantenimiento-resuelto", ruta: '/capturas/mantenimiento', ancho: 1280, alto: 820, esperar: "text=Resuelto en", recortar: 'div.bg-white.rounded-2xl:has-text("Resuelto en")' },
     //   Un aviso ya cerrado: el titulo tachado y la linea verde "Resuelto en 45 min".
     //   Ese minutaje es lo que el hogar enseña cuando alguien pregunta si se atienden.
+    // ── /hr/staff/[id] — el bloque de Formacion de la ficha del empleado
+    { nombre: "formacion-empleado", ruta: '/capturas/formacion', ancho: 900, alto: 900, esperar: "text=Asignar un curso" },
+    //   Lo que tiene abierto una persona, en el orden en que debe hacerlo, con
+    //   el plazo de cada cosa: vencido en rojo, con plazo en ambar, y la
+    //   certificacion sin fecha a proposito. Arriba a la derecha, el boton que
+    //   antes no existia en ninguna parte.
+    { nombre: "formacion-asignar", ruta: '/capturas/formacion', ancho: 900, alto: 900, esperar: "text=Por qué se lo asignas", clics: ['button:has-text("Asignar un curso")'] },
+    //   El formulario: el curso, y por que se lo asignas — que no es burocracia,
+    //   es el texto que esa persona va a leer en su Academy debajo del curso.
     // ── /corporate/social — Trabajo Social
     { nombre: "social-panel", ruta: '/capturas/social', ancho: 1440, alto: 900, esperar: "text=Tareas Pendientes" },
     //   El panel entero: las cuatro medidas de arriba y la tabla de tareas con sus

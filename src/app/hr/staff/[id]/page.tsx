@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import EditStaffRolesModal from "./EditStaffRolesModal";
 import WriteIncidentModal from "@/components/hr/WriteIncidentModal";
+import FormacionDelEmpleado from "@/components/hr/FormacionDelEmpleado";
 import { Z_SCORE_VISIBLE, Z_SCORE_OCULTO_MOTIVO } from '@/lib/z-score-visible';
 
 export default function EmployeeProfilePage({ params }: { params: Promise<{ id: string }> }) {
@@ -672,6 +673,16 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                                         : `${hrMetrics.medsGivenRecord} administrados · ${hrMetrics.medsMissedRecord} omitidos`}
                                 </p>
                             </div>
+                        </div>
+                    )}
+
+                    {/* FORMACIÓN — lo que tiene pendiente y el botón de asignar.
+                        Va aquí, en la ficha, porque es donde se toma la decisión:
+                        se mira a alguien, se ve lo que lleva abierto, y se le
+                        añade lo que haga falta. Solo lo ve quien puede asignar. */}
+                    {['DIRECTOR', 'ADMIN', 'SUPERVISOR'].includes(String(user?.role)) && employee?.id && (
+                        <div className="lg:col-span-3">
+                            <FormacionDelEmpleado userId={employee.id} nombre={employee.name ?? 'esta persona'} />
                         </div>
                     )}
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
+import { ordenarPendientes, textoDePlazo } from '@/lib/formacion-pendiente';
 import { requireRole, requireSession } from '@/lib/api-auth';
 import { applyScoreEvent } from '@/lib/score-event';
 import { notifyUser, notifyRoles } from '@/lib/notifications';
@@ -90,23 +91,48 @@ export async function GET(req: Request) {
                 : [];
             const porId = new Map(cursos.map(c => [c.id, c]));
 
-            const assignments = asignaciones
-                .map(a => {
-                    const c = porId.get(a.moduleCode);
-                    if (!c) return null; // curso borrado — la asignación no se muestra
-                    return {
-                        id: a.id,
-                        courseId: c.id,
-                        title: c.title,
-                        durationMins: c.durationMins,
-                        emoji: c.emoji,
-                        category: c.category,
-                        reason: a.reason,
-                        assignedAt: a.createdAt,
-                        status: a.status,
-                    };
-                })
-                .filter(Boolean);
+            /**
+             * ORDENADAS, NO COMO SALGAN.
+             *
+             * Antes iban por fecha de creación, y como la certificación entera
+             * se asigna de una vez, la persona abría Academy y veía trece
+             * tarjetas ámbar idénticas. Trece tareas son cero tareas.
+             *
+             * `ordenarPendientes` pone delante lo que sale de un incidente, lo
+             * vencido antes que lo que aún tiene plazo, y dentro de la
+             * certificación respeta el orden de la ruta —el general primero,
+             * emergencias al final— que estaba declarado y no leía nadie.
+             * Marca además la primera como `siguiente`: es la respuesta a "¿por
+             * dónde empiezo?".
+             */
+            const assignments = ordenarPendientes(
+                asignaciones
+                    .map(a => {
+                        const c = porId.get(a.moduleCode);
+                        if (!c) return null; // curso borrado — la asignación no se muestra
+                        return {
+                            id: a.id,
+                            courseId: c.id,
+                            title: c.title,
+                            durationMins: c.durationMins,
+                            emoji: c.emoji,
+                            category: c.category,
+                            reason: a.reason,
+                            assignedAt: a.createdAt,
+                            status: a.status,
+                        };
+                    })
+                    .filter((a): a is NonNullable<typeof a> => a !== null),
+            ).map(a => ({
+                ...a,
+                // El plazo se manda ya resuelto: la pantalla no tiene por qué
+                // saber que un incidente da siete días y un ingreso catorce.
+                vence: a.plazo.vence,
+                vencida: a.plazo.vencida,
+                textoPlazo: textoDePlazo(a.plazo),
+                grupo: a.plazo.grupo,
+                diasEsperando: a.plazo.diasEsperando,
+            }));
 
             return NextResponse.json({ success: true, enrollments, assignments });
 

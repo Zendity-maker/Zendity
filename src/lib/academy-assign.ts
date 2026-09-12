@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { notifyUser } from '@/lib/notifications';
 import { logError } from '@/lib/logger';
+import { RUTA_CERTIFICACION } from '@/lib/formacion-pendiente';
 
 /**
  * Asignación de formación — el cable que faltaba entre lo que pasa en el piso
@@ -49,6 +50,14 @@ const RUTA_INGRESO: Record<string, string[]> = {
     CLEANING: ['Acceso y Roles en Zendity', 'Limpieza y Sanitizacion'],
     SOCIAL_WORKER: ['Acceso y Roles en Zendity', 'Trabajo Social en Zendity'],
     COORDINATOR: ['Acceso y Roles en Zendity', 'El Administrador en Zendity'],
+    /**
+     * MANTENIMIENTO Y COCINA no estaban, y el `?? RUTA_INGRESO.CAREGIVER` de
+     * abajo les daba la ruta de la CUIDADORA: al señor de mantenimiento se le
+     * asignaba el curso de administración electrónica de medicamentos. Hay dos
+     * personas activas con estos roles.
+     */
+    MAINTENANCE: ['Acceso y Roles en Zendity', 'Planta Fisica y Mantenimiento'],
+    KITCHEN: ['Acceso y Roles en Zendity'],
 };
 
 /**
@@ -60,23 +69,12 @@ const RUTA_INGRESO: Record<string, string[]> = {
  * cuatro horas de contenido. Mezclarlas hace que lo urgente entierre lo
  * importante.
  *
- * El orden importa: el general primero, emergencias al final.
+ * La lista y su ORDEN viven en `formacion-pendiente.ts`, que no importa Prisma:
+ * así el mismo orden que decide qué se asigna decide también qué se enseña
+ * primero en pantalla. Estaba declarado aquí y no lo leía nadie — los diez
+ * módulos se asignaban de golpe y la persona veía trece tarjetas iguales.
  */
-export const RUTA_CERTIFICACION: string[] = [
-    'Cuidado Geriátrico General',
-    'Demencia y Alzheimer',
-    'Movilización y Transferencias',
-    'Higiene, Piel y Control de Infecciones',
-    'Alimentación, Hidratación',
-    'Trato Digno, Derechos',
-    'Emergencias: Los Primeros Minutos',
-    // Capa B — continuidad con el servicio externo. Van al final a propósito:
-    // enseñan a sostener un plan que alguien más estableció, y eso se entiende
-    // mejor cuando ya se sabe cuidar.
-    'Continuidad del Plan de Cuidado',
-    'Piel: Prevención',
-    'Signos Vitales, Observación',
-];
+export { RUTA_CERTIFICACION } from '@/lib/formacion-pendiente';
 
 /**
  * Roles con contacto directo con residentes.

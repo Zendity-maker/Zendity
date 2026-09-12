@@ -241,27 +241,62 @@ export default function ZendityAcademyPage() {
                         <div>
                             <h2 className="font-serif text-xl text-amber-900 leading-tight">Formación asignada</h2>
                             <p className="text-[13px] text-amber-800/70 mt-1">
-                                {assignments.length === 1 ? 'Un curso asignado' : `${assignments.length} cursos asignados`} por tu supervisión. Aparecen también en el catálogo.
+                                {assignments.length === 1
+                                    ? 'Un curso asignado por tu supervisión.'
+                                    : `${assignments.length} cursos asignados por tu supervisión. Empieza por el primero.`}
                             </p>
                         </div>
                     </div>
+
+                    {/* UNO DESTACADO, EL RESTO DEBAJO.
+                        Trece tarjetas iguales no son trece tareas: son cero.
+                        El servidor ya las manda en orden —lo que sale de un
+                        incidente primero, lo vencido delante, y la certificación
+                        en el orden de su ruta— y marca la primera. */}
                     <div className="space-y-2">
                         {assignments.map((a: any) => (
-                            <div key={a.id} className="flex items-center gap-4 bg-white border border-amber-200/70 rounded-2xl px-5 py-4">
+                            <div
+                                key={a.id}
+                                className={`flex items-center gap-4 rounded-2xl px-5 py-4 ${
+                                    a.siguiente
+                                        ? 'bg-white border-2 border-[#0F6E56]/40 shadow-sm'
+                                        : 'bg-white/60 border border-amber-200/70'
+                                }`}
+                            >
                                 {/* La inicial del curso, no un emoji: dentro de
                                     Academy el registro es institucional. */}
-                                <span className="shrink-0 w-9 h-9 rounded-lg bg-amber-100 text-amber-900 font-serif text-lg flex items-center justify-center">
+                                <span className={`shrink-0 w-9 h-9 rounded-lg font-serif text-lg flex items-center justify-center ${
+                                    a.siguiente ? 'bg-[#0F6E56] text-white' : 'bg-amber-100 text-amber-900'
+                                }`}>
                                     {(a.title ?? 'Z').trim().charAt(0).toUpperCase()}
                                 </span>
                                 <div className="flex-1 min-w-0">
+                                    {a.siguiente && (
+                                        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#0F6E56] mb-0.5">
+                                            Empieza por este
+                                        </p>
+                                    )}
                                     <p className="font-semibold text-slate-800 text-[15px] truncate">{a.title}</p>
                                     <p className="text-xs text-slate-500 mt-0.5">
                                         {a.reason} · {a.durationMins} min
+                                        {/* El plazo solo se dice cuando existe. La
+                                            certificación no lleva fecha a propósito:
+                                            una fecha que nadie cumple convierte en
+                                            decorado también la que sí importa. */}
+                                        {a.textoPlazo && a.textoPlazo !== 'Sin fecha límite' && (
+                                            <> · <span className={a.vencida ? 'text-rose-700 font-bold' : 'text-amber-800 font-semibold'}>
+                                                {a.textoPlazo}
+                                            </span></>
+                                        )}
                                     </p>
                                 </div>
                                 <a
                                     href="#catalogo"
-                                    className="shrink-0 px-4 py-2 rounded-xl bg-[#0F6E56] hover:bg-[#0B5642] text-white text-xs font-bold transition-colors"
+                                    className={`shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-colors ${
+                                        a.siguiente
+                                            ? 'bg-[#0F6E56] hover:bg-[#0B5642] text-white'
+                                            : 'bg-white border border-slate-200 hover:border-[#0F6E56] text-slate-600 hover:text-[#0F6E56]'
+                                    }`}
                                 >
                                     Ver curso
                                 </a>
