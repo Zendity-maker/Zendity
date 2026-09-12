@@ -548,6 +548,30 @@ async function main() {
             const fCopiar = `${ESCRITORIO}/Correo caidas — copiar y pegar.html`;
             writeFileSync(fCopiar, paraCopiar);
             console.log(`   ⇢ ÁBRELO Y COPIA DE UN CLIC:  ${fCopiar}`);
+
+            /**
+             * Y EL MISMO CORREO COMO ARCHIVO .eml.
+             *
+             * Copiar y pegar depende de que el cliente de correo respete el
+             * HTML del portapapeles, y Gmail no lo hace si tiene activado el
+             * "Modo de texto sin formato": descarta el formato al pegar, hagas
+             * lo que hagas al copiar.
+             *
+             * Un .eml no pasa por el portapapeles: es el mensaje entero, con su
+             * cabecera MIME y su cuerpo HTML. Doble clic y se abre en Mail; de
+             * ahí se reenvía con el formato intacto.
+             */
+            const eml = [
+                `Subject: ${general.subject}`,
+                'MIME-Version: 1.0',
+                'Content-Type: text/html; charset=utf-8',
+                'Content-Transfer-Encoding: 8bit',
+                '',
+                general.html,
+            ].join('\r\n');
+            const fEml = `${ESCRITORIO}/Correo caidas.eml`;
+            writeFileSync(fEml, eml, 'utf-8');
+            console.log(`   ⇢ O ÁBRELO EN MAIL Y REENVÍA:  ${fEml}`);
             console.log(`   Asunto: ${muestra.subject}`);
             for (const u of gente) console.log(`     → ${u.name} <${u.email ?? 'sin correo'}> · ${u.role}`);
             avisados += gente.length;
