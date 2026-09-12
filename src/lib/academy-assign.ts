@@ -42,9 +42,24 @@ const CURSO_POR_CATEGORIA: Record<string, string> = {
 
 /** Cursos base de un empleado nuevo, por rol. */
 const RUTA_INGRESO: Record<string, string[]> = {
-    CAREGIVER: ['Acceso y Roles en Zendity', 'El Cuidador en Zendity', 'eMAR: Administracion Electronica'],
-    NURSE: ['Acceso y Roles en Zendity', 'La Enfermera en Zendity', 'eMAR: Administracion Electronica'],
-    SUPERVISOR: ['Acceso y Roles en Zendity', 'El Supervisor en Zendity', 'Handover de Enfermeria'],
+    /**
+     * CAIDAS VA EN LOS TRES ROLES DE PISO, y es el unico curso clinico que
+     * entra en una ruta de ingreso.
+     *
+     * Medido el 12-sep-2026: no lo asignaba NINGUNA ruta — ni el de ingreso, ni
+     * la certificacion, ni la regla de incidentes. Vale 30 puntos, el maximo del
+     * catalogo, y tenia cero matriculas. Un curso que no asigna nadie es un
+     * curso que no abre nadie.
+     *
+     * Va el primer dia y no en la certificacion porque una caida puede pasar en
+     * el primer turno, y lo que hay que saber —que el deslizador de dolor fija
+     * la gravedad del expediente, y que a la familia la llama una persona
+     * porque el sistema no la avisa— no admite esperar cuatro horas de
+     * contenido.
+     */
+    CAREGIVER: ['Acceso y Roles en Zendity', 'El Cuidador en Zendity', 'eMAR: Administracion Electronica', 'Protocolo de Respuesta a Caidas'],
+    NURSE: ['Acceso y Roles en Zendity', 'La Enfermera en Zendity', 'eMAR: Administracion Electronica', 'Protocolo de Respuesta a Caidas'],
+    SUPERVISOR: ['Acceso y Roles en Zendity', 'El Supervisor en Zendity', 'Handover de Enfermeria', 'Protocolo de Respuesta a Caidas'],
     DIRECTOR: ['Acceso y Roles en Zendity', 'El Director en Zendity'],
     ADMIN: ['Acceso y Roles en Zendity', 'El Administrador en Zendity'],
     CLEANING: ['Acceso y Roles en Zendity', 'Limpieza y Sanitizacion'],
@@ -275,6 +290,70 @@ export async function asignarRutaCertificacion(opts: {
     } catch (err) {
         logError('academy.assign.certificacion', err);
         return 0;
+    }
+}
+
+/**
+ * EL CURSO DEL TURNO DE NOCHE, CUANDO LE TOCA SU PRIMERA NOCHE.
+ *
+ * "Turno Nocturno del Cuidador" tampoco lo asignaba ninguna ruta. Meterlo en la
+ * ruta de ingreso seria mentir dos veces: se lo daria a quien nunca trabaja de
+ * noche, y a quien si lo hace se lo daria meses antes de necesitarlo, mezclado
+ * con otros catorce.
+ *
+ * El momento honesto existe y esta medido en el propio sistema: cuando el
+ * horario publicado le pone su primer turno de noche. La pantalla de la tableta
+ * cambia sola a las diez —modo de rondas, botones grandes, plazo de rotacion de
+ * dos horas— y quien no lo ha visto nunca se lo encuentra de madrugada.
+ *
+ * Idempotente: solo asigna si no lo tiene ya abierto Y no lo ha aprobado nunca.
+ * Se llama en cada publicacion de horario, asi que se ejecuta muchas veces.
+ */
+export async function asignarPorPrimerTurnoDeNoche(opts: {
+    hqId: string;
+    userId: string;
+    assignedByUserId?: string | null;
+}): Promise<boolean> {
+    try {
+        const curso = await buscarCurso(opts.hqId, 'Turno Nocturno');
+        if (!curso) return false;
+
+        const [abierto, aprobado] = await Promise.all([
+            prisma.academyAssignment.findFirst({
+                where: { userId: opts.userId, moduleCode: curso.id },
+                select: { id: true },
+            }),
+            prisma.userCourse.findFirst({
+                where: { employeeId: opts.userId, courseId: curso.id, status: 'COMPLETED' },
+                select: { id: true },
+            }),
+        ]);
+        if (abierto || aprobado) return false;
+
+        await prisma.academyAssignment.create({
+            data: {
+                headquartersId: opts.hqId,
+                userId: opts.userId,
+                moduleCode: curso.id,
+                // El prefijo importa: `formacion-pendiente.ts` lo lee para
+                // decidir plazo y orden. "Ruta de ingreso" le da 14 dias.
+                reason: 'Ruta de ingreso — tu primer turno de noche',
+                status: 'PENDING',
+                assignedBySystem: true,
+                assignedByUserId: opts.assignedByUserId ?? null,
+            },
+        });
+
+        await notifyUser(opts.userId, {
+            type: 'COURSE_COMPLETED',
+            title: 'Tu primer turno de noche',
+            message: 'La tableta cambia sola de modo a las 10:00 PM. El curso "Turno Nocturno del Cuidador" te explica que cambia.',
+            link: '/academy',
+        });
+        return true;
+    } catch (err) {
+        logError('academy.assign.turno-nocturno', err);
+        return false;
     }
 }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { asignarPorPrimerTurnoDeNoche } from '@/lib/academy-assign';
 import sgMail from '@sendgrid/mail';
 import { emailLogoSrc } from '@/lib/email-logo';
 import { requireRole } from '@/lib/api-auth';
@@ -242,6 +243,23 @@ export async function POST(req: Request) {
         const emailPromises: Promise<any>[] = [];
 
         for (const [userId, { user, shifts }] of byUser) {
+            /**
+             * Su primera noche: el curso que la explica.
+             *
+             * Best-effort y sin await bloqueante del resto: publicar el horario
+             * no se revierte porque una asignacion de curso falle. La funcion es
+             * idempotente, asi que puede correr en cada publicacion.
+             */
+            if (shifts.some(s => NIGHT_SHIFTS.includes(s.shiftType))) {
+                notificationPromises.push(
+                    asignarPorPrimerTurnoDeNoche({
+                        hqId: schedule.headquartersId,
+                        userId,
+                        assignedByUserId: auth.id,
+                    })
+                );
+            }
+
             // La misma lectura que el correo. Antes un día libre salía aquí como
             // "OFF (null)" porque el grupo no existe para un día que no se trabaja.
             const shiftsText = [...shifts]
