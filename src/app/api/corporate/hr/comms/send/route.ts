@@ -65,30 +65,45 @@ export async function POST(request: Request) {
         const logoSrc = emailLogoSrc(hqId, hq?.logoUrl);
         const logoHtml = logoSrc ? `<img src="${logoSrc}" alt="${hqName}" style="max-height: 80px; margin-bottom: 20px; object-fit: contain;" />` : '';
 
+        /**
+         * FUERA `white-space: pre-wrap`, Y ESTE ES EL FALLO QUE ANDRES VIO.
+         *
+         * El campo se llama `html` y la pantalla lo rotula "HTML/Markdown", pero
+         * esta plantilla lo metia dentro de un div con `white-space: pre-wrap`.
+         * Eso hace VISIBLES todos los saltos de linea y la indentacion del
+         * codigo, asi que cualquier correo con formato llegaba con huecos
+         * enormes entre todo. El 12-sep-2026 Andres mando el aviso de caidas
+         * desde aqui tres veces y las tres llego roto.
+         *
+         * El mismo arreglo se hizo en api/hr/comms/send-broadcast el mes pasado
+         * —esta comentado alli— y este endpoint se quedo sin el. Son dos
+         * pantallas distintas que mandan correo al personal, y solo una estaba
+         * arreglada.
+         *
+         * Y LA PALETA. #1F2D3A para el texto y #0F6B78 en los filos son los
+         * colores viejos: azul oscuro casi negro sobre gris. La casa es teal
+         * #0F6E56. Un memorando que llega en otra gama no parece del hogar, y
+         * en pantalla se lee oscuro.
+         *
+         * Se quita ademas la caja gris exterior: encajonaba el contenido dentro
+         * de otra caja, de modo que un correo bien maquetado quedaba metido en
+         * un recuadro ajeno.
+         */
         const memoTemplate = `
-        <div style="font-family: Arial, sans-serif; max-width: 650px; margin: 0 auto; border: 1px solid #C9D4D8; border-radius: 8px; background-color: #f8fafc; padding: 30px;">
-            <div style="text-align: center; border-bottom: 2px solid #0F6B78; padding-bottom: 20px; margin-bottom: 30px;">
-                ${logoHtml}
-                <div style="font-size: 13px; font-weight: bold; color: #1F2D3A; text-transform: uppercase; letter-spacing: 2px;">Memorándum Oficial de Personal</div>
+        <meta charset="utf-8">
+        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:620px;margin:0 auto;border:1px solid #DDE4DF;border-radius:12px;overflow:hidden;background-color:#ffffff;">
+            <div style="background-color:#0F6E56;padding:24px;text-align:center;">
+                ${logoSrc ? `<img src="${logoSrc}" alt="${hqName}" style="max-height:50px;margin-bottom:12px;border-radius:8px;" />` : `<h2 style="color:#ffffff;margin:0;font-size:24px;">${hqName}</h2>`}
+                <p style="color:#A8DCC6;margin:5px 0 0 0;font-size:13px;font-weight:600;letter-spacing:1px;text-transform:uppercase;">Memorándum oficial de personal</p>
             </div>
-            
-            <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); color: #1F2D3A; line-height: 1.6; font-size: 15px;">
-                <h3 style="color: #0F6B78; margin-top: 0; font-size: 20px; border-bottom: 1px solid #EAF4F5; padding-bottom: 10px;">Comunicado Corporativo</h3>
-                
-                <div style="white-space: pre-wrap; margin-top: 20px;">
-                    ${html}
-                </div>
-                
-                <div style="margin-top: 40px; border-top: 1px dashed #C9D4D8; padding-top: 20px;">
-                    <p style="margin: 0; font-weight: bold; color: #0F6B78;">Atentamente,</p>
-                    <p style="margin: 5px 0 0 0; color: #1F2D3A;">La Dirección de RRHH y Operaciones</p>
-                    <p style="margin: 0; color: #1F2D3A; font-weight: bold;">${hqName}</p>
-                </div>
+
+            <div style="background-color:#ffffff;color:#12211D;line-height:1.65;font-size:15px;">
+                ${html}
             </div>
-            
-            <div style="text-align: center; margin-top: 30px; font-size: 11px; color: #1F2D3A;">
-                <p style="margin: 0;">Has recibido este correo electrónico porque eres personal acreditado de ${hqName}.</p>
-                <p style="margin: 5px 0 0 0; font-weight: 800; color: #0F6B78; letter-spacing: 1px; text-transform: uppercase;">A Zendity Powered Facility</p>
+
+            <div style="background-color:#F1F4F1;padding:16px 24px;text-align:center;font-size:12px;color:#66766F;line-height:1.6;">
+                <p style="margin:0;">Mensaje de la dirección de ${hqName}.</p>
+                <p style="margin:4px 0 0 0;">Lo recibes porque eres personal acreditado del hogar.</p>
             </div>
         </div>
         `;
