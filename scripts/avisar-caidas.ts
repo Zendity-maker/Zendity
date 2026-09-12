@@ -215,6 +215,7 @@ function correo(nombre: string | null, n: Cifras, minutos: number) {
       <div style="color:#fff;font-size:20px;font-weight:900;margin-top:4px;line-height:1.3;">El curso de caídas, y por qué ${uno ? 'te' : 'se'} lo asignamos</div>
     </div>
 
+    <!--CUERPO-->
     <div style="padding:32px;">
       <p style="margin:0 0 18px;font-size:15px;color:#0F172A;">${v.saludoHtml}</p>
 
@@ -262,6 +263,7 @@ function correo(nombre: string | null, n: Cifras, minutos: number) {
       </p>
       <p style="margin:14px 0 0;font-size:15px;color:#0F172A;">— Dirección, Vivid Senior Living</p>
     </div>
+    <!--/CUERPO-->
 
     <div style="background:#F8FAFC;padding:14px 32px;border-top:1px solid #E2E8F0;text-align:center;">
       <p style="margin:0;color:#94A3B8;font-size:11px;">Vivid Senior Living · Zéndity</p>
@@ -364,6 +366,22 @@ const ESCRITORIO = `${process.env.HOME}/Desktop`;
  * que importa es que funcione al primer clic.
  */
 function paginaDeCopiar(asunto: string, cuerpoHtml: string, correos: string[]): string {
+    /**
+     * EL FRAGMENTO PARA ENVIAR DESDE ZENDITY.
+     *
+     * Andres lo manda desde el Directorio Staff, no desde Gmail, y ese modal es
+     * un TEXTAREA que espera el CODIGO html: el endpoint lo mete tal cual dentro
+     * de la plantilla corporativa (send-broadcast/route.ts:127).
+     *
+     * Eso invierte lo que hace falta. En Gmail se pega el contenido CON formato;
+     * en un textarea eso se pega plano y el correo sale sin nada. Ahi hay que
+     * pegar el codigo.
+     *
+     * Y va sin mi cabecera ni mi pie: la plantilla de Zendity ya pone los suyos,
+     * con el logo del hogar. Pegar el correo entero daria cabecera dentro de
+     * cabecera.
+     */
+    const paraZendity = (cuerpoHtml.split('<!--CUERPO-->')[1] ?? '').split('<!--/CUERPO-->')[0].trim();
     // Solo el interior del <body> del correo: el <html> entero dentro de otro
     // <html> confunde al navegador y a Gmail.
     const dentro = cuerpoHtml.split('<body')[1]?.split('>').slice(1).join('>').split('</body>')[0] ?? cuerpoHtml;
@@ -399,20 +417,40 @@ function paginaDeCopiar(asunto: string, cuerpoHtml: string, correos: string[]): 
     <button onclick="copiarTexto('correos', this)">Copiar</button>
   </div>
 
+  <div class="fila" style="border-color:#0F6E56;background:#F0FDF9">
+    <div class="txt">
+      <div class="et" style="color:#0F6E56">Para enviarlo DESDE ZÉNDITY · Directorio Staff → Enviar correo</div>
+      <div class="val" style="color:#475569">Ese campo espera el <strong>código</strong>. Pega esto en el cuerpo del mensaje;
+        Zéndity le pone la cabecera con el logo del hogar.</div>
+    </div>
+    <button onclick="copiarCodigo(this)">Copiar el código</button>
+  </div>
+
   <div class="previa">
     <div class="barra">
-      <div class="et" style="margin:0">Cuerpo del correo</div>
+      <div class="et" style="margin:0">Para enviarlo desde Gmail — copia con formato</div>
       <button onclick="copiarCuerpo(this)">Copiar el correo con formato</button>
     </div>
     <div id="cuerpo">${dentro}</div>
   </div>
+  <textarea id="codigo" style="position:absolute;left:-9999px" readonly>${paraZendity.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</textarea>
 
-  <p class="nota">Si al pegar Gmail se come el fondo gris, no pasa nada: el texto, las negritas y el botón verde llegan bien.</p>
+  <p class="nota"><strong>¿Desde dónde lo mandas?</strong> Si es desde Zéndity, usa el botón verde de arriba — ese campo
+     espera el código. Si es desde Gmail, usa el de abajo, que copia con formato. No sirve el mismo para los dos.</p>
 </div>
 
 <script>
 function avisar(b, t){ const o = b.textContent; b.textContent = t; b.classList.add('ok');
   setTimeout(() => { b.textContent = o; b.classList.remove('ok'); }, 1600); }
+
+/** El codigo crudo, para el textarea de Zendity. */
+function copiarCodigo(b){
+  const t = document.getElementById('codigo').value;
+  navigator.clipboard.writeText(t).then(() => avisar(b, 'Código copiado'))
+    .catch(() => { const a = document.getElementById('codigo');
+      a.style.left = '0'; a.select(); document.execCommand('copy');
+      a.style.left = '-9999px'; avisar(b, 'Código copiado'); });
+}
 
 function copiarTexto(id, b){
   const t = document.getElementById(id).innerText;
