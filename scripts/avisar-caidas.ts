@@ -138,53 +138,64 @@ function frase(n: Cifras): string {
         + `las otras <strong>${n.enBitacoraSinFicha}</strong> quedaron contadas en una nota de turno o en una alerta.`;
 }
 
-function correo(nombre: string, n: Cifras, minutos: number) {
+/**
+ * `nombre = null` da la version GENERAL, sin personalizar.
+ *
+ * El script manda uno a uno y saluda por el nombre, que es lo que se lee mejor.
+ * Pero Andres lo manda a mano en copia oculta a las 14, y ahi un "Hola Herminia"
+ * delante de trece personas mas es peor que no saludar a nadie.
+ */
+function correo(nombre: string | null, n: Cifras, minutos: number) {
     /**
-     * EL ANGULO, Y POR QUE ES ESTE.
+     * DOS VERSIONES DEL MISMO TEXTO, Y LA CONCORDANCIA IMPORTA.
      *
-     * El primer borrador abria con "N caidas, M graves" dentro de una caja de
-     * alarma naranja y seguia con "lo que cambia el resultado es lo que ocurre
-     * en los cinco minutos siguientes". Tres revisores lo pararon, y tenian
-     * razon en las tres cosas:
+     * El script manda uno a uno y saluda por el nombre. Pero cuando se manda a
+     * mano en copia oculta a las catorce, "Hola Herminia" delante de trece
+     * personas mas es peor que no saludar a nadie.
      *
-     *  · el numero del modulo subcuenta a la mitad, y el correo va dirigido
-     *    justo a quien escribio las caidas que faltan;
-     *  · "graves con sangrado o dolor fuerte" es FALSO —la gravedad la fija solo
-     *    el dolor— y ademas es el error exacto que el curso existe para
-     *    corregir;
-     *  · y esa frase, debajo de las cifras, se lee como "el resultado dependio
-     *    de tu reaccion y todavia no sabes hacerlo".
-     *
-     * El angulo verdadero no reprocha nada: la informacion ESTA escrita, y bien
-     * escrita, pero en un sitio que no dispara lo que el boton dispara. Eso es
-     * util saberlo, y es exactamente lo que el curso enseña.
+     * Y no basta con cambiar el saludo: el primer intento decia "Hola a todos" y
+     * seguia con "TIENES asignado". Un correo que no concuerda consigo mismo se
+     * lee como una plantilla, y una plantilla no la contesta nadie. Por eso el
+     * texto se conjuga entero, en ustedes — que es como se habla aqui.
      */
+    const uno = nombre !== null;
+    const v = uno ? {
+        saludo: `Hola ${nombre},`, saludoHtml: `Hola <strong>${nombre}</strong>,`,
+        tienes: 'Tienes', te: 'Te', puedes: 'puedes', tu: 'tu', entra: 'Entra',
+        busca: 'busca', viste: 'no la viste y te la contaron',
+    } : {
+        saludo: 'Hola a todos,', saludoHtml: 'Hola a todos,',
+        tienes: 'Tienen', te: 'Les', puedes: 'pueden', tu: 'su', entra: 'Entren',
+        busca: 'busquen', viste: 'no la vieron y se la contaron',
+    };
+
     const texto =
-        `Hola ${nombre},\n\n` +
-        `Tienes asignado en Academy el curso "Protocolo de Respuesta a Caidas". Te contamos por que.\n\n` +
+        `${v.saludo}\n\n` +
+        `${v.tienes} asignado en Academy el curso "Protocolo de Respuesta a Caidas". ${v.te} contamos por que.\n\n` +
         `En los ultimos ${DIAS} dias el piso dejo escritas al menos ${n.total} caidas. De esas, ${n.enElModulo} entraron por el boton de la tableta; las otras ${n.enBitacoraSinFicha} quedaron contadas en una nota de turno o en una alerta.\n\n` +
         `Las notas estan bien escritas — por eso sabemos que pasaron. Lo que cambia es que el boton hace cosas que una nota no hace: avisa en el momento a supervision, a enfermeria y a direccion, y enciende la evaluacion de riesgo de ese residente para que se revise su plan.\n\n` +
-        `El curso son unos ${minutos} minutos y lo puedes hacer desde tu telefono: entra a app.zendity.com con tu correo y tu PIN, y busca Academy.\n\n` +
-        `Ensena donde esta el boton, que pregunta, que hacer cuando no la viste y te la contaron, y a quien hay que llamar a mano porque el sistema no lo hace solo.\n\n` +
+        `El curso son unos ${minutos} minutos y lo ${v.puedes} hacer desde ${v.tu} telefono: ${v.entra.toLowerCase()} a app.zendity.com con ${v.tu} correo y ${v.tu} PIN, y ${v.busca} Academy.\n\n` +
+        `Ensena donde esta el boton, que pregunta, que hacer cuando ${v.viste}, y a quien hay que llamar a mano porque el sistema no lo hace solo.\n\n` +
         `Gracias por lo que escriben cada turno. Sin eso no sabriamos nada de esto.\n\n— Direccion, Vivid Senior Living`;
 
     return {
-        subject: 'El curso de caídas, y por qué te lo asignamos',
+        subject: uno ? 'El curso de caídas, y por qué te lo asignamos'
+                     : 'El curso de caídas, y por qué se lo asignamos',
         text: texto,
         html: `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#F1F5F9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <div style="max-width:560px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);">
     <div style="background:#0F6E56;padding:24px 32px;">
       <div style="color:#fff;font-size:11px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;opacity:.85;">Academy · Zéndity</div>
-      <div style="color:#fff;font-size:20px;font-weight:900;margin-top:4px;line-height:1.3;">El curso de caídas, y por qué te lo asignamos</div>
+      <div style="color:#fff;font-size:20px;font-weight:900;margin-top:4px;line-height:1.3;">El curso de caídas, y por qué ${uno ? 'te' : 'se'} lo asignamos</div>
     </div>
 
     <div style="padding:32px;">
-      <p style="margin:0 0 18px;font-size:15px;color:#0F172A;">Hola <strong>${nombre}</strong>,</p>
+      <p style="margin:0 0 18px;font-size:15px;color:#0F172A;">${v.saludoHtml}</p>
 
       <p style="margin:0 0 20px;font-size:15px;line-height:1.65;color:#334155;">
-        Tienes asignado en <strong>Academy</strong> el curso
-        <strong>Protocolo de Respuesta a Caídas</strong>. Te contamos por qué.
+        ${v.tienes} asignado en <strong>Academy</strong> el curso
+        <strong>Protocolo de Respuesta a Caídas</strong>. ${v.te} contamos por qué.
       </p>
 
       <!-- Neutro a proposito: ni caja de alarma ni rojo. Es un dato, no una
@@ -205,14 +216,14 @@ function correo(nombre: string, n: Cifras, minutos: number) {
       </p>
       <ul style="margin:0 0 22px;padding-left:20px;font-size:15px;line-height:1.75;color:#334155;">
         <li>dónde está el botón <strong>Alerta Caída</strong> y qué abre;</li>
-        <li>qué te pregunta, y por qué la barrita del dolor decide cómo queda la caída en el expediente;</li>
-        <li>qué marcar cuando <strong>no la viste</strong> y te la contaron;</li>
+        <li>qué pregunta, y por qué la barrita del dolor decide cómo queda la caída en el expediente;</li>
+        <li>qué marcar cuando <strong>${uno ? 'no la viste' : 'no la vieron'}</strong> y ${uno ? 'te' : 'se'} la contaron;</li>
         <li>a quién hay que llamar <strong>a mano</strong>, porque el sistema no lo hace solo.</li>
       </ul>
 
       <p style="margin:0 0 22px;font-size:15px;line-height:1.65;color:#334155;">
-        Son unos <strong>${minutos} minutos</strong> y <strong>lo puedes hacer desde tu teléfono</strong>.
-        Entra a app.zendity.com con tu correo y tu PIN, y busca <strong>Academy</strong>.
+        Son unos <strong>${minutos} minutos</strong> y <strong>lo ${v.puedes} hacer desde ${v.tu} teléfono</strong>.
+        ${v.entra} a app.zendity.com con ${v.tu} correo y ${v.tu} PIN, y ${v.busca} <strong>Academy</strong>.
       </p>
 
       <div style="text-align:center;margin:8px 0 24px;">
@@ -337,9 +348,14 @@ async function main() {
         console.log('   PHI: limpio — ningún nombre de residente en el cuerpo');
 
         if (!APLICAR) {
-            const f = `/tmp/aviso-caidas-${hq.name.toLowerCase().replace(/[^a-z]+/g, '-')}.html`;
-            writeFileSync(f, muestra.html);
-            console.log(`   Cuerpo: ${f}`);
+            const base = `/tmp/aviso-caidas-${hq.name.toLowerCase().replace(/[^a-z]+/g, '-')}`;
+            writeFileSync(`${base}.html`, muestra.html);
+            // La general es la que se copia para mandar en copia oculta a las 14.
+            const general = correo(null, n, curso.durationMins);
+            writeFileSync(`${base}-general.html`, general.html);
+            writeFileSync(`${base}-general.txt`, general.text);
+            console.log(`   Cuerpo personalizado: ${base}.html`);
+            console.log(`   Cuerpo GENERAL:       ${base}-general.html  (+ .txt)`);
             console.log(`   Asunto: ${muestra.subject}`);
             for (const u of gente) console.log(`     → ${u.name} <${u.email ?? 'sin correo'}> · ${u.role}`);
             avisados += gente.length;

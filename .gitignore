@@ -64,6 +64,7 @@ scripts/*
 !scripts/academy-poner-contenido.py
 !scripts/academy-backfill-caidas.ts
 !scripts/avisar-caidas.ts
+!scripts/academy-motivo-caidas.ts
 !scripts/migrar-descontinuadas.ts
 !scripts/desactivar-cursos-sin-audiencia.ts
 !scripts/limpiar-foodintake-alertas.ts
