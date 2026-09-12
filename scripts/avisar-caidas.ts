@@ -26,17 +26,42 @@
  * del mismo suceso —mismo residente, mismo minuto, misma gravedad—, que es el
  * anti-patrón 1 de CLAUDE.md. Decir "8 caídas" sería contar una que no pasó.
  *
- *   npx tsx scripts/avisar-caidas.ts               simula y escribe el HTML en /tmp
- *   npx tsx scripts/avisar-caidas.ts --confirmar   manda de verdad
- *   npx tsx scripts/avisar-caidas.ts --solo-app    notificación en la app, sin correo
+ *   npx tsx scripts/avisar-caidas.ts                       simula y escribe el HTML en /tmp
+ *   npx tsx scripts/avisar-caidas.ts --prueba=tu@correo    una sola copia, para verla llegar
+ *   npx tsx scripts/avisar-caidas.ts --confirmar           manda a las 14
+ *   npx tsx scripts/avisar-caidas.ts --solo-app            solo la campana, sin correo
  */
+import { config as cargarEnv } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 import { writeFileSync } from 'fs';
 
+/**
+ * LA CLAVE DE SENDGRID VIVE EN .env.local, Y tsx SOLO CARGA .env.
+ *
+ * Sin esta linea, `--confirmar` escribia las 14 notificaciones en PRODUCCION,
+ * imprimia catorce veces "(solo app)" y cerraba con "correos enviados: 0" — con
+ * toda la pinta de haber funcionado. Es el patron "promete y no entrega", y
+ * estaba dentro del script que existe precisamente para avisar a la gente.
+ *
+ * `override: false`: si alguien pasa la variable por delante en el comando, esa
+ * manda.
+ */
+cargarEnv({ path: '.env.local', override: false, quiet: true });
+
 const prisma = new PrismaClient();
 const APLICAR = process.argv.includes('--confirmar');
 const SOLO_APP = process.argv.includes('--solo-app');
+/**
+ * `--prueba=correo@dominio` manda UNA sola copia a esa direccion y para.
+ *
+ * Existe porque no hay forma honesta de saber como llega un correo mirandolo en
+ * el navegador: el cliente de correo se come estilos, cambia anchos y decide por
+ * su cuenta si carga las fuentes. Verlo en el telefono es la unica prueba.
+ *
+ * No escribe nada en la base y no toca a nadie del piso.
+ */
+const PRUEBA = (process.argv.find(a => a.startsWith('--prueba=')) ?? '').split('=')[1] ?? '';
 const CURSO = 'Protocolo de Respuesta a Caidas';
 const DIAS = 90;
 
@@ -296,6 +321,25 @@ async function sinPHI(hqId: string, cuerpo: string, nombreDestinataria = ''): Pr
 async function main() {
     console.log(APLICAR ? '📣 Enviando de verdad\n' : '🔍 SIMULACIÓN — no se manda nada\n');
 
+    /**
+     * SI SE PIDE MANDAR Y NO SE PUEDE, SE PARA ANTES DE ESCRIBIR NADA.
+     *
+     * Antes seguia adelante, dejaba 14 notificaciones en produccion y decia
+     * "correos enviados: 0" al final, donde ya no lo lee nadie. Un aviso a
+     * medias es peor que ninguno: la persona ve la campana, no ve el correo, y
+     * nadie se entera de que el correo no salio.
+     */
+    if (APLICAR && !SOLO_APP && !process.env.SENDGRID_API_KEY) {
+        console.error('⛔ No hay SENDGRID_API_KEY. No se escribe nada.');
+        console.error('   Está en .env.local; si el script no la ve, comprueba que lo corres');
+        console.error('   desde la raíz del repo. Para avisar solo dentro de la app: --solo-app');
+        process.exit(1);
+    }
+    if (APLICAR && !SOLO_APP && !process.env.SENDGRID_FROM_EMAIL) {
+        console.error('⛔ No hay SENDGRID_FROM_EMAIL. El remitente no puede ser un literal inventado.');
+        process.exit(1);
+    }
+
     const sedes = await prisma.headquarters.findMany({ select: { id: true, name: true } });
     let avisados = 0, correos = 0;
 
@@ -346,6 +390,22 @@ async function main() {
             process.exit(1);
         }
         console.log('   PHI: limpio — ningún nombre de residente en el cuerpo');
+
+        if (PRUEBA) {
+            if (!process.env.SENDGRID_API_KEY || !process.env.SENDGRID_FROM_EMAIL) {
+                console.error('   ⛔ Falta SENDGRID_API_KEY o SENDGRID_FROM_EMAIL.');
+                process.exit(1);
+            }
+            // La general, que es la que se va a mandar de verdad.
+            const g = correo(null, n, curso.durationMins);
+            await sgMail.send({
+                to: PRUEBA,
+                from: { email: process.env.SENDGRID_FROM_EMAIL, name: 'Vivid Senior Living' },
+                subject: `[PRUEBA] ${g.subject}`, text: g.text, html: g.html,
+            });
+            console.log(`   📨 Copia de prueba enviada a ${PRUEBA}. No se ha escrito nada en la base.`);
+            continue;
+        }
 
         if (!APLICAR) {
             const base = `/tmp/aviso-caidas-${hq.name.toLowerCase().replace(/[^a-z]+/g, '-')}`;
