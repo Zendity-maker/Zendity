@@ -89,20 +89,40 @@ export async function GET(req: Request) {
         let allTouches: { patientId: string; at: Date }[];
 
         if (isNightShift) {
-            // Nocturna: rotaciones + notas clínicas de ronda nocturna
-            const nightNotes = await prisma.clinicalNote.findMany({
-                where: {
-                    authorId: userId,
-                    patientId: { in: groupIds },
-                    createdAt: { gte: shiftStart },
-                    content: { contains: '[RONDA NOCTURNA ZENDI]' }
-                },
-                select: { patientId: true, createdAt: true },
-                orderBy: { createdAt: 'asc' }
-            });
+            // Nocturna: rotaciones + notas de pañal + el sello de la ronda.
+            const [nightNotes, sellos] = await Promise.all([
+                prisma.clinicalNote.findMany({
+                    where: {
+                        authorId: userId,
+                        patientId: { in: groupIds },
+                        createdAt: { gte: shiftStart },
+                        content: { contains: '[RONDA NOCTURNA ZENDI]' }
+                    },
+                    select: { patientId: true, createdAt: true },
+                    orderBy: { createdAt: 'asc' }
+                }),
+                /**
+                 * El sello de "Sellar Ronda" — el acto que MÁS es una ronda de
+                 * los tres — no se contaba aquí, porque desde el 29-mar-2026 no
+                 * llegaba a escribirse nada (el POST moría en un 400). Ahora
+                 * escribe en DailyLog con el prefijo `[RONDA NOCTURNA]`, que es
+                 * el mismo que lee el SLA en /api/care/rounds/check.
+                 */
+                prisma.dailyLog.findMany({
+                    where: {
+                        authorId: userId,
+                        patientId: { in: groupIds },
+                        createdAt: { gte: shiftStart },
+                        notes: { contains: '[RONDA NOCTURNA]' }
+                    },
+                    select: { patientId: true, createdAt: true },
+                    orderBy: { createdAt: 'asc' }
+                }),
+            ]);
             allTouches = [
                 ...rotations.map(r => ({ patientId: r.patientId, at: r.performedAt })),
                 ...nightNotes.map(r => ({ patientId: r.patientId, at: r.createdAt })),
+                ...sellos.map(r => ({ patientId: r.patientId, at: r.createdAt })),
             ].sort((a, b) => a.at.getTime() - b.at.getTime());
         } else {
             // Diurna: rotaciones + baños + comidas + notas + pañales diurnos

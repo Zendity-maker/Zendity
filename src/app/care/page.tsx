@@ -1875,33 +1875,50 @@ export default function ZendityCareTabletPage() {
         }
     }, [activePatient, modalType, isNightShift]);
 
+    /**
+     * SELLAR LA RONDA DE NOCHE.
+     *
+     * El contrato de este POST se rompió el 29-mar-2026 y nadie lo notó en cinco
+     * meses y medio: mandaba `status`/`note` a una ruta que desde ese día exige
+     * `type`, así que devolvía 400 en cada toque y ni una sola ronda de noche
+     * llegó al expediente. Los campos de aquí abajo tienen que seguir cuadrando
+     * con src/app/api/care/rounds/route.ts — es un contrato, no una sugerencia.
+     */
     const handleNightRoundSubmit = async () => {
-        if (!nightRoundStatus) return avisoOk("Selecciona el estado del residente (, , ).");
-        if (nightRoundStatus === 'ANOMALY' && !nightRoundNote) return avisoOk("Debes documentar la anomalía detectada.");
-        
+        if (!nightRoundStatus) return avisoError("Selecciona cómo encontraste al residente.");
+        if (nightRoundStatus === 'ANOMALY' && nightRoundNote.trim().length < 5) {
+            return avisoError("Describe la anomalía antes de sellar la ronda.");
+        }
+
         setSubmitting(true);
         try {
             const res = await fetch("/api/care/rounds", {
                 method: "POST", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     patientId: activePatient.id,
-                    caregiverId: user?.id,
-                    status: nightRoundStatus,
-                    note: nightRoundNote
+                    type: 'RONDA_NOCTURNA',
+                    estado: nightRoundStatus,
+                    nota: nightRoundNote,
+                    performedAt: horaRegistro?.toISOString(),
                 })
             });
-            const data = await res.json();
-            if (data.success) {
-                avisoOk(" Ronda de Noche sincronizada exitosamente.\\nSLA de 2 Horas reactivado (No podrás reportar a este residente hasta las próximas 2h).");
+            const data = await res.json().catch(() => ({} as any));
+            if (res.ok && data?.success) {
+                avisoOk(data.duplicada
+                    ? (data.message || 'Esa ronda ya estaba sellada.')
+                    : "Ronda sellada. No podrás sellar la de este residente hasta dentro de 2 horas.");
                 setNightRoundStatus(null);
                 setNightRoundNote("");
                 setNightRoundSLA(0); // Lock it immediately
                 refreshPatientsSilently(selectedColor!);
             } else {
-                avisoError(` Error Clínico: ${data.error}`);
+                avisoError(data?.error || `No se pudo sellar la ronda (HTTP ${res.status}). Intenta otra vez.`);
             }
         } catch (e) {
-            console.error(e);
+            // Antes este catch era mudo: si se caía la red, ella no veía nada y
+            // se quedaba creyendo que la ronda estaba sellada.
+            console.error('handleNightRoundSubmit', e);
+            avisoError('Error de conexión. La ronda NO se selló — vuelve a intentarlo.');
         } finally {
             setSubmitting(false);
         }
@@ -4625,7 +4642,11 @@ export default function ZendityCareTabletPage() {
                                                 )}
                                                 
                                                 <button onClick={handleNightRoundSubmit} disabled={!nightRoundStatus || submitting} className={`w-full py-4 mt-2 font-black rounded-xl text-base shadow-md min-h-[56px] transition-all flex items-center justify-center gap-3 ${submitting ? 'bg-emerald-700 text-emerald-100 cursor-wait' : 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95 disabled:bg-slate-700 disabled:text-slate-500/50'}`}>
-                                                    {submitting ? 'Sellando Ronda...' : 'Sellar Ronda (Huella)'}
+                                                    {/* Decía "(Huella)" y aquí no se captura ninguna huella,
+                                                        ni firma, ni biométrico: solo el toque de una sesión ya
+                                                        autenticada. Prometer una huella que no existe es lo que
+                                                        hace que nadie se crea las que sí. */}
+                                                    {submitting ? 'Sellando Ronda...' : 'Sellar Ronda'}
                                                 </button>
                                             </div>
                                         )}
