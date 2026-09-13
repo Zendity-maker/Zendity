@@ -95,12 +95,37 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             );
         }
 
-        const updated = await prisma.incidentReport.update({
-            where: { id },
+        /**
+         * La exclusividad firma/rehúso va DENTRO de la escritura — ver el
+         * comentario equivalente en /acknowledge. Con read-then-update, firmar y
+         * rehusar a la vez deja la fila con las dos marcas, que el schema
+         * declara excluyentes sin constraint que lo imponga.
+         */
+        const escrito = await prisma.incidentReport.updateMany({
+            where: { id, acknowledgedAt: null, acknowledgeRefusedAt: null },
             data: {
                 acknowledgeRefusedAt: new Date(),
                 acknowledgeRefusedReason: reason,
             },
+        });
+
+        if (escrito.count === 0) {
+            // Perdió la carrera contra una firma. Eso NO es un rehúso: hay que
+            // decirlo, no devolver un éxito que mentiría en el expediente.
+            const actual = await prisma.incidentReport.findUnique({
+                where: { id },
+                select: { acknowledgedAt: true, acknowledgeRefusedAt: true },
+            });
+            return NextResponse.json({
+                success: false,
+                error: actual?.acknowledgedAt
+                    ? 'Esta observación acaba de firmarse; ya no puede marcarse como rehusada'
+                    : 'El rehúso ya fue registrado',
+            }, { status: 409 });
+        }
+
+        const updated = await prisma.incidentReport.findUnique({
+            where: { id },
             include: {
                 employee: { select: { id: true, name: true, role: true, email: true } },
                 supervisor: { select: { id: true, name: true, role: true } },

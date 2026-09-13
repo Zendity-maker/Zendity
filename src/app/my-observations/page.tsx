@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { ArrowLeft, FileWarning, Clock, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeft, FileWarning, Clock, AlertTriangle, CheckCircle2, XCircle, FilePen } from "lucide-react";
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; border: string }> = {
     PENDING_EXPLANATION: { label: 'Esperando tu explicación', bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-300' },
@@ -143,6 +143,16 @@ function IncidentCard({ incident }: { incident: any }) {
             {incident.status === 'PENDING_EXPLANATION' && (
                 <div className="mt-3 flex items-center gap-2 text-amber-700 text-xs font-bold">
                     <Clock size={14} /> Tienes 48 horas para responder — toca para abrir
+                </div>
+            )}
+            {/* Sin esto, las que ya están aplicadas nadie las vuelve a abrir — y
+                son 83 en producción, todas sin una sola firma ni negativa. El
+                acuse se puede firmar después: para eso el endpoint admite APPLIED. */}
+            {['PENDING_EXPLANATION', 'EXPLANATION_RECEIVED', 'APPLIED'].includes(incident.status)
+                && !incident.acknowledgedAt
+                && !incident.acknowledgeRefusedAt && (
+                <div className="mt-2 flex items-center gap-2 text-slate-700 text-xs font-bold">
+                    <FilePen size={14} /> Falta tu firma de recibo
                 </div>
             )}
         </Link>

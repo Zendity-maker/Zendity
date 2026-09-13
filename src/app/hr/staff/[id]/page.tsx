@@ -837,15 +837,26 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                                             Emitido por: <span className="text-slate-700">{incident.supervisor?.name || 'Supervisor'}</span>
                                         </p>
                                     </div>
+                                    {/* La firma del EMPLEADO es `acknowledgedSignature`.
+                                        Aquí se pintaba `signatureBase64`, que es la del
+                                        supervisor que emite la observación, con el rótulo
+                                        "Firma del empleado". No se notaba porque las dos
+                                        columnas estaban vacías en las 100 filas: siempre
+                                        caía en "Sin firmar". Ahora que el empleado puede
+                                        firmar de verdad, la confusión sí se vería. */}
                                     <div className="shrink-0 md:w-48 bg-white border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center">
                                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 text-center">Firma de Enterado</p>
-                                        {incident.signatureBase64 ? (
-                                            <img src={incident.signatureBase64} alt="Firma del empleado" className="w-full object-contain h-20 opacity-80" />
+                                        {incident.acknowledgedSignature ? (
+                                            <img src={incident.acknowledgedSignature} alt="Firma de acuse del empleado" className="w-full object-contain h-20 opacity-80" />
+                                        ) : incident.acknowledgeRefusedAt ? (
+                                            <span className="text-xs text-rose-600 font-bold text-center">Rehusó firmar<br /><span className="font-medium text-slate-500">requiere reunión formal</span></span>
                                         ) : (
                                             <span className="text-xs text-rose-500 font-bold">Sin firmar</span>
                                         )}
-                                        {incident.signedAt && (
-                                            <p className="text-[10px] text-slate-500 mt-2">{new Date(incident.signedAt).toLocaleString('es-ES')}</p>
+                                        {(incident.acknowledgedAt || incident.acknowledgeRefusedAt) && (
+                                            <p className="text-[10px] text-slate-500 mt-2">
+                                                {new Date(incident.acknowledgedAt || incident.acknowledgeRefusedAt).toLocaleString('es-ES')}
+                                            </p>
                                         )}
                                     </div>
                                 </div>

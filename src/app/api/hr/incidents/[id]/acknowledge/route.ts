@@ -91,12 +91,29 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             );
         }
 
-        const updated = await prisma.incidentReport.update({
-            where: { id },
+        /**
+         * La condición del write-once va DENTRO de la escritura, no solo en el
+         * `if` de arriba.
+         *
+         * Con un read-then-update, dos peticiones a la vez —un doble toque en
+         * la tableta, o un reintento porque la pantalla se vio lenta— pasan las
+         * dos el `if` y escriben las dos: la segunda pisa la firma y la hora de
+         * la primera. En el rehúso es peor todavía, porque el schema declara
+         * firma y rehúso como excluyentes y no hay constraint que lo imponga.
+         *
+         * Hasta hoy esto no se podía dar: nadie había podido firmar nunca
+         * porque la pantalla del empleado no tenía el botón. A partir de ahora sí.
+         */
+        const escrito = await prisma.incidentReport.updateMany({
+            where: { id, acknowledgedAt: null, acknowledgeRefusedAt: null },
             data: {
                 acknowledgedAt: new Date(),
                 acknowledgedSignature: signatureBase64,
             },
+        });
+
+        const updated = await prisma.incidentReport.findUnique({
+            where: { id },
             include: {
                 employee: { select: { id: true, name: true, role: true, email: true } },
                 supervisor: { select: { id: true, name: true, role: true } },
@@ -104,7 +121,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             },
         });
 
-        return NextResponse.json({ success: true, incident: updated });
+        // Si perdió la carrera, el acuse igual está hecho: se devuelve éxito con
+        // la fila que ganó. Un rojo aquí le haría pulsar otra vez a alguien que
+        // ya hizo lo correcto.
+        return NextResponse.json({ success: true, yaEstaba: escrito.count === 0, incident: updated });
     } catch (error: any) {
         console.error('Error en acknowledge incident:', error?.message ?? error);
         return NextResponse.json(

@@ -4,7 +4,8 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { ArrowLeft, Clock, Send, FileWarning, MessageSquare, AlertTriangle, CheckCircle2, User, Shield } from "lucide-react";
+import { ArrowLeft, Clock, Send, FileWarning, MessageSquare, AlertTriangle, CheckCircle2, User, Shield, FilePen, XCircle, X } from "lucide-react";
+import { SignaturePad } from "@/components/sw-evaluation/SignaturePad";
 
 const SEVERITY_LABELS: Record<string, string> = {
     OBSERVATION: 'Observación', WARNING: 'Amonestación Escrita',
@@ -40,6 +41,11 @@ export default function MyObservationDetailPage() {
     const [appealText, setAppealText] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [toast, setToast] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+    // Acuse de recibo — ver el bloque de más abajo.
+    const [ackModalOpen, setAckModalOpen] = useState(false);
+    const [ackSignature, setAckSignature] = useState<string | null>(null);
+    const [refuseModalOpen, setRefuseModalOpen] = useState(false);
+    const [refuseReason, setRefuseReason] = useState("");
 
     const fetchIncident = async () => {
         if (!params.id) return;
@@ -92,6 +98,71 @@ export default function MyObservationDetailPage() {
             }
         } catch (e: any) {
             setToast({ kind: 'err', msg: e.message || 'Error de conexión' });
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    /**
+     * ACUSE DE RECIBO — firmar, o dejar constancia de que no se firma.
+     *
+     * Los dos endpoints existen desde jul-2026 y estaban bien hechos: validan
+     * empleado-propio contra la sesión, sede, estado y write-once. Lo que no
+     * existía era una puerta: la única pantalla del producto que los llamaba
+     * era /hr/incidents/[id], y AuthContext rebota de /hr a CAREGIVER y NURSE.
+     * Todos los avisos y correos traen al empleado aquí, donde no había ni
+     * botón de firmar ni de negarse.
+     *
+     * Lo que eso produjo, medido el 13-sep-2026: la firma del acuse estaba
+     * NULA en las 100 observaciones de producción, con 89 en estado firmable y
+     * 83 ya aplicadas y 226 puntos descontados sin que nadie firmara nunca.
+     */
+    const handleAcknowledge = async () => {
+        if (!ackSignature) return;
+        setSubmitting(true);
+        setToast(null);
+        try {
+            const res = await fetch(`/api/hr/incidents/${params.id}/acknowledge`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ signatureBase64: ackSignature }),
+            });
+            const data = await res.json().catch(() => ({} as any));
+            if (data?.success) {
+                setAckModalOpen(false);
+                setAckSignature(null);
+                setToast({ kind: 'ok', msg: 'Acuse firmado. Queda constancia con tu firma.' });
+                await fetchIncident();
+            } else {
+                setToast({ kind: 'err', msg: data?.error || 'No se pudo firmar el acuse' });
+            }
+        } catch (e: any) {
+            setToast({ kind: 'err', msg: e?.message || 'Error de conexión' });
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleRefuse = async () => {
+        setSubmitting(true);
+        setToast(null);
+        try {
+            const res = await fetch(`/api/hr/incidents/${params.id}/refuse-acknowledge`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason: refuseReason.trim() || undefined }),
+            });
+            const data = await res.json().catch(() => ({} as any));
+            if (data?.success) {
+                setRefuseModalOpen(false);
+                setRefuseReason("");
+                setToast({ kind: 'ok', msg: 'Queda constancia de que no firmas. Administración fue notificada.' });
+                await fetchIncident();
+            } else {
+                setToast({ kind: 'err', msg: data?.error || 'No se pudo registrar el rehúso' });
+            }
+        } catch (e: any) {
+            setToast({ kind: 'err', msg: e?.message || 'Error de conexión' });
         } finally {
             setSubmitting(false);
         }
@@ -225,6 +296,85 @@ export default function MyObservationDetailPage() {
                     )}
                 </div>
 
+                {/* ─── ACUSE DE RECIBO ──────────────────────────────────────────
+                    Acuse = RECIBO, NO acuerdo. La explicación va aparte y es
+                    opcional: se puede firmar el recibo y aun así no estar de
+                    acuerdo, que es justo lo que la frase de abajo deja por
+                    escrito. Write-once en el servidor. */}
+                {incident.visibleToEmployee
+                    && ['PENDING_EXPLANATION', 'EXPLANATION_RECEIVED', 'APPLIED'].includes(incident.status)
+                    && !incident.acknowledgedAt
+                    && !incident.acknowledgeRefusedAt && (
+                    <div className="bg-white rounded-2xl border-2 border-slate-300 p-6 mb-5 shadow-sm">
+                        <h3 className="text-sm font-black text-slate-800 mb-3 flex items-center gap-2">
+                            <FilePen className="text-slate-700" size={16} /> Acuse de recibo
+                        </h3>
+                        <p className="text-sm text-slate-600 leading-relaxed mb-4">
+                            Confirmo que recibí y se me explicó esta observación. Mi firma indica <strong>recibo, no necesariamente conformidad</strong>.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                onClick={() => { setAckSignature(null); setAckModalOpen(true); }}
+                                disabled={submitting}
+                                className="bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-colors disabled:opacity-50"
+                            >
+                                <FilePen size={14} /> Firmar acuse
+                            </button>
+                            <button
+                                onClick={() => { setRefuseReason(''); setRefuseModalOpen(true); }}
+                                disabled={submitting}
+                                className="bg-white text-red-700 border border-red-200 px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-red-50 transition-colors disabled:opacity-50"
+                            >
+                                <XCircle size={14} /> No firmo
+                            </button>
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-3">
+                            Si no firmas, se notifica a administración y se coordina una reunión formal.
+                        </p>
+                    </div>
+                )}
+
+                {/* Acuse ya firmado — el empleado ve su propia firma */}
+                {incident.acknowledgedAt && (
+                    <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-5">
+                        <h3 className="text-sm font-black text-slate-800 mb-2 flex items-center gap-2">
+                            <CheckCircle2 className="text-teal-600" size={16} /> Acuse de recibo registrado
+                        </h3>
+                        <p className="text-xs text-slate-500 mb-3">
+                            Firmado el {new Date(incident.acknowledgedAt).toLocaleString('es-PR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                        {incident.acknowledgedSignature && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                                src={incident.acknowledgedSignature}
+                                alt="Tu firma de acuse"
+                                className="max-h-32 border border-slate-200 rounded-xl bg-white p-2"
+                            />
+                        )}
+                        <p className="text-[11px] text-slate-400 italic mt-3">
+                            El acuse indica recibo del documento. No constituye aceptación del contenido.
+                        </p>
+                    </div>
+                )}
+
+                {/* Rehúso registrado */}
+                {incident.acknowledgeRefusedAt && (
+                    <div className="bg-red-50 rounded-2xl border border-red-200 p-6 mb-5">
+                        <h3 className="text-sm font-black text-red-800 mb-2 flex items-center gap-2">
+                            <XCircle className="text-red-600" size={16} /> Rehusaste firmar · requiere reunión formal
+                        </h3>
+                        <p className="text-xs text-red-700 mb-2">
+                            Registrado el {new Date(incident.acknowledgeRefusedAt).toLocaleString('es-PR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                        {incident.acknowledgeRefusedReason && (
+                            <div className="bg-white border border-red-100 rounded-xl px-3 py-2">
+                                <p className="text-[10px] font-black uppercase text-red-400 mb-0.5">Tu motivo</p>
+                                <p className="text-sm text-red-900">{incident.acknowledgeRefusedReason}</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {/* Formulario de respuesta */}
                 {incident.status === 'PENDING_EXPLANATION' && !incident.employeeResponse && (
                     <div className="bg-white rounded-2xl border-2 border-teal-300 p-6 shadow-sm">
@@ -285,6 +435,130 @@ export default function MyObservationDetailPage() {
                     </div>
                 )}
             </div>
+
+            {/* MODAL — Firmar el acuse */}
+            {ackModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md my-auto">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                            <div className="flex items-center gap-2.5">
+                                <FilePen className="w-5 h-5 text-slate-700" />
+                                <h3 className="font-extrabold text-slate-800">Acuse de recibo</h3>
+                            </div>
+                            <button
+                                onClick={() => { setAckModalOpen(false); setAckSignature(null); }}
+                                className="p-1 rounded-lg hover:bg-slate-100"
+                                aria-label="Cerrar"
+                            >
+                                <X className="w-5 h-5 text-slate-500" />
+                            </button>
+                        </div>
+                        <div className="px-6 py-5 space-y-4">
+                            <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 border-l-4 border-slate-400 p-3 rounded-r-lg">
+                                Confirmo que recibí y se me explicó esta observación.
+                                Mi firma indica recibo, no necesariamente conformidad.
+                            </p>
+
+                            {!ackSignature ? (
+                                <SignaturePad
+                                    onAccept={(b64) => setAckSignature(b64)}
+                                    onCancel={() => { setAckModalOpen(false); setAckSignature(null); }}
+                                />
+                            ) : (
+                                <div className="flex flex-col items-center gap-3">
+                                    <p className="text-sm font-semibold text-slate-700">Firma capturada — confirma para acusar recibo.</p>
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                        src={ackSignature}
+                                        alt="Firma de acuse capturada"
+                                        className="max-h-32 border border-slate-300 rounded-xl bg-white p-1"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setAckSignature(null)}
+                                        className="text-xs font-semibold text-slate-500 hover:text-slate-700 hover:underline"
+                                    >
+                                        Volver a firmar
+                                    </button>
+                                </div>
+                            )}
+
+                            <div className="flex gap-2 pt-2">
+                                <button
+                                    onClick={() => { setAckModalOpen(false); setAckSignature(null); }}
+                                    disabled={submitting}
+                                    className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 disabled:opacity-50"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleAcknowledge}
+                                    disabled={!ackSignature || submitting}
+                                    className="flex-1 py-3 rounded-2xl bg-slate-800 hover:bg-slate-900 text-white font-black text-sm disabled:opacity-50 transition-all active:scale-95"
+                                >
+                                    {submitting ? 'Firmando…' : 'Confirmar acuse'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL — Negarse a firmar. Queda constancia y se coordina reunión. */}
+            {refuseModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md my-auto">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                            <div className="flex items-center gap-2.5">
+                                <XCircle className="w-5 h-5 text-red-600" />
+                                <h3 className="font-extrabold text-slate-800">No firmar el acuse</h3>
+                            </div>
+                            <button
+                                onClick={() => { setRefuseModalOpen(false); setRefuseReason(''); }}
+                                className="p-1 rounded-lg hover:bg-slate-100"
+                                aria-label="Cerrar"
+                            >
+                                <X className="w-5 h-5 text-slate-500" />
+                            </button>
+                        </div>
+                        <div className="px-6 py-5 space-y-4">
+                            <p className="text-sm text-slate-700 leading-relaxed bg-red-50 border-l-4 border-red-400 p-3 rounded-r-lg">
+                                Estás por dejar constancia de que <strong>no firmas</strong> el acuse.
+                                Esto notifica a administración y se coordinará una <strong>reunión formal</strong>.
+                                Esta acción no se puede deshacer.
+                            </p>
+                            <div>
+                                <label className="block text-[11px] font-black uppercase text-slate-500 mb-1">
+                                    Motivo <span className="text-slate-400">(opcional)</span>
+                                </label>
+                                <textarea
+                                    rows={4}
+                                    value={refuseReason}
+                                    onChange={e => setRefuseReason(e.target.value)}
+                                    placeholder="Puedes explicar por qué no firmas…"
+                                    className="w-full border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-red-400 outline-none bg-slate-50 text-sm resize-none"
+                                />
+                            </div>
+                            <div className="flex gap-2 pt-1">
+                                <button
+                                    onClick={() => { setRefuseModalOpen(false); setRefuseReason(''); }}
+                                    disabled={submitting}
+                                    className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 disabled:opacity-50"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleRefuse}
+                                    disabled={submitting}
+                                    className="flex-1 py-3 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-black text-sm disabled:opacity-50 transition-all active:scale-95"
+                                >
+                                    {submitting ? 'Registrando…' : 'Confirmar que no firmo'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
