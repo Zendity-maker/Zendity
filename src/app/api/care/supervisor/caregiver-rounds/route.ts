@@ -256,6 +256,7 @@ export async function GET(req: Request) {
         const dailyLogsByCg = new Map<string, Touch[]>();
         const nightRoundNotesByCg = new Map<string, Touch[]>();
         const dayDiapersByCg = new Map<string, Touch[]>();
+        const nightDiapersByCg = new Map<string, Touch[]>();
 
         // Solo 5 queries globales en paralelo. Selección y filtrado por shiftStart
         // individual + groupIds del cuidador se hacen en memoria después.
@@ -290,7 +291,37 @@ export async function GET(req: Request) {
                 }),
             );
         }
-        const results = await Promise.all(queries);
+        /**
+         * LAS NOTAS DE PAÑAL DE LA NOCHE — la mitad del trabajo nocturno.
+         *
+         * Iban a `ClinicalNote` con el prefijo `[RONDA NOCTURNA ZENDI]` y esta
+         * ruta nunca las consultaba: la consulta a `clinicalNote` de arriba solo
+         * se encola `if (!isNightShift)` y solo busca el prefijo DIURNO. De
+         * noche el supervisor veía únicamente rotaciones posturales.
+         *
+         * Medido el 13-sep-2026 (ventana 23:00–07:00, 30 días, Cupey): 1 761
+         * rotaciones + 1 680 notas de pañal = 3 441 toques reales. El panel veía
+         * 1 761. Perdía el 48,8% — y la cuidadora que más pañal hacía y menos
+         * rotaba salía en el panel como la que menos trabajaba.
+         *
+         * Va aparte de `queries` a propósito: ese array lee por posición
+         * (`results[2]`, `[3]`, `[4]`) y solo se llena de día, así que meter una
+         * query condicional más dentro corría los índices.
+         */
+        const [results, nightDiapers] = await Promise.all([
+            Promise.all(queries),
+            isNightShift
+                ? prisma.clinicalNote.findMany({
+                    where: {
+                        authorId: { in: caregiverIds },
+                        patientId: { in: allPatientIds },
+                        createdAt: { gte: minShiftStart },
+                        content: { contains: '[RONDA NOCTURNA ZENDI]' },
+                    },
+                    select: { authorId: true, patientId: true, createdAt: true },
+                })
+                : Promise.resolve([] as Array<{ authorId: string; patientId: string; createdAt: Date }>),
+        ]);
         const allRotations = results[0] as Array<{ nurseId: string; patientId: string; performedAt: Date }>;
         const allDailyLogs = results[1] as Array<{ authorId: string; patientId: string; createdAt: Date; notes: string | null }>;
         const allBaths = (results[2] || []) as Array<{ caregiverId: string; patientId: string; timeLogged: Date }>;
@@ -306,10 +337,14 @@ export async function GET(req: Request) {
         for (const r of allDailyLogs) {
             const touch: Touch = { patientId: r.patientId, at: r.createdAt };
             pushTouch(dailyLogsByCg, r.authorId, touch);
-            if (isNightShift && r.notes?.includes('[RONDA NOCTURNA')) {
+            // El sello de "Sellar Ronda". Desde el 13-sep-2026 vuelve a existir:
+            // estuvo cinco meses y medio devolviendo 400, así que este filtro
+            // llevaba todo ese tiempo sin encontrar una sola fila.
+            if (isNightShift && r.notes?.includes('[RONDA NOCTURNA]')) {
                 pushTouch(nightRoundNotesByCg, r.authorId, touch);
             }
         }
+        for (const r of nightDiapers) pushTouch(nightDiapersByCg, r.authorId, { patientId: r.patientId, at: r.createdAt });
         for (const r of allBaths) pushTouch(bathsByCg, r.caregiverId, { patientId: r.patientId, at: r.timeLogged });
         for (const r of allMeals) pushTouch(mealsByCg, r.caregiverId, { patientId: r.patientId, at: r.timeLogged });
         for (const r of allDiapers) pushTouch(dayDiapersByCg, r.authorId, { patientId: r.patientId, at: r.createdAt });
@@ -404,6 +439,7 @@ export async function GET(req: Request) {
                 allTouches = [
                     ...filterTouches(rotationsByCg.get(caregiverId)),
                     ...filterTouches(nightRoundNotesByCg.get(caregiverId)),
+                    ...filterTouches(nightDiapersByCg.get(caregiverId)),
                 ];
             } else {
                 allTouches = [
