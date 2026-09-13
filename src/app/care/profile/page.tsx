@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
+import { Z_SCORE_VISIBLE, Z_SCORE_OCULTO_MOTIVO } from "@/lib/z-score-visible";
 
 interface ScoreBreakdown {
     base: number;
@@ -104,8 +105,28 @@ export default function CaregiverProfilePage() {
                 <p className="text-slate-400 text-sm">{user?.email || ""}</p>
             </div>
 
-            {/* Score Breakdown Card */}
-            {score !== null && breakdown && (() => {
+            {/* El hueco, explicado.
+                Quitar el bloque y no decir nada es lo que hace que la gente
+                pregunte "¿por qué ya no aparece lo mío?" — que es justo lo que
+                pasó. `Z_SCORE_OCULTO_MOTIVO` existe para esto. */}
+            {!Z_SCORE_VISIBLE && (
+                <div className="max-w-lg mx-auto px-6 mb-8">
+                    <h2 className="text-white font-bold text-base mb-4">Mi Puntuación</h2>
+                    <div className="bg-slate-800 rounded-2xl border border-slate-700 px-5 py-4">
+                        <p className="text-slate-300 text-sm leading-relaxed">{Z_SCORE_OCULTO_MOTIVO}</p>
+                        <p className="text-slate-500 text-xs mt-2 leading-relaxed">
+                            Tu trabajo sigue registrándose igual. Mientras tanto, en <span className="text-teal-400 font-semibold">Mi Desempeño</span> tienes las medidas concretas: turnos cerrados con el relevo, lo que reportaste y tus cursos de Academy.
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {/* Score Breakdown Card — apagado el 13-sep-2026.
+                Esta pantalla y /care/hub se quedaron fuera de los dos barridos
+                anteriores (bddaaf8 y ef0422b) y seguían pintando el número
+                invertido, aquí además rotulado "Z-Score" y con la fórmula
+                desglosada. Ver src/lib/z-score-visible.ts. */}
+            {Z_SCORE_VISIBLE && score !== null && breakdown && (() => {
                 const s = score;
                 const b = breakdown;
                 const d = b.details;

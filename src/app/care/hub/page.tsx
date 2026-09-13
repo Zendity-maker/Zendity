@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { GraduationCap, Tablet, FileWarning, LogOut, ChevronRight, TrendingUp } from "lucide-react";
+import { Z_SCORE_VISIBLE } from "@/lib/z-score-visible";
 
 interface ScoreData {
-    score: number;
+    score: number | null;
     breakdown: {
         base: number;
         positives: number;
@@ -84,8 +85,14 @@ export default function CareHubPage() {
                 </p>
             </div>
 
-            {/* Score Card */}
-            {scoreData && (() => {
+            {/* Score Card — apagado desde el 13-sep-2026.
+                Esta pantalla es la primera que abre una cuidadora cada día, y se
+                quedó fuera de los dos barridos anteriores (bddaaf8 y ef0422b).
+                Sin gate aquí, seguía enseñando el número invertido: Yedaira, la
+                que más documenta del piso, veía 25. Ver src/lib/z-score-visible.ts.
+                La API ya devuelve `score: null`, así que esto es el cinturón
+                además del tirante. */}
+            {Z_SCORE_VISIBLE && scoreData?.score != null && (() => {
                 const s = scoreData.score;
                 const d = scoreData.breakdown?.details ?? {};
                 const colorClass = s >= 80 ? 'text-emerald-400' : s >= 60 ? 'text-amber-400' : 'text-rose-400';
