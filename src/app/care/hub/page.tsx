@@ -190,6 +190,35 @@ export default function CareHubPage() {
                     )}
                 </button>
 
+                {/* Mi desempeño.
+                    Este botón faltaba, y sin él la pantalla no existía para
+                    ellas: /care es ruta a pantalla completa (AppLayout.tsx:674),
+                    o sea SIN menú lateral — y el único enlace a "Mi Desempeño"
+                    vivía justo ahí, en el menú (AppLayout.tsx:90). Se arregló el
+                    gate de ruta en AuthContext y se olvidó la puerta.
+
+                    Resultado: la pantalla que se construyó el 09-sep como
+                    sustituto del Z-Score llevaba cuatro días publicada y ninguna
+                    cuidadora podía abrirla. Preguntaron por su gráfica porque lo
+                    que les quedaba no lo veían. */}
+                <button
+                    onClick={() => router.push("/mi-desempeno")}
+                    className="w-full flex items-center gap-4 bg-slate-800 hover:bg-slate-700 active:scale-[0.98] transition-all rounded-2xl p-5 text-left border border-slate-700 shadow-sm"
+                >
+                    <div className="w-12 h-12 rounded-xl bg-teal-500/10 flex items-center justify-center shrink-0">
+                        <TrendingUp className="w-6 h-6 text-teal-400" />
+                    </div>
+                    <div className="flex-1">
+                        <p className="text-white font-bold text-base leading-tight">
+                            Mi Desempeño
+                        </p>
+                        <p className="text-slate-400 text-xs mt-0.5">
+                            Tus turnos, lo que reportaste y tus cursos
+                        </p>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-slate-600 shrink-0" />
+                </button>
+
                 {/* Divisor */}
                 <div className="pt-2" />
 
