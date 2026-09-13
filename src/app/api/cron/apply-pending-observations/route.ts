@@ -1,11 +1,22 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { notifyUser } from '@/lib/notifications';
 import { IncidentStatus } from '@prisma/client';
+import { aplicarObservacion } from '@/lib/incidente-aplicar';
+import { HORAS_PARA_RESPONDER, avisadoEn, puedeAplicarse } from '@/lib/incidente-politica';
 
 // Vercel Cron: cada 6 horas (vercel.json: "0 */6 * * *")
 // Aplica automáticamente las observaciones PENDING_EXPLANATION
 // que no recibieron respuesta del empleado en 72 horas.
+//
+// ESTE CRON DECIDE CUÁNDO, NUNCA CUÁNTO.
+//
+// Hasta el 13-sep-2026 decidía las dos cosas y las dos mal: contaba el plazo
+// desde `createdAt` —la fecha del BORRADOR del supervisor, no la del aviso al
+// empleado—, no miraba el acuse, usaba una tabla de puntos que /decide había
+// abandonado, y no dejaba ni una fila en ScoreEvent. Medido ese día: 49 de las
+// 83 aplicadas salieron de aquí, con 70 puntos escritos donde correspondían
+// 217, y CERO ScoreEvent de las 49. Los puntos y el aviso ahora los pone
+// src/lib/incidente-aplicar.ts, el mismo que usa el director.
 
 export const dynamic = 'force-dynamic';
 
@@ -19,14 +30,24 @@ export async function GET(req: Request) {
 
     try {
         const now = new Date();
-        const threshold72h = new Date(now.getTime() - 72 * 60 * 60 * 1000);
 
-        // Buscar todas las observaciones PENDING_EXPLANATION sin respuesta
-        // que superaron las 72 horas desde su creación
-        const overdue = await prisma.incidentReport.findMany({
+        /**
+         * Se traen TODAS las pendientes sin respuesta y el plazo se mide en
+         * memoria, no en el `where`.
+         *
+         * Porque el reloj no es una sola columna: `notifiedAt` lo escribe
+         * "Pedir explicación", pero el patrón de ausencias
+         * (/api/hr/schedule/absent) crea la observación ya visible y avisa al
+         * empleado en el mismo acto, así que ahí el reloj es `createdAt`. Ver
+         * `avisadoEn()`. Y si no consta que se le avisara, no se aplica: un
+         * plazo no puede correr contra alguien que no sabe que existe.
+         *
+         * El volumen lo permite de sobra: el 13-sep-2026 había DOS
+         * observaciones en este estado en toda la producción.
+         */
+        const pendientes = await prisma.incidentReport.findMany({
             where: {
                 status: IncidentStatus.PENDING_EXPLANATION,
-                createdAt: { lt: threshold72h },
                 employeeResponse: null,
             },
             include: {
@@ -37,11 +58,38 @@ export async function GET(req: Request) {
             }
         });
 
+        const saltadas: { id: string; employee: string; motivo: string }[] = [];
+        const overdue = pendientes.filter(i => {
+            const desde = avisadoEn(i);
+            if (!desde) {
+                saltadas.push({ id: i.id, employee: i.employee?.name ?? i.employeeId, motivo: 'SIN_AVISAR' });
+                return false;
+            }
+            const horas = (now.getTime() - desde.getTime()) / 3600000;
+            if (horas < HORAS_PARA_RESPONDER) return false;
+
+            // La misma guarda que el director: sin acuse ni rehúso hay que
+            // haber esperado DIAS_ESPERA_ACUSE desde el aviso.
+            const veredicto = puedeAplicarse(i, now);
+            if (!veredicto.ok) {
+                saltadas.push({ id: i.id, employee: i.employee?.name ?? i.employeeId, motivo: veredicto.code });
+                return false;
+            }
+            return true;
+        });
+
+        if (saltadas.length > 0) {
+            // Que no se apliquen en silencio ni se salten en silencio.
+            console.warn('[cron/apply-pending-observations] saltadas:', JSON.stringify(saltadas));
+        }
+
         if (overdue.length === 0) {
             return NextResponse.json({
                 ok: true,
                 message: 'Sin observaciones vencidas.',
                 applied: 0,
+                revisadas: pendientes.length,
+                saltadas,
                 runAt: now.toISOString(),
             });
         }
@@ -50,41 +98,9 @@ export async function GET(req: Request) {
 
         for (const incident of overdue) {
             try {
-                // severity OBSERVATION → 0 puntos; otros tipos deducen
-                const delta = incident.severity === 'OBSERVATION' ? 0
-                    : incident.severity === 'WARNING' ? -5
-                    : incident.severity === 'SUSPENSION' ? -15
-                    : 0;
-                const currentScore = incident.employee?.complianceScore ?? 50;
-                const newScore = Math.max(0, currentScore + delta);
-                const pointsDeducted = Math.abs(delta);
-
-                await prisma.$transaction([
-                    prisma.incidentReport.update({
-                        where: { id: incident.id },
-                        data: {
-                            status: IncidentStatus.APPLIED,
-                            appliedAt: now,
-                            pointsDeducted,
-                        }
-                    }),
-                    prisma.user.update({
-                        where: { id: incident.employeeId },
-                // NO se escribe el complianceScore. Desde el 10-sep-2026 el
-                // unico escritor es el cron sync-compliance, con un SET
-                // absoluto sobre la formula de src/lib/compliance-score.ts.
-                // Aqui se guarda el HECHO; el numero lo calcula uno solo.
-                        data: {}
-                    })
-                ]);
-
-                // Notificación in-app al empleado
-                await notifyUser(incident.employeeId, {
-                    type: 'EMAR_ALERT',
-                    title: 'Observación aplicada automáticamente',
-                    message: `Observación aplicada automáticamente por no responder en 72 horas. Puntos deducidos: ${pointsDeducted}.`,
-                    link: `/my-observations/${incident.id}`,
-                });
+                // Los puntos, el ScoreEvent y el aviso, en el MISMO sitio que
+                // usa el director. Aquí ya no se calcula nada.
+                await aplicarObservacion(incident, { ahora: now, automatica: true });
 
                 results.push({
                     id: incident.id,
@@ -109,9 +125,11 @@ export async function GET(req: Request) {
 
         return NextResponse.json({
             ok: true,
-            message: `${appliedCount} observación(es) aplicada(s) automáticamente por vencimiento de 72h.`,
+            message: `${appliedCount} observación(es) aplicada(s) automáticamente por vencimiento de ${HORAS_PARA_RESPONDER}h.`,
             applied: appliedCount,
             errors: results.length - appliedCount,
+            revisadas: pendientes.length,
+            saltadas,
             runAt: now.toISOString(),
             details: results,
         });

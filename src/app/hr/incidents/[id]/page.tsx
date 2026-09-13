@@ -11,6 +11,7 @@ import {
 import { SignaturePad } from '@/components/sw-evaluation/SignaturePad';
 import { generateIncidentReportPDF } from '@/lib/incident-report-pdf';
 import { Z_SCORE_VISIBLE, Z_SCORE_OCULTO_MOTIVO } from '@/lib/z-score-visible';
+import { HORAS_PARA_RESPONDER, horasQueLeQuedan } from '@/lib/incidente-politica';
 
 const STATUS_LABELS: Record<string, string> = {
     DRAFT: 'Borrador',
@@ -40,10 +41,9 @@ const CATEGORY_LABELS: Record<string, string> = {
 const DIRECTOR_ROLES = ['DIRECTOR', 'ADMIN'];
 const HR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
-function hoursRemaining(from: Date, totalHours: number): number {
-    const elapsed = (Date.now() - from.getTime()) / (1000 * 60 * 60);
-    return Math.max(0, Math.round(totalHours - elapsed));
-}
+// El contador sale de `horasQueLeQuedan` (src/lib/incidente-politica.ts): el
+// plazo real y contado desde que se le AVISÓ al empleado, no desde el borrador.
+// Aquí decía 48 horas y no existe ningún plazo de 48 en el backend.
 
 export default function IncidentDetailPage() {
     const params = useParams<{ id: string }>();
@@ -267,7 +267,7 @@ export default function IncidentDetailPage() {
                 label: 'Notificada al empleado',
                 date: null,
                 color: 'bg-amber-500',
-                description: 'Director solicitó explicación (48h)'
+                description: `Director solicitó explicación (${HORAS_PARA_RESPONDER}h)`
             });
         }
         if (incident.acknowledgedAt) {
@@ -355,8 +355,8 @@ export default function IncidentDetailPage() {
     if (!incident) return null;
 
     const hoursLeft = incident.status === 'PENDING_EXPLANATION'
-        ? hoursRemaining(new Date(incident.createdAt), 48)
-        : 0;
+        ? horasQueLeQuedan(incident)
+        : null;
 
     return (
         <div className="min-h-screen bg-slate-50">
@@ -413,7 +413,7 @@ export default function IncidentDetailPage() {
                             <Clock className="text-amber-600" size={20} />
                             <div className="text-sm">
                                 <strong className="text-amber-800">Esperando respuesta del empleado.</strong>
-                                <span className="text-amber-700 ml-1">Quedan ~{hoursLeft} horas para responder.</span>
+                                <span className="text-amber-700 ml-1">{hoursLeft === null ? `Aún no se le ha avisado — el plazo de ${HORAS_PARA_RESPONDER}h no ha empezado.` : `Quedan ~${hoursLeft} horas para responder.`}</span>
                             </div>
                         </div>
                     )}

@@ -4,8 +4,15 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { notifyUser } from '@/lib/notifications';
 import { asignarPorIncidente } from '@/lib/academy-assign';
-import { applyScoreEvent } from '@/lib/score-event';
-import { IncidentStatus, HrIncidentSeverity } from '@prisma/client';
+import { aplicarObservacion } from '@/lib/incidente-aplicar';
+import {
+    DIAS_ESPERA_ACUSE,
+    HORAS_PARA_RESPONDER,
+    etiquetaSeveridad as severityLabel,
+    puntosPorSeveridad as pointsFor,
+    puedeAplicarse,
+} from '@/lib/incidente-politica';
+import { IncidentStatus } from '@prisma/client';
 import { emailLogoSrc } from '@/lib/email-logo';
 import sgMail from '@sendgrid/mail';
 
@@ -17,33 +24,9 @@ if (process.env.SENDGRID_API_KEY) {
 
 const DIRECTOR_ROLES = ['DIRECTOR', 'ADMIN', 'HR_MANAGER'];
 
-/**
- * Días que se espera al empleado tras notificarle, antes de poder aplicar sin
- * su acuse.
- *
- * Sin esta salida, quien no abre Zendity bloquea su propia sanción para
- * siempre — y el director acabaría buscando la forma de saltarse la regla, que
- * es como llegamos aquí. Con ella, el silencio tiene consecuencia y queda
- * registrado que se esperó.
- */
-const DIAS_ESPERA_ACUSE = 3;
-
-function pointsFor(severity: HrIncidentSeverity): { delta: number; setToZero: boolean } {
-    switch (severity) {
-        case 'OBSERVATION': return { delta: -3, setToZero: false };   // Antes: 0. Ahora penaliza 3 pts
-        case 'WARNING':     return { delta: -8, setToZero: false };   // Antes: -5
-        case 'SUSPENSION':  return { delta: -20, setToZero: false };  // Antes: -15
-        case 'TERMINATION': return { delta: 0, setToZero: true };
-        default:            return { delta: 0, setToZero: false };
-    }
-}
-
-function severityLabel(sev: HrIncidentSeverity): string {
-    return sev === 'OBSERVATION' ? 'Observación' :
-           sev === 'WARNING' ? 'Amonestación Escrita' :
-           sev === 'SUSPENSION' ? 'Suspensión Temporal' :
-           sev === 'TERMINATION' ? 'Despido Justificado' : String(sev);
-}
+// El plazo, la espera del acuse, la tabla de puntos y las etiquetas viven en
+// src/lib/incidente-politica.ts — el mismo sitio del que los lee el cron. Antes
+// estaban aquí y el cron tenía su propia copia, tres versiones por detrás.
 
 function categoryLabel(cat: string): string {
     const map: Record<string, string> = {
@@ -212,66 +195,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         // El orden ahora es: borrador → notificar → acuse (firma o negativa con
         // razón) → aplicar. Negarse a firmar NO impide aplicar: la negativa
         // queda registrada y el proceso sigue, que es la política del hogar.
-        if (incident.status !== IncidentStatus.PENDING_EXPLANATION
-            && incident.status !== IncidentStatus.EXPLANATION_RECEIVED) {
-            return NextResponse.json({
-                success: false,
-                error: 'Primero hay que notificar al empleado. Usa "Pedir explicación" y espera su acuse.',
-                code: 'SIN_NOTIFICAR',
-            }, { status: 400 });
-        }
-
-        const acuseHecho = Boolean(incident.acknowledgedAt) || Boolean(incident.acknowledgeRefusedAt);
-        // Sin notifiedAt (observaciones anteriores a este cambio) se trata como
-        // ya vencida: no tiene sentido hacer esperar tres días por una que lleva
-        // semanas notificada.
-        const notificadoHace = incident.notifiedAt
-            ? (Date.now() - new Date(incident.notifiedAt).getTime()) / (24 * 3600 * 1000)
-            : DIAS_ESPERA_ACUSE;
-        if (!acuseHecho && notificadoHace < DIAS_ESPERA_ACUSE) {
-            const faltan = Math.ceil(DIAS_ESPERA_ACUSE - notificadoHace);
-            return NextResponse.json({
-                success: false,
-                error: `El empleado aún no ha firmado ni rehusado. Puedes aplicar sin su acuse en ${faltan} día${faltan !== 1 ? 's' : ''}.`,
-                code: 'ESPERANDO_ACUSE',
-            }, { status: 409 });
-        }
-
-        const { delta, setToZero } = pointsFor(incident.severity);
-        const currentScore = incident.employee?.complianceScore ?? 50;
-        // Para TERMINATION setToZero: delta efectivo = -currentScore (lleva a 0 tras clamp)
-        const effectiveDelta = setToZero ? -currentScore : delta;
-        const pointsDeductedAbs = setToZero ? currentScore : Math.abs(delta);
-
-        const updated = await prisma.incidentReport.update({
-            where: { id },
-            data: {
-                status: IncidentStatus.APPLIED,
-                appliedAt: now,
-                visibleToEmployee: true,
-                pointsDeducted: pointsDeductedAbs,
-                directorNote: directorNote || incident.directorNote || null,
-            }
-        });
-
-        // Aplicar delta con historial auditables
-        if (effectiveDelta !== 0) {
-            await applyScoreEvent(
-                incident.employeeId,
-                incident.headquartersId,
-                effectiveDelta,
-                `Observación aplicada: ${severityLabel(incident.severity)}`,
-                'INCIDENT',
+        // La misma decisión que toma el cron, leída del mismo sitio.
+        const veredicto = puedeAplicarse(incident, now);
+        if (!veredicto.ok) {
+            return NextResponse.json(
+                { success: false, error: veredicto.error, code: veredicto.code },
+                { status: veredicto.code === 'ESPERANDO_ACUSE' ? 409 : 400 },
             );
         }
 
-        // Notificación in-app
-        await notifyUser(incident.employeeId, {
-            type: 'HR_OBSERVATION',
-            title: 'Observación aplicada',
-            message: `Se aplicó una ${severityLabel(incident.severity)}. Puntos deducidos: ${pointsDeductedAbs}. Revisa el detalle.`,
-            link: `/my-observations/${id}`,
+        // Los puntos, el ScoreEvent y el aviso: un solo camino para los dos.
+        const { pointsDeducted: pointsDeductedAbs } = await aplicarObservacion(incident, {
+            ahora: now,
+            notaDirector: directorNote ?? null,
         });
+        const updated = await prisma.incidentReport.findUnique({ where: { id } });
+
+        // El ScoreEvent y la notificación in-app los hace `aplicarObservacion`.
 
         // Email SendGrid
         if (incident.employee?.email && process.env.SENDGRID_API_KEY) {

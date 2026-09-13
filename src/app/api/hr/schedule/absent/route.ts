@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/api-auth';
 import { logError } from '@/lib/logger';
 import { logAudit } from '@/lib/audit';
 import { notifyUser, notifyRoles } from '@/lib/notifications';
+import { HORAS_PARA_RESPONDER, puntosPorSeveridad } from '@/lib/incidente-politica';
 
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN', 'HR_MANAGER'];
 
@@ -126,8 +127,19 @@ export async function POST(req: Request) {
                             severity: 'WARNING' as any,
                             category: 'PUNCTUALITY' as any,
                             status: 'PENDING_EXPLANATION' as any,
-                            description: `${ABSENCE_MARKER} Patrón de ausencias detectado automáticamente por el sistema: ${absenceCount} ausencias en los últimos ${ABSENCE_WINDOW_DAYS} días. Se generó esta observación al cruzar el umbral de ${ABSENCE_THRESHOLD} ausencias en la ventana. Por favor explique las circunstancias en las próximas 72 horas; de lo contrario se aplicará automáticamente con -5 puntos al compliance score.`,
+                            description: `${ABSENCE_MARKER} Patrón de ausencias detectado automáticamente por el sistema: ${absenceCount} ausencias en los últimos ${ABSENCE_WINDOW_DAYS} días. Se generó esta observación al cruzar el umbral de ${ABSENCE_THRESHOLD} ausencias en la ventana. Por favor explique las circunstancias en las próximas ${HORAS_PARA_RESPONDER} horas; de lo contrario se aplicará automáticamente con -${Math.abs(puntosPorSeveridad('WARNING').delta)} puntos al compliance score.`,
                             visibleToEmployee: true,
+                            /**
+                             * El reloj arranca AQUÍ.
+                             *
+                             * Esta observación nace ya visible y con el aviso
+                             * enviado en el mismo acto, pero no escribía
+                             * `notifiedAt`, así que para el resto del sistema
+                             * era una sanción de la que no constaba que se
+                             * hubiera avisado. El cron acababa contando el
+                             * plazo desde `createdAt` para todas por igual.
+                             */
+                            notifiedAt: new Date(),
                         },
                         select: { id: true },
                     });
@@ -135,9 +147,11 @@ export async function POST(req: Request) {
                     // Notificar al empleado y a los supervisores
                     await Promise.all([
                         notifyUser(employeeId, {
-                            type: 'EMAR_ALERT',
+                            // HR_OBSERVATION, no EMAR_ALERT: esto es recursos
+                            // humanos, no una alerta de medicación.
+                            type: 'HR_OBSERVATION',
                             title: 'Observación: patrón de ausencias',
-                            message: `Se detectó un patrón de ${absenceCount} ausencias en ${ABSENCE_WINDOW_DAYS} días. Tienes 72h para explicar las circunstancias antes de que se aplique automáticamente.`,
+                            message: `Se detectó un patrón de ${absenceCount} ausencias en ${ABSENCE_WINDOW_DAYS} días. Tienes ${HORAS_PARA_RESPONDER}h para explicar las circunstancias antes de que se aplique automáticamente.`,
                             link: `/my-observations/${created.id}`,
                         }),
                         notifyRoles(hqId, ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'HR_MANAGER'], {

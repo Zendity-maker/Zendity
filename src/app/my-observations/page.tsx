@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { ArrowLeft, FileWarning, Clock, AlertTriangle, CheckCircle2, XCircle, FilePen } from "lucide-react";
+import { HORAS_PARA_RESPONDER } from "@/lib/incidente-politica";
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; border: string }> = {
     PENDING_EXPLANATION: { label: 'Esperando tu explicación', bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-300' },
@@ -142,7 +143,7 @@ function IncidentCard({ incident }: { incident: any }) {
             <p className="text-sm text-slate-700 font-medium leading-relaxed line-clamp-2">{incident.description}</p>
             {incident.status === 'PENDING_EXPLANATION' && (
                 <div className="mt-3 flex items-center gap-2 text-amber-700 text-xs font-bold">
-                    <Clock size={14} /> Tienes 48 horas para responder — toca para abrir
+                    <Clock size={14} /> Tienes {HORAS_PARA_RESPONDER} horas para responder — toca para abrir
                 </div>
             )}
             {/* Sin esto, las que ya están aplicadas nadie las vuelve a abrir — y

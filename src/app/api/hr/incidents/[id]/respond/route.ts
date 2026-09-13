@@ -43,6 +43,46 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         const now = new Date();
 
         if (type === 'RESPONSE') {
+            /**
+             * La explicación solo cabe mientras se está pidiendo.
+             *
+             * Esta rama no miraba el estado (la de APPEAL sí, abajo), así que
+             * ponía EXPLANATION_RECEIVED viniera de donde viniera: una respuesta
+             * escrita sobre una observación ya APLICADA o ya DESESTIMADA la
+             * sacaba de ese estado y la devolvía a la cola del director, con sus
+             * puntos ya descontados y su apelación colgando de un estado que
+             * había dejado de ser APPLIED.
+             */
+            if (incident.status !== IncidentStatus.PENDING_EXPLANATION
+                && incident.status !== IncidentStatus.EXPLANATION_RECEIVED) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Esta observación ya fue resuelta. Si no estás de acuerdo, usa la apelación.',
+                    code: 'ESTADO_NO_ADMITE_RESPUESTA',
+                }, { status: 400 });
+            }
+
+            /**
+             * Guarda contra doble envío.
+             *
+             * Sin ella, el segundo toque pisa el texto del primero —se pierde lo
+             * que la persona escribió— y manda un segundo aviso idéntico a
+             * dirección. Se devuelve ÉXITO con lo que ya está guardado: quien
+             * pulsó hizo lo correcto, y un error en rojo es justo lo que le hace
+             * volver a pulsar.
+             */
+            if (incident.employeeResponse && incident.respondedAt) {
+                const minutos = (now.getTime() - incident.respondedAt.getTime()) / 60000;
+                if (minutos < 10) {
+                    return NextResponse.json({
+                        success: true,
+                        duplicada: true,
+                        message: 'Tu explicación ya estaba enviada.',
+                        incident,
+                    });
+                }
+            }
+
             const updated = await prisma.incidentReport.update({
                 where: { id },
                 data: {

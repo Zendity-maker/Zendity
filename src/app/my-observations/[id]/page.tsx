@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { ArrowLeft, Clock, Send, FileWarning, MessageSquare, AlertTriangle, CheckCircle2, User, Shield, FilePen, XCircle, X } from "lucide-react";
 import { SignaturePad } from "@/components/sw-evaluation/SignaturePad";
+import { HORAS_PARA_RESPONDER, horasQueLeQuedan } from "@/lib/incidente-politica";
 
 const SEVERITY_LABELS: Record<string, string> = {
     OBSERVATION: 'Observación', WARNING: 'Amonestación Escrita',
@@ -26,10 +27,11 @@ const STATUS_LABELS: Record<string, string> = {
     CLOSED: 'Cerrada',
 };
 
-function hoursRemaining(from: Date, totalHours: number): number {
-    const elapsed = (Date.now() - from.getTime()) / (1000 * 60 * 60);
-    return Math.max(0, Math.round(totalHours - elapsed));
-}
+// El contador lo calcula `horasQueLeQuedan` (src/lib/incidente-politica.ts),
+// que cuenta desde que se le AVISÓ y con el plazo de verdad. Esta pantalla
+// decía 48 horas contadas desde `createdAt` — la fecha del borrador del
+// supervisor— y no existe ningún plazo de 48 horas en el backend: el aviso, el
+// correo y el cron siempre dijeron 72.
 
 export default function MyObservationDetailPage() {
     const params = useParams<{ id: string }>();
@@ -192,8 +194,8 @@ export default function MyObservationDetailPage() {
     }
 
     const hoursLeft = incident.status === 'PENDING_EXPLANATION'
-        ? hoursRemaining(new Date(incident.createdAt), 48)
-        : 0;
+        ? horasQueLeQuedan(incident)
+        : null;
 
     return (
         <div className="min-h-screen bg-slate-50 pb-12">
@@ -220,13 +222,17 @@ export default function MyObservationDetailPage() {
                     </p>
                 </div>
 
-                {/* Countdown 48h */}
+                {/* El plazo de verdad, contado desde que se le avisó. */}
                 {incident.status === 'PENDING_EXPLANATION' && (
                     <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 mb-5 flex items-center gap-3">
                         <Clock className="text-amber-600 shrink-0" size={22} />
                         <div className="text-sm">
                             <strong className="text-amber-900">El director solicita tu explicación.</strong>
-                            <span className="text-amber-800 ml-1">Quedan ~{hoursLeft} horas para responder.</span>
+                            <span className="text-amber-800 ml-1">
+                                {hoursLeft === null
+                                    ? `Tienes ${HORAS_PARA_RESPONDER} horas desde que se te avise.`
+                                    : `Quedan ~${hoursLeft} horas para responder.`}
+                            </span>
                         </div>
                     </div>
                 )}
