@@ -65,7 +65,32 @@ const respuesta = (d: Desempeno) => ({ success: true, desempeno: d, esPropio: tr
  * casa por `includes`, así que la clave genérica va LA ÚLTIMA o se traga a las
  * otras dos y los tres botones enseñarían el mismo número.
  */
+/**
+ * La historia mensual. Va PRIMERO en la tabla: el interceptor casa por
+ * `includes`, y '/api/mi-desempeno' se tragaría '/api/mi-desempeno/historia'.
+ *
+ * Las cifras imitan a una veterana real de Cupey — cinco meses, con mayo a diez
+ * días y septiembre a medias — para ver la gráfica con la forma que tendrá.
+ */
+const HISTORIA = {
+    success: true,
+    esPropia: true,
+    historia: {
+        desde: '2026-05-22T11:00:00.000Z',
+        turnosTotales: 90,
+        aviso: null,
+        meses: [
+            { mes: '2026-05', etiqueta: 'may', turnos: 9, cerrados: 9, forzados: 0, parcial: 'primer-mes' },
+            { mes: '2026-06', etiqueta: 'jun', turnos: 23, cerrados: 20, forzados: 3, parcial: null },
+            { mes: '2026-07', etiqueta: 'jul', turnos: 24, cerrados: 23, forzados: 0, parcial: null },
+            { mes: '2026-08', etiqueta: 'ago', turnos: 22, cerrados: 22, forzados: 0, parcial: null },
+            { mes: '2026-09', etiqueta: 'sep', turnos: 12, cerrados: 8, forzados: 3, parcial: 'mes-en-curso' },
+        ],
+    },
+};
+
 instalar({
+    '/api/mi-desempeno/historia': HISTORIA,
     '/api/mi-desempeno?dias=60': respuesta(periodo({
         dias: 60, turnos: 42, cerrados: 38, reportes: 26, mediaTurno: 0.19,
         cursosHechos: 9, cursosAsignados: 16, observaciones: [PUNTUALIDAD, UNIFORME],
