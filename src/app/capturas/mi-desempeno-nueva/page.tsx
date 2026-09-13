@@ -20,6 +20,7 @@ instalar(
             historia: {
                 desde: '2026-09-03T11:00:00.000Z',
                 turnosTotales: 11,
+                truncadaPorElLimiteDeLaBase: false,
                 aviso: 'Llevas un mes con turnos registrados. Con un par de meses más, aquí vas a ver cómo ha ido cambiando.',
                 meses: [
                     { mes: '2026-09', etiqueta: 'sep', turnos: 11, cerrados: 11, forzados: 0, parcial: 'mes-en-curso' },

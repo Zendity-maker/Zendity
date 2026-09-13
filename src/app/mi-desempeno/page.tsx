@@ -255,9 +255,20 @@ function HistoriaMensual() {
                             Ese hueco no cuenta como tuyo.
                         </p>
                     )}
+                    {/* Dos frases distintas para dos cosas distintas. A las ocho
+                        veteranas su primera barra les sale corta porque el registro
+                        arranca ahí; a quien entró en junio, julio o agosto le sale
+                        corta porque entró a mitad de mes — y eso es la verdad
+                        entera, no le falta nada. Decirles lo mismo a las dos sería
+                        una mentira pequeña en sentido contrario. */}
+                    {h.truncadaPorElLimiteDeLaBase && (
+                        <p className="text-[13px] text-slate-500 mt-1.5 leading-snug">
+                            Tu primera barra sale corta porque Zéndity guarda turnos desde el
+                            22 de mayo de 2026; lo de antes no está en el sistema.
+                        </p>
+                    )}
                     <p className="text-[13px] text-slate-500 mt-1.5 leading-snug">
                         Un mes en el que no trabajaste no aparece — no es un cero, es que no estabas.
-                        Zéndity guarda desde el 22 de mayo de 2026; lo anterior no está en el sistema.
                     </p>
                 </>
             )}

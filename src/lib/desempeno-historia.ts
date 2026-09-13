@@ -109,6 +109,18 @@ export interface Historia {
     /** Cuántos turnos tiene en total, para saber si merece la pena dibujar. */
     turnosTotales: number;
     /**
+     * ¿Su primera barra está cortada por el límite de la BASE, o porque entró
+     * a mitad de mes?
+     *
+     * Son dos cosas distintas y la pantalla no puede decirlas igual. Para las
+     * ocho veteranas, mayo empieza el 22 porque ahí arranca el registro tras el
+     * force-reset — falta dato. Para Carlos (11-jun), Mileska (18-jul), Krystal
+     * (24-ago) y Caridad (03-sep), su primer mes corto es la verdad entera: no
+     * falta nada, entraron entonces. Decirle a Carlos que "Zéndity guarda desde
+     * mayo" es cierto y a la vez no habla de él.
+     */
+    truncadaPorElLimiteDeLaBase: boolean;
+    /**
      * Por qué no hay gráfica, cuando no la hay. Nunca se deja un hueco mudo:
      * eso es exactamente lo que hizo que el piso preguntara qué había pasado.
      */
@@ -160,7 +172,7 @@ export async function calcularHistoria(userId: string): Promise<Historia | null>
 
     if (turnos.length === 0) {
         return {
-            desde: null, meses: [], turnosTotales: 0,
+            desde: null, meses: [], turnosTotales: 0, truncadaPorElLimiteDeLaBase: false,
             aviso: 'Todavía no hay turnos tuyos registrados en Zéndity. En cuanto cierres el primero, aquí empieza tu historia.',
         };
     }
@@ -183,6 +195,16 @@ export async function calcularHistoria(userId: string): Promise<Historia | null>
 
     const claves = [...porMes.keys()].sort();
     const primerMes = claves[0];
+
+    /** El turno más viejo de toda la sede: dónde empieza el registro. */
+    const masViejoDeLaSede = usuario.headquartersId
+        ? await prisma.shiftSession.findFirst({
+            where: { headquartersId: usuario.headquartersId },
+            select: { startTime: true },
+            orderBy: { startTime: 'asc' },
+        })
+        : null;
+    const primerTurnoDeLaSede = masViejoDeLaSede?.startTime ?? null;
     const cruzaDeAnio = new Set(claves.map(k => k.slice(0, 4))).size > 1;
 
     const meses: MesDeHistoria[] = claves.map(k => {
@@ -215,6 +237,13 @@ export async function calcularHistoria(userId: string): Promise<Historia | null>
         desde: primero.toISOString(),
         meses,
         turnosTotales: turnos.length,
+        /**
+         * Se compara contra el turno más viejo de la SEDE, no contra una fecha
+         * escrita a mano: el día que se cargue historia anterior, esto deja de
+         * ser cierto solo y nadie tiene que acordarse de venir a cambiarlo.
+         */
+        truncadaPorElLimiteDeLaBase: primerTurnoDeLaSede !== null
+            && claveMes(primerTurnoDeLaSede) === primerMes,
         aviso,
     };
 }

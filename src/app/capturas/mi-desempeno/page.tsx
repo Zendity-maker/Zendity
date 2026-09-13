@@ -78,6 +78,7 @@ const HISTORIA = {
     historia: {
         desde: '2026-05-22T11:00:00.000Z',
         turnosTotales: 90,
+        truncadaPorElLimiteDeLaBase: true,
         aviso: null,
         meses: [
             { mes: '2026-05', etiqueta: 'may', turnos: 9, cerrados: 9, forzados: 0, parcial: 'primer-mes' },
