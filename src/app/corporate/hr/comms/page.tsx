@@ -108,13 +108,26 @@ export default function HRCommsPage() {
                     <svg className="w-64 h-64" fill="currentColor" viewBox="0 0 24 24"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" /><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" /></svg>
                 </div>
                 
-                <Link href="/corporate/hr" className="inline-flex items-center text-teal-400 hover:text-teal-300 font-bold mb-6 transition-colors text-sm">
-                    ← Volver al Directorio HR
+                {/* Se vuelve al panel, que es de donde se llega desde el
+                    14-sep-2026. El enlace al Directorio de Personal seguia
+                    apuntando al sitio por el que se entraba ANTES. */}
+                <Link href="/corporate" className="inline-flex items-center text-teal-400 hover:text-teal-300 font-bold mb-6 transition-colors text-sm">
+                    ← Volver al panel
                 </Link>
-                
-                <h1 className="text-4xl font-black tracking-tight mb-2">Comunicaciones RRHH</h1>
-                <p className="text-slate-500 text-lg font-medium max-w-2xl">
-                    Despacha comunicados oficiales (Memorándums) a toda la plantilla de empleados institucionales o hacia roles específicos con un solo botón.
+
+                {/*
+                    Se llamaba "Comunicaciones RRHH" y no lo es: a esta pantalla
+                    solo entran DIRECTOR y ADMIN, despacha memorandos, y desde el
+                    14-sep-2026 el correo sale firmado "Direccion · <sede>".
+                    Recursos Humanos manda desde /hr/staff, que es otra pantalla
+                    y firma como RRHH. Que el titulo dijera una cosa y el
+                    remitente otra es lo que hace que nadie sepa de quien viene
+                    un correo — que es justo lo que se acaba de arreglar.
+                */}
+                <h1 className="text-4xl font-black tracking-tight mb-2">Comunicados de Dirección</h1>
+                <p className="text-slate-300 text-lg font-medium max-w-2xl">
+                    Despacha un memorando a toda la plantilla o a los puestos que elijas.
+                    Llega firmado como <strong className="text-white">Dirección</strong>, no como Recursos Humanos.
                 </p>
             </div>
 
