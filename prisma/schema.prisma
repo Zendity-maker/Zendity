@@ -1184,7 +1184,21 @@ enum MedActiveStatus {
 model MedicationAdministration {
   id                  String @id @default(uuid())
   patientMedicationId String
-  administeredById    String // ID de la enfermera
+  /// Quién la dio. NULO mientras la dosis está PENDING, por la misma razón
+  /// que `administeredAt`: todavía no la ha dado nadie.
+  ///
+  /// Era obligatorio y la relación de abajo ya era `User?` — quedó a medias. El
+  /// cron que materializa las dosis del día las firmaba con el id literal
+  /// 'SYSTEM', un usuario que no existe: cada `create` violaba la llave foránea,
+  /// el `catch` de emar-schedule.ts se lo tragaba, y el cron reportaba éxito
+  /// habiendo escrito CERO filas. Medido el 13-sep-2026 sobre toda la historia:
+  /// 26.490 ADMINISTERED, 3 OMITTED, y ni un solo PENDING ni MISSED jamás.
+  ///
+  /// La consecuencia era clínica, no cosmética: sin la fila PENDING no hay nada
+  /// que marcar como omitido, así que un medicamento que no se dio no dejaba
+  /// rastro en ninguna parte — y el "Cumplimiento eMAR" salía 100% porque
+  /// dividía administradas entre administradas.
+  administeredById    String?
 
   scheduledFor   String?
   scheduledTime  DateTime? // FASE eMAR Integral: Timestamp estricto de agenda

@@ -105,11 +105,29 @@ export async function materializarDosisDelDia(): Promise<{ creadas: number; omit
                         scheduledFor: txt,
                         scheduledTime,
                         status: MedStatus.PENDING,
-                        administeredById: 'SYSTEM',
+                        // Sin firmar: nadie la ha dado todavía. Aquí ponía el id
+                        // literal 'SYSTEM', un usuario que no existe, así que
+                        // CADA create violaba la llave foránea y el catch de
+                        // abajo se lo tragaba. Cinco meses creando cero dosis.
                     },
                 });
                 creadas++;
-            } catch {
+            } catch (e) {
+                /**
+                 * El catch ya no es mudo.
+                 *
+                 * Era `catch { omitidas++ }` a secas, y eso fue lo que escondió
+                 * durante cinco meses que el 100% de las escrituras fallaba: el
+                 * cron corría puntual a las 6:01, devolvía `creadas: 0,
+                 * omitidas: N` y nadie mira un contador que siempre dice lo
+                 * mismo. Un fallo que se cuenta pero no se nombra es un fallo
+                 * invisible.
+                 */
+                console.error('[emar-schedule] no se pudo materializar la dosis', {
+                    patientMedicationId: pm.id,
+                    scheduledFor: txt,
+                    error: e instanceof Error ? e.message : String(e),
+                });
                 omitidas++;
             }
         }
