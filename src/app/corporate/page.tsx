@@ -48,7 +48,7 @@ import OnboardingChecklist from '@/components/corporate/OnboardingChecklist';
 import { useActiveHq } from "@/contexts/ActiveHqContext";
 import {
     Moon, ListChecks, Users, Clock, ChevronRight, RefreshCw,
-    Stethoscope, ClipboardList, MessageSquare, GraduationCap, Building2, Star,
+    Stethoscope, ClipboardList, MessageSquare, GraduationCap, Building2, Star, Send,
 } from 'lucide-react';
 
 const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
@@ -80,6 +80,16 @@ const IR_A = [
     { href: '/hr', icono: ClipboardList, texto: 'Personal' },
     { href: '/corporate/family-messages', icono: MessageSquare, texto: 'Familias' },
     { href: '/corporate/encuestas', icono: Star, texto: 'Encuestas' },
+    /**
+     * Despachar correo al personal. Va DIRECTO y no a través del directorio:
+     * es un acto, no una pantalla que se hojea.
+     *
+     * Hasta el 14-sep-2026 el único camino era el botón "RRHH" del panel viejo
+     * → /corporate/hr → botón "Broadcast RRHH". Al reescribir el panel ese
+     * primer eslabón desapareció y el despacho de correos quedó sin puerta: el
+     * menú lateral tampoco lo tiene. Andrés lo notó el mismo día.
+     */
+    { href: '/corporate/hr/comms', icono: Send, texto: 'Despachar correo' },
     { href: '/academy', icono: GraduationCap, texto: 'Academy' },
     { href: '/corporate/sedes', icono: Building2, texto: 'Sedes' },
 ];
