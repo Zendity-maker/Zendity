@@ -118,9 +118,30 @@ export async function POST(req: Request) {
          * Se compara tambien mealType: registrar el almuerzo y despues la cena
          * seguidas es legitimo; registrar el almuerzo dos veces no.
          */
-        const dosMinutosAtras = new Date(Date.now() - 2 * 60 * 1000);
+        /**
+         * LA VENTANA SE MIDE CONTRA LA HORA DECLARADA, NO CONTRA EL RELOJ.
+         *
+         * La guarda estaba y aun asi se colaban duplicados: corria ANTES de
+         * resolver la hora real y comparaba `timeLogged` —la hora que declara
+         * la cuidadora— contra `Date.now()`. Un registro retroactivo ("le di el
+         * almuerzo a las 12:15", escrito a las 14:30) tiene su timeLogged en el
+         * pasado, nunca caia dentro de la ventana, y el segundo toque pasaba.
+         *
+         * Medido el 14-sep-2026 sobre 30 dias: 157 duplicados de 2.710 pese a
+         * la guarda, 116 de ellos a menos de DIEZ SEGUNDOS.
+         */
+        const hora = resolverHoraReal(timeLogged);
+        if (!hora.ok) {
+            return NextResponse.json({ success: false, error: hora.error }, { status: 400 });
+        }
         const comidaReciente = await prisma.mealLog.findFirst({
-            where: { patientId, mealType, timeLogged: { gte: dosMinutosAtras } },
+            where: {
+                patientId, mealType,
+                timeLogged: {
+                    gte: new Date(hora.hora.getTime() - 2 * 60 * 1000),
+                    lte: new Date(hora.hora.getTime() + 2 * 60 * 1000),
+                },
+            },
         });
         if (comidaReciente) {
             return NextResponse.json({
@@ -128,11 +149,6 @@ export async function POST(req: Request) {
                 error: 'COOLDOWN_ACTIVE',
                 message: 'Esta comida ya fue registrada para este residente hace un momento.',
             }, { status: 429 });
-        }
-
-        const hora = resolverHoraReal(timeLogged);
-        if (!hora.ok) {
-            return NextResponse.json({ success: false, error: hora.error }, { status: 400 });
         }
 
         const newMeal = await prisma.mealLog.create({

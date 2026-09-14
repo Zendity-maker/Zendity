@@ -39,6 +39,45 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: "Faltan parámetros obligatorios para el cambio postural." }, { status: 400 });
         }
 
+        /**
+         * GUARDA CONTRA DOBLE ENVÍO. Esta ruta no tenía ninguna.
+         *
+         * `/api/care/rounds` la puso el 30-ago-2026 tras medir 3.325
+         * rotaciones duplicadas, pero ESTE es el otro escritor de
+         * `PosturalChangeLog` y se quedó sin ella. Medido el 14-sep-2026 sobre
+         * 30 días: 609 rotaciones duplicadas de 5.415, y 568 de ellas a menos
+         * de DIEZ SEGUNDOS. Eso no es un doble toque accidental: es alguien
+         * pulsando hasta ver que pasa algo.
+         *
+         * Y no es solo ruido: una rotación tardía genera penalidad e incidente,
+         * así que el duplicado también falsea el cumplimiento de UPP en la
+         * dirección contraria — parece que se rota más de lo que se rota.
+         *
+         * La ventana se mide contra el momento QUE SE VA A ESCRIBIR, no contra
+         * el reloj: un registro retroactivo tiene su `performedAt` en el pasado
+         * y contra `Date.now()` se colaría, que es el agujero que tenían la
+         * guarda del baño y la de la comida.
+         */
+        const rotacionReciente = await prisma.posturalChangeLog.findFirst({
+            where: {
+                patientId,
+                performedAt: {
+                    gte: new Date(momento.getTime() - 2 * 60 * 1000),
+                    lte: new Date(momento.getTime() + 2 * 60 * 1000),
+                },
+            },
+            select: { id: true },
+        });
+        if (rotacionReciente) {
+            // Éxito, no error: la cuidadora hizo lo correcto y un rojo la haría
+            // repetirlo, que es justo lo que produce el duplicado.
+            return NextResponse.json({
+                success: true,
+                duplicada: true,
+                message: 'Esta rotación ya estaba registrada hace un momento.',
+            });
+        }
+
         // Tenant check: el paciente debe pertenecer a la sede del invocador
         const patient = await prisma.patient.findFirst({
             where: { id: patientId, headquartersId: invokerHqId },

@@ -43,15 +43,35 @@ export async function POST(req: Request) {
         // Anti doble-click: cooldown de 2 minutos por (cuidadora + residente)
         // Permite bañar múltiples residentes seguidos; solo bloquea registrar
         // dos veces al MISMO residente en una ventana corta.
-        const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+        /**
+         * LA VENTANA SE MIDE CONTRA LA HORA DECLARADA, NO CONTRA EL RELOJ.
+         *
+         * La guarda existia y aun asi se colaban duplicados. La causa: corria
+         * ANTES de resolver la hora real y comparaba `timeLogged` —que es la
+         * hora que declara la cuidadora— contra `Date.now()`. Un registro
+         * retroactivo ("la bañé a las 7:15", escrito a las 8:47) tiene su
+         * timeLogged en el pasado, asi que NUNCA caia dentro de la ventana y
+         * el segundo toque pasaba limpio.
+         *
+         * Medido el 14-sep-2026 sobre 30 dias: 157 comidas y 11 baños
+         * duplicados pese a la guarda.
+         *
+         * Ahora se compara contra el momento QUE SE VA A ESCRIBIR, mas o menos
+         * dos minutos. Un doble toque produce el mismo momento; dos actos
+         * reales del mismo residente a dos minutos no existen.
+         */
+        const hora = resolverHoraReal(timeLogged);
+        if (!hora.ok) {
+            return NextResponse.json({ success: false, error: hora.error }, { status: 400 });
+        }
+        const desde = new Date(hora.hora.getTime() - 2 * 60 * 1000);
+        const hasta = new Date(hora.hora.getTime() + 2 * 60 * 1000);
 
         const recentBath = await prisma.bathLog.findFirst({
             where: {
                 caregiverId,
                 patientId,
-                timeLogged: {
-                    gte: twoMinutesAgo
-                }
+                timeLogged: { gte: desde, lte: hasta },
             }
         });
 
@@ -61,11 +81,6 @@ export async function POST(req: Request) {
                 error: "COOLDOWN_ACTIVE",
                 message: "Este baño ya fue registrado recientemente para este residente. Espera un momento."
             }, { status: 429 });
-        }
-
-        const hora = resolverHoraReal(timeLogged);
-        if (!hora.ok) {
-            return NextResponse.json({ success: false, error: hora.error }, { status: 400 });
         }
 
         const newBath = await prisma.bathLog.create({
