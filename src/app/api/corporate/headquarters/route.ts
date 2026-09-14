@@ -195,8 +195,36 @@ export async function PATCH(req: NextRequest) {
             return NextResponse.json({ success: false, error: 'Falta id de sede' }, { status: 400 });
         }
 
+        /**
+         * ── QUIEN PUEDE EDITAR QUE SEDE ──────────────────────────────────
+         *
+         * `requireMultiHqRole()` comprueba el ROL y nada más. El GET de este
+         * mismo archivo se arregló el 21-may-2026 —es la fuga que CLAUDE.md
+         * lista como incidente conocido— y este PATCH, veinte líneas más abajo,
+         * se quedó con el candado de rol y sin filtro. Cualquier DIRECTOR podía
+         * reescribir nombre, dueño, correo, número patronal, dirección y número
+         * de licencia de CUALQUIER sede del sistema.
+         *
+         * Hoy son dos sedes y las dos son de Andrés, así que no ha pasado nada.
+         * Con el segundo cliente sí pasa — y estos campos no son preferencias:
+         * `taxId` es el número patronal, `licenseNumber` la licencia del
+         * Departamento de la Familia, y `address` la que sale impresa en el
+         * formulario de traslado que acompaña al residente al hospital.
+         *
+         * Misma regla que el GET: SUPER_ADMIN todas; un DIRECTOR la suya más
+         * las que le pertenezcan por `ownerId`.
+         */
         const existing = await prisma.headquarters.findUnique({ where: { id: body.id } });
         if (!existing) {
+            return NextResponse.json({ success: false, error: 'Sede no encontrada' }, { status: 404 });
+        }
+
+        const esSuperAdmin = auth.role === 'SUPER_ADMIN';
+        const miHqId = (auth.session.user as any).headquartersId as string | undefined;
+        const miUserId = (auth.session.user as any).id as string | undefined;
+        const esMia = existing.id === miHqId || (!!miUserId && existing.ownerId === miUserId);
+        if (!esSuperAdmin && !esMia) {
+            // 404 y no 403: un 403 confirma que esa sede existe.
             return NextResponse.json({ success: false, error: 'Sede no encontrada' }, { status: 404 });
         }
 

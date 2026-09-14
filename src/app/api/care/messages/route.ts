@@ -21,8 +21,22 @@ export async function GET(req: Request) {
             where: {
                 patient: { headquartersId: headquarterId }
             },
+            /**
+             * SOLO LOS CUATRO CAMPOS QUE LA PANTALLA PINTA.
+             *
+             * Antes era `patient: true`, el expediente ENTERO, y además viajaba
+             * repetido dentro de cada mensaje (ver el `unshift` de abajo).
+             * Medido el 13-sep-2026: 97 mensajes de 17 residentes que se
+             * llevaban por delante `ssnLastFour` en 12, la póliza del seguro en
+             * 16, y la cuota mensual y la fecha de nacimiento en los 17.
+             *
+             * Y lo pedía cualquiera: el único gate es "no seas FAMILY", o sea
+             * 20 de los 21 usuarios activos de Cupey — cocina, mantenimiento y
+             * el inversionista incluidos. Nada de eso hace falta para pintar un
+             * hilo de mensajes con la familia.
+             */
             include: {
-                patient: true,
+                patient: { select: { id: true, name: true, roomNumber: true, colorGroup: true } },
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -49,7 +63,10 @@ export async function GET(req: Request) {
                     unreadCount: 0
                 };
             }
-            acc[msg.patientId].messages.unshift(msg);
+            // El residente ya va en la cabecera del hilo; dentro de cada mensaje
+            // sobra. Iba repetido tantas veces como mensajes tuviera el hilo.
+            const { patient: _residente, ...mensaje } = msg;
+            acc[msg.patientId].messages.unshift(mensaje);
             if (msg.senderType === 'FAMILY' && !msg.isRead) {
                 acc[msg.patientId].unreadCount++;
             }
