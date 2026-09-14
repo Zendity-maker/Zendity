@@ -35,6 +35,7 @@ import { HeroCard } from "@/components/ui/HeroCard";
 import { StatTile } from "@/components/ui/StatTile";
 import { ExpandableText } from "@/components/ui/ExpandableText";
 import { SupervisorRondaTile } from "@/components/SupervisorRondaTile";
+import DialogoMotivoAusencia, { type DetalleAusencia } from '@/components/hr/DialogoMotivoAusencia';
 import { HandoverSignDrawer, type HandoverSummary } from "@/components/care/HandoverSignDrawer";
 import { QuickActionsHub } from "@/components/care/QuickActionsHub";
 import { estaDormida } from "@/lib/funciones-dormidas";
@@ -393,7 +394,15 @@ export default function SupervisorMissionControlPage() {
     // /api/hr/audit-report (KPI "Ausencias" del perfil del empleado en
     // /hr/audit/[id]). Adicionalmente dispara redistribución equitativa de los
     // residentes del color del ausente entre cuidadoras activas.
-    const handleMarkAbsent = async (scheduledShiftId: string, employeeName: string) => {
+    /**
+     * El MOTIVO va siempre. Antes este camino mandaba solo el id del turno, y
+     * la API guardaba `absenceReason: null` y `absenceNotified: false` — o sea
+     * que toda ausencia marcada desde aquí contaba como "faltó sin avisar"
+     * para el detector de patrones disciplinarios, aunque la persona hubiera
+     * llamado de madrugada. El diálogo existía desde el 19-ago-2026 pero solo
+     * en /hr/schedule, que no es por donde se marcan.
+     */
+    const handleMarkAbsent = async (scheduledShiftId: string, employeeName: string, detalle: DetalleAusencia) => {
         setMarkingAbsent(scheduledShiftId);
         setConfirmingAbsent(null);
         try {
@@ -401,7 +410,7 @@ export default function SupervisorMissionControlPage() {
             const res = await fetch('/api/hr/schedule/absent', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ scheduledShiftId, hqId }),
+                body: JSON.stringify({ scheduledShiftId, hqId, ...detalle }),
             });
             const data = await res.json();
             if (data.success) {
@@ -1208,26 +1217,11 @@ export default function SupervisorMissionControlPage() {
                                             )}
                                         </div>
                                         {isConfirming && (
-                                            <div className="mt-3 pt-3 border-t border-red-500/20">
-                                                <p className="text-xs text-red-100 mb-2 leading-relaxed">
-                                                    Esto registra la ausencia en el perfil de <b>{empName}</b> y redistribuye sus residentes
-                                                    {emp.colorGroup && emp.colorGroup !== 'ALL' ? ` del Grupo ${emp.colorGroup}` : ''} entre el equipo en piso.
-                                                </p>
-                                                <div className="flex gap-2 justify-end">
-                                                    <button
-                                                        onClick={() => setConfirmingAbsent(null)}
-                                                        className="text-[11px] font-bold text-slate-300 hover:text-white px-3 py-1.5 rounded-full transition-colors"
-                                                    >
-                                                        Cancelar
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleMarkAbsent(shiftId, empName)}
-                                                        className="text-[11px] font-black uppercase tracking-wide text-white bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-full transition-colors"
-                                                    >
-                                                        Confirmar Ausencia
-                                                    </button>
-                                                </div>
-                                            </div>
+                                            <DialogoMotivoAusencia
+                                                nombre={empName}
+                                                onCancel={() => setConfirmingAbsent(null)}
+                                                onConfirm={(detalle) => handleMarkAbsent(shiftId, empName, detalle)}
+                                            />
                                         )}
                                     </div>
                                 );

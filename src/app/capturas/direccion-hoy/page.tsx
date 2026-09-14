@@ -47,6 +47,11 @@ instalar(
                         porque: '8 cursos con plazo pasado en 3 personas. El más viejo lleva 22 días asignado',
                         quien: 'Dirección',
                     },
+                    {
+                        que: 'Recordar la encuesta a las 25 familias que no han contestado',
+                        porque: 'Han respondido 2 de 27 — un 7%. Un promedio sobre 2 respuestas no dice nada del hogar.',
+                        quien: 'Dirección, en Encuestas',
+                    },
                 ],
                 piso: {
                     enTurno: [

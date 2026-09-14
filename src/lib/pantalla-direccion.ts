@@ -48,6 +48,7 @@
 import { prisma } from '@/lib/prisma';
 import { estadoOperativo, type EstadoOperativo } from '@/lib/estado-operativo';
 import { construirReporteDireccion } from '@/lib/reporte-direccion';
+import { satisfaccion, periodoActual } from '@/lib/encuesta-familia';
 
 /** Una cosa que pasó y que dirección debería saber. */
 export interface Novedad {
@@ -100,7 +101,7 @@ export async function construirPantallaDireccion(hqId: string, hqNombre: string)
         caidas, alertasNuevas, cambiosNuevos, ingresos, egresos, hospitalizados,
         dosisNoDadas,
         alertasViejas, relevosSinFirmar, obsAbiertas, ausenciasSinMotivo,
-        piso, reporte,
+        piso, reporte, encuesta,
     ] = await Promise.all([
         prisma.fallIncident.findMany({
             // `reportedAt`, no createdAt: este modelo no tiene createdAt, y
@@ -193,6 +194,7 @@ export async function construirPantallaDireccion(hqId: string, hqNombre: string)
 
         estadoOperativo(hqId),
         construirReporteDireccion(hqId, hqNombre),
+        satisfaccion(hqId, periodoActual()),
     ]);
 
     // ── Franja 1 ──────────────────────────────────────────────────────────
@@ -242,13 +244,55 @@ export async function construirPantallaDireccion(hqId: string, hqNombre: string)
          * que la justifica y de quién es. Se toman seis: la pantalla es para
          * decidir, no para leerlo todo.
          */
-        decisiones: (reporte.bloques.find(b => b.numero === 1)?.lineas ?? [])
-            .slice(0, 6)
-            .map(l => ({
-                que: l.texto,
-                porque: (l.casos[0] ?? '').replace(/^Por qué: /, ''),
-                quien: (l.casos[1] ?? '').replace(/^Le toca a: /, ''),
-            })),
+        decisiones: [
+            ...(reporte.bloques.find(b => b.numero === 1)?.lineas ?? [])
+                .slice(0, 6)
+                .map(l => ({
+                    que: l.texto,
+                    porque: (l.casos[0] ?? '').replace(/^Por qué: /, ''),
+                    quien: (l.casos[1] ?? '').replace(/^Le toca a: /, ''),
+                })),
+            /**
+             * LA ENCUESTA DEL TRIMESTRE.
+             *
+             * No va en su propia franja: es trimestral y esta pantalla es del
+             * día de hoy. Pero tampoco puede quedarse solo en su pantalla, o
+             * pasa lo que decía el comentario original del componente: una
+             * métrica que hay que ir a buscar no se mira. Así que aparece aquí
+             * únicamente cuando hay algo que hacer con ella.
+             */
+            ...(encuesta.enviadas === 0
+                ? [{
+                    que: 'Mandar la encuesta del trimestre a las familias',
+                    porque: `Todavía no ha salido ninguna en ${encuesta.periodo}. Son tres preguntas y llega identificada.`,
+                    quien: 'Dirección, en Encuestas',
+                }]
+                : encuesta.conAlerta.length > 0
+                    ? [{
+                        que: `Leer las ${encuesta.conAlerta.length} respuesta${encuesta.conAlerta.length === 1 ? '' : 's'} de familias que puntuaron bajo`,
+                        porque: `De ${encuesta.respondidas} respuestas sobre ${encuesta.enviadas} invitaciones. Las bajas vienen con nombre y se les puede dar seguimiento.`,
+                        quien: 'Dirección, en Encuestas',
+                    }]
+                    /**
+                     * Y si casi nadie ha contestado, ESA es la noticia.
+                     *
+                     * Lo decía el comentario del propio componente: "un 4,8 de
+                     * dos respuestas sobre diecinueve no dice nada del hogar —
+                     * dice que diecisiete familias no contestaron". Medido hoy
+                     * en Cupey: 2 de 27, un 7%. Con un promedio de 5 sobre dos
+                     * respuestas, el número bonito es el que menos informa.
+                     *
+                     * Hay un recordatorio que reenvía el mismo enlace solo a
+                     * quien no contestó, y hasta hoy no había dónde pulsarlo.
+                     */
+                    : encuesta.tasaRespuesta < 50 && encuesta.respondidas < encuesta.enviadas
+                        ? [{
+                            que: `Recordar la encuesta a las ${encuesta.enviadas - encuesta.respondidas} familias que no han contestado`,
+                            porque: `Han respondido ${encuesta.respondidas} de ${encuesta.enviadas} — un ${encuesta.tasaRespuesta}%. Un promedio sobre ${encuesta.respondidas} respuestas no dice nada del hogar.`,
+                            quien: 'Dirección, en Encuestas',
+                        }]
+                        : []),
+        ],
         piso,
         parado,
     };

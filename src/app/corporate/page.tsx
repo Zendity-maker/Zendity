@@ -48,7 +48,7 @@ import OnboardingChecklist from '@/components/corporate/OnboardingChecklist';
 import { useActiveHq } from "@/contexts/ActiveHqContext";
 import {
     Moon, ListChecks, Users, Clock, ChevronRight, RefreshCw,
-    Stethoscope, ClipboardList, MessageSquare, GraduationCap, Building2,
+    Stethoscope, ClipboardList, MessageSquare, GraduationCap, Building2, Star,
 } from 'lucide-react';
 
 const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
@@ -79,6 +79,7 @@ const IR_A = [
     { href: '/corporate/patients', icono: Users, texto: 'Residentes' },
     { href: '/hr', icono: ClipboardList, texto: 'Personal' },
     { href: '/corporate/family-messages', icono: MessageSquare, texto: 'Familias' },
+    { href: '/corporate/encuestas', icono: Star, texto: 'Encuestas' },
     { href: '/academy', icono: GraduationCap, texto: 'Academy' },
     { href: '/corporate/sedes', icono: Building2, texto: 'Sedes' },
 ];
