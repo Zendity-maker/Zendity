@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { remitenteDe, asuntoDe, responderA } from '@/lib/remitente-correo';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
@@ -49,7 +50,17 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'No se encontraron empleados con correos válidos para los roles seleccionados.' }, { status: 404 });
         }
 
-        const senderEmail = process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com';
+        /**
+         * De aquí despacha la dirección, no RRHH. Es la pantalla desde la que
+         * Andrés manda los memorandos al piso, así que el empleado tiene que
+         * leer "Dirección" en el remitente y no el nombre del hogar a secas,
+         * que es lo que llegaba y no distingue una circular de una amonestación.
+         */
+        const remitente = remitenteDe('DIRECCION', hqName);
+        if (!remitente) {
+            return NextResponse.json({ success: false, error: 'Correo saliente no configurado' }, { status: 503 });
+        }
+        const senderEmail = remitente.email;
 
         // Fake SendGrid test Si no hay API Key
         if (!process.env.SENDGRID_API_KEY) {
@@ -111,11 +122,11 @@ export async function POST(request: Request) {
         // 4. Despachar a través de SendGrid
         // Utilizando personalizations para ocultar la lista global (BCC natural)
         const msg = {
-            from: {
-                email: senderEmail,
-                name: hqName
-            },
-            subject: `${hqName} · ${subject}`,
+            from: remitente,
+            // Quien despacha es una persona: que la respuesta le llegue a ella
+            // y no al buzón general.
+            ...responderA((session.user as any).email),
+            subject: asuntoDe('DIRECCION', subject),
             html: memoTemplate,
             personalizations: [
                 {

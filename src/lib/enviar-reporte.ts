@@ -31,6 +31,14 @@ import { logPhiAccess } from '@/lib/phi-audit';
 import type { ReporteSemanal } from '@/lib/reporte-enfermeria';
 import { generarReporteSemanalPDF } from '@/lib/reporte-enfermeria-pdf';
 import { novedadesHTML, type CanalNovedad } from '@/lib/novedades';
+import { remitenteDe, asuntoDe, type AreaQueEscribe } from '@/lib/remitente-correo';
+
+/** El canal del reporte ya dice de qué área es. */
+const AREA_POR_CANAL: Record<CanalNovedad, AreaQueEscribe> = {
+    enfermeria: 'ENFERMERIA',
+    supervision: 'SUPERVISION',
+    direccion: 'DIRECCION',
+};
 
 if (process.env.SENDGRID_API_KEY) {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -80,7 +88,10 @@ export function construirCorreo(
     const resuelto = reporte.bloques.find(b => b.numero === 5 || b.numero === 4);
 
     return {
-        subject: `${reporte.titulo.replace('Reporte semanal de ', '')} — ${sede} — ${reporte.totalPendiente} ${reporte.totalPendiente === 1 ? 'cosa' : 'cosas'} (${hoy})`,
+        // El área ya la dice el remitente y la etiqueta del asunto; repetirla
+        // aquí daba "[Enfermería] enfermería — …". Queda la sede, que sí hace
+        // falta cuando alguien recibe el de dos sedes el mismo lunes.
+        subject: `${sede} — ${reporte.totalPendiente} ${reporte.totalPendiente === 1 ? 'cosa' : 'cosas'} (${hoy})`,
         html: `<meta charset="utf-8"><div style="background:#ffffff;color:#12211D;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.65;padding:28px;max-width:560px;margin:0 auto;">
 <p style="margin:0 0 6px;font-size:18px;font-weight:800;">${reporte.titulo}</p>
 <p style="margin:0 0 20px;font-size:14px;color:#66766F;">${sede} · ${reporte.residentesActivos} residentes activos</p>
@@ -120,7 +131,14 @@ export async function enviarReporte(
     )];
     if (emails.length === 0) return { sede, saltada: 'sin destinatarios' };
 
-    const remitente = process.env.SENDGRID_FROM_EMAIL;
+    /**
+     * El área firma. Antes iba `from: <dirección>` a secas, sin nombre: los
+     * tres resúmenes —enfermería, supervisión y dirección— llegaban con la
+     * misma cara a la misma bandeja el mismo lunes, y solo el asunto los
+     * distinguía. `opciones.canal` ya sabía cuál es cuál.
+     */
+    const area = AREA_POR_CANAL[opciones.canal];
+    const remitente = remitenteDe(area, sede);
     if (!process.env.SENDGRID_API_KEY || !remitente) {
         return { sede, saltada: 'SendGrid no configurado', pendiente: reporte.totalPendiente };
     }
@@ -132,7 +150,7 @@ export async function enviarReporte(
         to: emails,
         from: remitente,
         isMultiple: true,
-        subject,
+        subject: asuntoDe(area, subject),
         html,
         attachments: [{
             content: Buffer.from(pdf).toString('base64'),

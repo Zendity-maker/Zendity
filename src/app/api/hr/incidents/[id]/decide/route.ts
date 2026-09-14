@@ -15,6 +15,7 @@ import {
 import { IncidentStatus } from '@prisma/client';
 import { emailLogoSrc } from '@/lib/email-logo';
 import sgMail from '@sendgrid/mail';
+import { remitenteDe, asuntoDe, responderA } from '@/lib/remitente-correo';
 
 export const dynamic = 'force-dynamic';
 
@@ -157,8 +158,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
                     await sgMail.send({
                         to: incident.employee.email,
-                        from: { email: process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com', name: hqName },
-                        subject: `Se requiere tu explicación — ${hqName}`,
+                        from: remitenteDe('RRHH', hqName)!,
+                        // Que la respuesta llegue a quien la pide, no al buzón general.
+                        ...responderA((session.user as any).email),
+                        subject: asuntoDe('RRHH', 'Se requiere tu explicación'),
                         html: emailHtml,
                     });
                 } catch (sgError) {
@@ -260,8 +263,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
                 await sgMail.send({
                     to: incident.employee.email,
-                    from: { email: process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com', name: hqName },
-                    subject: `Observación formal — ${hqName}`,
+                    from: remitenteDe('RRHH', hqName)!,
+                    ...responderA((session.user as any).email),
+                    subject: asuntoDe('RRHH', 'Observación formal'),
                     html: emailHtml
                 });
             } catch (sgError) {

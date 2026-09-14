@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { emailLogoSrc } from '@/lib/email-logo';
 import sgMail from '@sendgrid/mail';
+import { remitenteDe, asuntoDe } from '@/lib/remitente-correo';
 
 // Setear el API Key (Asume que existe SENDGRID_API_KEY en .env)
 if (process.env.SENDGRID_API_KEY) {
@@ -74,10 +75,17 @@ export async function POST(request: Request) {
         </div>
         `;
 
+        // Lo firma RRHH, no "el hogar": quien lo recibe tiene que saber sin
+        // abrirlo que es algo de su expediente y no una circular.
+        const remitente = remitenteDe('RRHH', hqName);
+        if (!remitente) {
+            return NextResponse.json({ success: false, error: 'Correo saliente no configurado' }, { status: 503 });
+        }
+
         const msg = {
             to: employee.email,
-            from: process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com', // Requiere sender verificado en SendGrid
-            subject: `${hqName} · ${subject}`,
+            from: remitente,
+            subject: asuntoDe('RRHH', subject),
             html: corporateTemplate,
         };
 

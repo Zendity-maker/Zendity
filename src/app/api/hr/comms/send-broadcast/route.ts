@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { emailLogoSrc } from '@/lib/email-logo';
 import sgMail from '@sendgrid/mail';
 import { recibeElAviso, ES_AUDIENCIA, AUDIENCIAS, type Audiencia } from '@/lib/audiencias-personal';
+import { remitenteDe, asuntoDe } from '@/lib/remitente-correo';
 
 if (process.env.SENDGRID_API_KEY) {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -132,10 +133,18 @@ export async function POST(request: Request) {
         </div>
         `;
 
+        // Un aviso de Zendity al hogar NO lo firma RRHH del hogar: viene de
+        // fuera. Los del hogar a su personal, sí.
+        const area = deZendity ? 'HOGAR' : 'RRHH';
+        const deQuien = remitenteDe(area, deZendity ? 'Zéndity' : hqName);
+        if (!deQuien) {
+            return NextResponse.json({ success: false, error: 'Correo saliente no configurado' }, { status: 503 });
+        }
+
         const msg = {
             to: targetEmails,
-            from: process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com',
-            subject: deZendity ? `Zéndity · ${subject}` : `${hqName} · ${subject}`,
+            from: deQuien,
+            subject: asuntoDe(area, deZendity ? `Zéndity · ${subject}` : subject),
             html: corporateTemplate,
             isMultiple: true, // Crucial para que no se vean las direcciones de los demás (BCC implícito)
         };
