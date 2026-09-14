@@ -173,7 +173,7 @@ export async function GET(req: Request) {
             }),
             prisma.user.findMany({
                 where: { headquartersId: hqId, isActive: true, isDeleted: false, role: { in: ['CAREGIVER', 'NURSE', 'SUPERVISOR'] } },
-                select: { name: true, role: true, complianceScore: true },
+                select: { id: true, name: true, role: true, complianceScore: true },
             }),
             prisma.incidentReport.groupBy({
                 by: ['severity'],
@@ -209,14 +209,87 @@ export async function GET(req: Request) {
         sevBuckets.forEach(s => { hrIncBySev[s] = 0; });
         hrIncidents.forEach(i => { hrIncBySev[i.severity] = i._count._all; });
 
-        // Compliance score: avg + top/bottom
-        const withScore = staffWithScore.filter(s => typeof s.complianceScore === 'number');
-        const avgCompliance = withScore.length > 0
-            ? Math.round(withScore.reduce((a, s) => a + (s.complianceScore || 0), 0) / withScore.length)
-            : 0;
-        const sortedStaff = [...withScore].sort((a, b) => (b.complianceScore || 0) - (a.complianceScore || 0));
-        const topStaff = sortedStaff.slice(0, 3).map(s => ({ name: s.name, role: s.role, score: s.complianceScore || 0 }));
-        const bottomStaff = sortedStaff.slice(-3).reverse().map(s => ({ name: s.name, role: s.role, score: s.complianceScore || 0 }));
+        /**
+         * ─── EL PERSONAL, CON NOMBRE Y CON HECHOS ────────────────────────
+         *
+         * Hasta el 14-sep-2026 esto eran dos listas —"TOP PERFORMERS" y
+         * "A SEGUIR"— ordenadas por `complianceScore`. Ese número está apagado
+         * desde el 09-sep (ver src/lib/z-score-visible.ts) porque está
+         * invertido: medido el 13-sep, Yedaira González —517 notas en 30 días,
+         * la que más documenta del piso— tenía 25, y Caridad Veras —dieciséis
+         * días en el hogar y cero notas— tenía 100. Las listas habrían
+         * impreso a una en "A SEGUIR" y a la otra en "TOP PERFORMERS".
+         *
+         * Un resumen ejecutivo SÍ debe nombrar a su gente: es un documento
+         * administrativo. Lo que no puede es ordenarla por un número que
+         * miente, porque un PDF se descarga y circula, y no se puede desdecir.
+         *
+         * Así que van los hechos, que son cuatro, cada uno observable y ya
+         * registrado — sin fundirlos en un índice y sin etiquetas de juicio.
+         * Ordenado alfabético a propósito: cualquier otro orden es un ranking.
+         */
+        const idsPiso = staffWithScore.map(s => s.id);
+        const enElPeriodo = { gte: periodStart, lte: periodEnd };
+
+        const [turnosPorPersona, cerradosPorPersona, forzadosDelPeriodo, cursosPorPersona, obsPorPersona] =
+            await Promise.all([
+                prisma.shiftSession.groupBy({
+                    by: ['caregiverId'],
+                    where: { headquartersId: hqId, caregiverId: { in: idsPiso }, startTime: enElPeriodo },
+                    _count: { _all: true },
+                }),
+                prisma.shiftSession.groupBy({
+                    by: ['caregiverId'],
+                    where: { headquartersId: hqId, caregiverId: { in: idsPiso }, startTime: enElPeriodo, handoverCompleted: true },
+                    _count: { _all: true },
+                }),
+                /**
+                 * Los turnos que cerró supervisión por ella. NO cuentan como
+                 * suyos sin cerrar: `/api/care/shift/force-close` pone
+                 * `actualEndTime` y deja constancia en SystemAuditLog, pero no
+                 * toca `handoverCompleted`. Medido: de 86 turnos sin cerrar del
+                 * hogar, 60 son forzados — Neylianne tenía 15 y doce lo eran.
+                 */
+                prisma.shiftSession.findMany({
+                    where: {
+                        headquartersId: hqId, caregiverId: { in: idsPiso }, startTime: enElPeriodo,
+                        handoverCompleted: false,
+                        aiSummaryReport: { startsWith: 'Cierre forzado' },
+                    },
+                    select: { caregiverId: true },
+                }),
+                prisma.userCourse.groupBy({
+                    by: ['employeeId'],
+                    where: { employeeId: { in: idsPiso }, completedAt: enElPeriodo },
+                    _count: { _all: true },
+                }),
+                prisma.incidentReport.groupBy({
+                    by: ['employeeId'],
+                    where: { headquartersId: hqId, employeeId: { in: idsPiso }, status: 'APPLIED', createdAt: enElPeriodo },
+                    _count: { _all: true },
+                }),
+            ]);
+
+        const mapa = <T extends { _count: { _all: number } }>(filas: T[], clave: keyof T) =>
+            new Map(filas.map(f => [String(f[clave]), f._count._all]));
+        const nTurnos = mapa(turnosPorPersona, 'caregiverId');
+        const nCerrados = mapa(cerradosPorPersona, 'caregiverId');
+        const nCursos = mapa(cursosPorPersona, 'employeeId');
+        const nObs = mapa(obsPorPersona, 'employeeId');
+        const nForzados = new Map<string, number>();
+        for (const f of forzadosDelPeriodo) nForzados.set(f.caregiverId, (nForzados.get(f.caregiverId) ?? 0) + 1);
+
+        const roster = staffWithScore
+            .map(s => ({
+                name: s.name,
+                role: s.role,
+                turnos: nTurnos.get(s.id) ?? 0,
+                cerrados: nCerrados.get(s.id) ?? 0,
+                forzados: nForzados.get(s.id) ?? 0,
+                cursos: nCursos.get(s.id) ?? 0,
+                observaciones: nObs.get(s.id) ?? 0,
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name, 'es'));
 
         const handoverPct = handoversAll > 0 ? Math.round((handoversCompleted / handoversAll) * 100) : 0;
 
@@ -274,8 +347,7 @@ export async function GET(req: Request) {
             },
             personal: {
                 totalStaff: staffWithScore.length,
-                avgCompliance,
-                topStaff, bottomStaff,
+                roster,
                 hrIncidents: hrIncBySev,
                 formacionAlDiaPct,
             },

@@ -1,5 +1,4 @@
 import jsPDF from 'jspdf';
-import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
 
 export type ExecReportData = {
     hqName: string;
@@ -25,9 +24,16 @@ export type ExecReportData = {
     };
     personal: {
         totalStaff: number;
-        avgCompliance: number;
-        topStaff: Array<{ name: string; role: string; score: number }>;
-        bottomStaff: Array<{ name: string; role: string; score: number }>;
+        /**
+         * El equipo con nombre y con hechos, en orden alfabético.
+         * Sustituye a `topStaff`/`bottomStaff`, que se ordenaban por el
+         * complianceScore — ver la nota del render más abajo.
+         */
+        roster: Array<{
+            name: string; role: string;
+            turnos: number; cerrados: number; forzados: number;
+            cursos: number; observaciones: number;
+        }>;
         hrIncidents: Record<string, number>;
         /** Formación continua: cuántos del equipo van al día con su meta de cursos. */
         formacionAlDiaPct: number | null;
@@ -237,7 +243,11 @@ export function generateExecReportPDF(d: ExecReportData): void {
     sectionHeader('PERSONAL');
     kpiRow([
         { label: 'Equipo activo', value: d.personal.totalStaff, sub: 'CAREGIVER/NURSE/SUP' },
-        { label: 'Compliance promedio', value: `${d.personal.avgCompliance}`, sub: 'Score 0-100' },
+        // Antes: "Compliance promedio", el promedio del complianceScore. Es el
+        // mismo número apagado del resto del informe, promediado — o sea el
+        // promedio de una cifra invertida. Se sustituye por el cierre de turno,
+        // que es un hecho y ya se calcula.
+        { label: 'Turnos cerrados con el relevo', value: `${d.operacional.handovers.completedPct}%`, sub: `${d.operacional.handovers.completed} de ${d.operacional.handovers.total}` },
         // La formacion no estaba en ningun resumen. Un hogar cuyo personal se
         // forma es distinto de uno que no, y ese dato no salia por ninguna
         // parte — el complianceScore no lo refleja: las dos personas con score
@@ -272,34 +282,81 @@ export function generateExecReportPDF(d: ExecReportData): void {
         },
     ]);
 
-    // Top / Bottom staff
-    pageBreakIfNeeded(40);
-    const halfW = (usableW - 4) / 2;
-    const renderStaffList = (title: string, list: Array<{ name: string; role: string; score: number }>, x: number, color: [number, number, number]) => {
-        doc.setFillColor(color[0], color[1], color[2]); doc.roundedRect(x, y, halfW, 5, 1, 1, 'F');
-        doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
-        doc.text(title, x + 2, y + 3.5);
-        let ly = y + 9;
-        if (list.length === 0) {
-            doc.setTextColor(148, 163, 184); doc.setFont('helvetica', 'italic'); doc.setFontSize(8);
-            doc.text('(sin datos)', x + 2, ly);
-        }
-        list.forEach(s => {
-            doc.setTextColor(30, 41, 59); doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-            doc.text(fit(s.name, halfW - 12), x + 2, ly);
-            doc.setTextColor(15, 110, 86); doc.setFont('helvetica', 'bold');
-            doc.text(String(s.score), x + halfW - 8, ly);
-            ly += 5;
-        });
+    /**
+     * ─── EL EQUIPO, CON NOMBRE Y CON HECHOS ──────────────────────────
+     *
+     * Esto eran dos listas, "TOP PERFORMERS" y "A SEGUIR", ordenadas por el
+     * complianceScore. Ese número está apagado desde el 09-sep-2026 porque
+     * está invertido: medido el 13-sep, Yedaira González —la que más documenta
+     * del piso, 517 notas en 30 días— tenía 25, y Caridad Veras —dieciséis días
+     * en el hogar, cero notas— tenía 100. Las dos listas habrían impreso a cada
+     * una en el lado contrario del que le toca.
+     *
+     * Un resumen ejecutivo SÍ nombra a su gente: es un documento administrativo
+     * y ése es su trabajo. Lo que no puede es ordenarla por un número que
+     * miente, porque un PDF se descarga, circula, y no se puede desdecir.
+     *
+     * Van los cuatro hechos, cada uno observable y ya registrado, sin fundirlos
+     * en un índice. Orden alfabético a propósito: cualquier otro orden es un
+     * ranking, y un ranking es una nota con otro nombre.
+     */
+    pageBreakIfNeeded(24 + d.personal.roster.length * 5);
+    doc.setFillColor(15, 110, 86); doc.roundedRect(marginX, y, usableW, 5, 1, 1, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
+    doc.text('EQUIPO DEL PISO', marginX + 2, y + 3.5);
+    y += 9;
+
+    const colX = [
+        marginX + 2,                    // nombre
+        marginX + usableW - 74,         // puesto
+        marginX + usableW - 40,         // turnos cerrados
+        marginX + usableW - 20,         // cursos
+        marginX + usableW - 6,          // observaciones
+    ];
+    doc.setTextColor(100, 116, 139); doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5);
+    doc.text('NOMBRE', colX[0], y);
+    doc.text('PUESTO', colX[1], y);
+    doc.text('TURNOS CERRADOS', colX[2], y, { align: 'right' });
+    doc.text('CURSOS', colX[3], y, { align: 'right' });
+    doc.text('OBS.', colX[4], y, { align: 'right' });
+    y += 1.5;
+    doc.setDrawColor(226, 232, 240); doc.line(marginX, y, marginX + usableW, y);
+    y += 4;
+
+    const PUESTO: Record<string, string> = {
+        CAREGIVER: 'Cuidadora', NURSE: 'Enfermería', SUPERVISOR: 'Supervisión',
     };
-    // Dos listas de personas con nombre y apellido, ordenadas por el score
-    // invertido: los que mas documentan encabezaban "A SEGUIR". Un PDF que se
-    // descarga y circula no se puede desdecir. Ver src/lib/z-score-visible.ts.
-    if (Z_SCORE_VISIBLE) {
-        renderStaffList('TOP PERFORMERS', d.personal.topStaff, marginX, [16, 185, 129]);
-        renderStaffList('A SEGUIR', d.personal.bottomStaff, marginX + halfW + 4, [239, 68, 68]);
-        y += 9 + Math.max(d.personal.topStaff.length, d.personal.bottomStaff.length, 1) * 5 + 4;
+
+    if (d.personal.roster.length === 0) {
+        doc.setTextColor(148, 163, 184); doc.setFont('helvetica', 'italic'); doc.setFontSize(8);
+        doc.text('(sin personal de piso en el periodo)', colX[0], y);
+        y += 6;
     }
+
+    d.personal.roster.forEach(s => {
+        pageBreakIfNeeded(6);
+        doc.setTextColor(30, 41, 59); doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+        doc.text(fit(s.name, 62), colX[0], y);
+        doc.setTextColor(100, 116, 139); doc.setFontSize(7.5);
+        doc.text(PUESTO[s.role] ?? s.role, colX[1], y);
+
+        // "22 de 24" y no un porcentaje: un mes flojo casi siempre es "vino
+        // menos", no "lo hizo peor", y una tasa borra esa diferencia.
+        doc.setTextColor(30, 41, 59); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+        doc.text(`${s.cerrados} de ${s.turnos}`, colX[2], y, { align: 'right' });
+        doc.setFont('helvetica', 'normal');
+        doc.text(String(s.cursos), colX[3], y, { align: 'right' });
+        doc.text(String(s.observaciones), colX[4], y, { align: 'right' });
+        y += 5;
+
+        // El cierre que hizo supervisión no es un turno que ella dejó abierto.
+        if (s.forzados > 0) {
+            doc.setTextColor(148, 163, 184); doc.setFont('helvetica', 'italic'); doc.setFontSize(6.5);
+            doc.text(`${s.forzados} cerrado${s.forzados > 1 ? 's' : ''} por supervisión`, colX[0] + 3, y);
+            y += 4;
+        }
+    });
+    y += 3;
 
     /**
      * ─── Cierre del mes ──────────────────────────────────────────────
