@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { format, isValid } from "date-fns";
 import { es } from "date-fns/locale";
 import { Loader2 } from "lucide-react";
+import { textoDeAlergias, alergiasSinDocumentar } from "@/lib/alergias";
 
 // Función a prueba de fallos para fechas inválidas (Evita el Next.js Client Error 'Invalid time value')
 const safeFormatDate = (dateVal: any, fmt: string) => {
@@ -174,8 +175,31 @@ function EmarPrintContent() {
                     <div>
                         <p className="text-xs font-black text-rose-500 uppercase tracking-widest mb-1">Condiciones Médicas</p>
                         <div className="space-y-1 text-sm text-slate-700 font-medium mt-3">
-                            <p><span className="font-bold text-slate-500 w-24 inline-block">Condición:</span> {patient.lifePlan?.medicalCondition || 'N/A'}</p>
-                            <p className="text-rose-600"><span className="font-bold text-rose-300 w-24 inline-block">Alergias:</span> {patient.lifePlan?.allergies || 'NKA'}</p>
+                            {/*
+                                ESTA HOJA AFIRMABA "SIN ALERGIAS" A TODO EL MUNDO.
+                                Leía `patient.lifePlan?.allergies` y `?.medicalCondition`:
+                                ninguno de los dos campos existe. `lifePlan` en singular
+                                tampoco —la API devuelve `lifePlans`, en plural y como
+                                arreglo (api/corporate/patients/[id]/route.ts:57)—, así
+                                que la expresión era `undefined` SIEMPRE y el `||` caía al
+                                valor por defecto: "NKA", que en una hoja clínica significa
+                                "no known allergies".
+
+                                Medido el 14-sep-2026: 31 residentes activos, 5 con alergia
+                                documentada de verdad (Artemia Figueroa, Teresa Rivera,
+                                Aida Rivera, Óscar López e Iris Colón), tres de ellos a la
+                                familia de la penicilina. La hoja afirmaba ausencia para los
+                                31 por igual. Es papel que se firma y se archiva.
+
+                                `textoDeAlergias` nunca inventa un "ninguna conocida": si no
+                                hay dato escribe NO DOCUMENTADO, que es lo único que el hogar
+                                puede sostener. Es la misma función que ya usan el resumen
+                                impreso y el briefing mensual.
+                            */}
+                            <p><span className="font-bold text-slate-500 w-24 inline-block">Condición:</span> {patient.intakeData?.diagnoses?.trim() || 'No documentada'}</p>
+                            <p className={alergiasSinDocumentar(patient.intakeData?.allergies) ? 'text-amber-700' : 'text-rose-600 font-bold'}>
+                                <span className="font-bold text-rose-300 w-24 inline-block">Alergias:</span> {textoDeAlergias(patient.intakeData?.allergies)}
+                            </p>
                         </div>
                     </div>
                 </div>

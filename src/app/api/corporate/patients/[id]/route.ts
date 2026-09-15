@@ -55,6 +55,23 @@ async function getPatientHandler(req: Request, { params }: { params: Promise<{ i
             include: {
                 headquarters: true,
                 lifePlans: { orderBy: { createdAt: 'desc' }, take: 1 },
+                /**
+                 * ALERGIAS Y DIAGNÓSTICOS — viven en IntakeData, no en LifePlan.
+                 *
+                 * Se añaden aquí porque la hoja impresa del eMAR
+                 * (/care/patient/emar-print) leía `patient.lifePlan?.allergies`
+                 * y ese campo NO EXISTE en el modelo LifePlan: la única
+                 * `allergies` del schema está en IntakeData. Así que el operador
+                 * `||` caía siempre al valor por defecto y la hoja imprimía
+                 * "NKA" —no known allergies— para los 31 residentes activos,
+                 * cinco de los cuales tienen alergia documentada de verdad y
+                 * tres de ellos a la familia de la penicilina.
+                 *
+                 * Select estrecho a propósito: no hace falta traerse el resto
+                 * del intake (snapshotData y las notas de análisis son campos
+                 * de texto largo) para imprimir dos líneas.
+                 */
+                intakeData: { select: { allergies: true, diagnoses: true } },
                 // Solo los ids: el perfil necesita saber SI hay familiares para
                 // el aviso de expediente sin contacto, no quienes son. Esos los
                 // trae la pestaña de familia cuando se abre.
