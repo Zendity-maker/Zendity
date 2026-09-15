@@ -7,6 +7,7 @@ import { authOptions } from '@/lib/auth';
 import { notifyRoles } from '@/lib/notifications';
 import { todayStartAST } from '@/lib/dates';
 import { estadoParaOmision, esMotivoOmisionValido } from '@/lib/omision-medicamento';
+import { conciliarPack } from '@/lib/emar-conciliar';
 
 // CAREGIVER puede firmar el pack del turno. NURSE/SUP/DIR/ADMIN también.
 const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
@@ -210,8 +211,29 @@ export async function POST(req: Request) {
         }
         const administeredAt = hora.hora;
 
-        const dataToInsert = idsAProcesar.map((medId: string) => ({
-            patientMedicationId: medId,
+        /**
+         * SE FIRMA LA FILA QUE EL CRON YA CREÓ — NO SE CREA OTRA AL LADO.
+         *
+         * Desde el 15-sep-2026 `materializarDosisDelDia` escribe de verdad: a
+         * las 6:01 AM crea una fila PENDING por cada dosis programada del día.
+         * Esta ruta hacía `createMany` a ciegas, así que cada pack firmado
+         * dejaba DOS filas por dosis — la firmada y la del cron, sin firmar— y
+         * dos horas después el barrido de vencidas marcaba la segunda MISSED.
+         *
+         * Medido ese mismo día a las 8:41 AM: 10 de las 15 dosis marcadas como
+         * omitidas SE HABÍAN DADO y estaban firmadas. Omisiones fantasma, con
+         * nombre y apellido de residente encima.
+         *
+         * La conciliación es exacta, no por cercanía: el pack manda su franja
+         * ("8:00 AM") y `conciliarPack` reconstruye el mismo instante que usó el
+         * cron, así que busca por la llave única. Ver src/lib/emar-conciliar.ts.
+         *
+         * Efecto lateral bueno: firmar sobre una fila existente es idempotente.
+         * Un doble toque deja el mismo expediente.
+         */
+        const { aFirmar, sinFila } = await conciliarPack(idsAProcesar, scheduleTime, now);
+
+        const camposDeLaFirma = {
             administeredById: invokerId,
             status: adminStatus,
             scheduleTime: scheduleTime || null,
@@ -223,9 +245,29 @@ export async function POST(req: Request) {
             // El motivo del PRN va a su propio campo, no dentro de `notes`:
             // un campo se puede consultar, un texto libre no.
             prnMotivo: isPRN ? String(prnMotivo).trim().slice(0, 300) : null,
+        };
+
+        let firmadas = 0;
+        if (aFirmar.length > 0) {
+            const r = await prisma.medicationAdministration.updateMany({
+                where: { id: { in: aFirmar.map(f => f.id) } },
+                data: camposDeLaFirma,
+            });
+            firmadas = r.count;
+        }
+
+        // Los que no tenían fila programada —PRN, semanales, recetados hoy
+        // después del cron— se crean como siempre.
+        const dataToInsert = sinFila.map((medId: string) => ({
+            patientMedicationId: medId,
+            ...camposDeLaFirma,
         }));
 
-        const result = await prisma.medicationAdministration.createMany({ data: dataToInsert });
+        const creadas = dataToInsert.length > 0
+            ? (await prisma.medicationAdministration.createMany({ data: dataToInsert })).count
+            : 0;
+
+        const result = { count: firmadas + creadas };
 
         // Notificar NURSE/SUPERVISOR en omisión (bloqueante suave — error de notificación no revierte registro)
         if (isOmit) {
