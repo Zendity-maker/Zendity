@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { astDateTime, parseTimeOfDay } from '@/lib/dates';
+import { astDateTime, parseTimeOfDay, todayStartAST } from '@/lib/dates';
 import { MedStatus, MedActiveStatus } from '@prisma/client';
 
 /**
@@ -70,16 +70,33 @@ const GRACIA_MS = 6 * 60 * 60 * 1000;
  *   dosis perdida, y materializarla a diario haría que el cumplimiento
  *   castigue al hogar por no medicar a quien no lo necesitaba.
  *
- * SEMANAL — Alendronate 70mg, entre otros. Se dan una vez por semana, pero la
- *   cadena guarda "08:00 AM (Semanal)" sin decir QUÉ DÍA. Materializarlas a
- *   diario crearía siete veces las dosis reales y hundiría el cumplimiento por
- *   un medicamento que se está dando bien.
+ * SEMANAL escrito a mano — "08:00 AM (Semanal)", la forma vieja, de cuando no
+ *   había dónde poner el día. Sigue sin decir QUÉ DÍA, así que no se puede
+ *   materializar sin inventarse seis dosis de siete.
  *
  * Ambos se cuentan aparte para que se vean, en vez de desaparecer en un catch.
- * Rastrear los semanales de verdad necesita un campo de día de la semana en el
- * schema — hasta entonces, quedan fuera del cómputo a sabiendas.
+ *
+ * YA NO ES LA ÚNICA GUARDA. Desde el 11-sep-2026 los días viven en la columna
+ * `scheduleDays` y el horario queda limpio ("05:00 AM"), así que este regex no
+ * las reconoce — quien decide qué días toca es `tocaHoyAST`, arriba. Este regex
+ * se queda para las que todavía llevan el texto viejo.
  */
 const NO_PROGRAMABLE = /\b(PRN|semanal|weekly|mensual|monthly)\b/i;
+
+/**
+ * ¿Toca hoy esta receta? Misma regla que `tocaHoy` de src/lib/receta.ts, pero
+ * recibiendo el día ya resuelto en hora de Puerto Rico en vez de leerlo del
+ * reloj del proceso — que en Vercel es UTC y adelanta el día a las 8 PM de aquí.
+ */
+function tocaHoyAST(
+    med: { frequency?: string | null; scheduleDays?: number[] | null },
+    diaAST: number,
+): boolean {
+    if ((med.frequency ?? '').toUpperCase().includes('PRN')) return false;
+    const dias = med.scheduleDays ?? [];
+    if (dias.length === 0) return true; // sin días marcados = todos los días
+    return dias.includes(diaAST);
+}
 
 /**
  * Crea las filas PENDING de todas las dosis programadas para hoy.
@@ -90,7 +107,9 @@ const NO_PROGRAMABLE = /\b(PRN|semanal|weekly|mensual|monthly)\b/i;
 export async function materializarDosisDelDia(): Promise<{ creadas: number; omitidas: number; noProgramables: number }> {
     const meds = await prisma.patientMedication.findMany({
         where: { status: MedActiveStatus.ACTIVE, isActive: true },
-        select: { id: true, scheduleTimes: true },
+        // frequency y scheduleDays se piden porque SIN ELLOS no se puede saber
+        // qué días toca una pauta semanal. Ver el bloque de abajo.
+        select: { id: true, scheduleTimes: true, frequency: true, scheduleDays: true },
     });
 
     const ahora = new Date();
@@ -98,8 +117,47 @@ export async function materializarDosisDelDia(): Promise<{ creadas: number; omit
     let omitidas = 0;
     let noProgramables = 0;
 
+    /**
+     * EL DÍA DE LA SEMANA, EN HORA DE PUERTO RICO.
+     *
+     * `getDay()` a secas lee el reloj local, que en Vercel es UTC: entre las
+     * 8 de la noche y la medianoche de aquí, UTC ya está en el día siguiente.
+     * El cron corre a las 6:01 AM así que hoy no muerde, pero un cron que
+     * depende de la hora a la que se le llama es un cron roto esperando.
+     *
+     * `todayStartAST()` devuelve el arranque del día clínico en UTC; su
+     * `getUTCDay()` es el día de la semana de aquí.
+     */
+    const diaDeLaSemanaAST = todayStartAST().getUTCDay();
+
     for (const pm of meds) {
         if (!pm.scheduleTimes) { omitidas++; continue; }
+
+        /**
+         * UNA PAUTA SEMANAL SOLO SE MATERIALIZA EL DÍA QUE TOCA.
+         *
+         * Esto ya estaba previsto —el comentario de NO_PROGRAMABLE dice que
+         * materializar semanales a diario "hundiría el cumplimiento por un
+         * medicamento que se está dando bien"— pero la guarda era un REGEX
+         * SOBRE EL TEXTO DEL HORARIO, buscando la palabra "Semanal" dentro de
+         * "08:00 AM (Semanal)".
+         *
+         * Y el 11-sep-2026 se arregló justamente eso: los días pasaron a su
+         * propia columna `scheduleDays` y el horario quedó limpio, "05:00 AM".
+         * Así que la guarda dejó de reconocerlas y desde entonces las semanales
+         * se materializan LOS SIETE DÍAS.
+         *
+         * Medido el 15-sep-2026, un martes: 7 dosis semanales materializadas,
+         * y NINGUNA de las 7 tocaba ese día — todas son de viernes o domingo.
+         * Una ya había pasado a MISSED: el Alendronate 70mg de Hugo Ventura,
+         * acusado de no darse un día en que no había que darlo. A seis días
+         * falsos por semana eso son ~42 omisiones inventadas cada semana, cada
+         * una con su aviso en el calendario.
+         *
+         * `tocaHoy` vive en src/lib/receta.ts y ya sabe esto; lo que faltaba era
+         * llamarlo. Se le pasa el día de aquí, no el del servidor.
+         */
+        if (!tocaHoyAST(pm, diaDeLaSemanaAST)) { noProgramables++; continue; }
 
         for (const raw of pm.scheduleTimes.split(',')) {
             const txt = raw.trim();
