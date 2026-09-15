@@ -327,16 +327,18 @@ nadie lo dice.**
      constructor de `@prisma/adapter-neon@5.22` es basado en `Pool` (no `{ connectionString }`
      como en v6.x GA). Riesgo de comportamiento sutil en runtime sobre 285 callers,
      en código HIPAA, no se compensa.
-  2. **21 de 24 `$transaction` del repo son interactivas** (`async (tx) => …`), patrón
+  2. **28 de 40 `$transaction` del repo son interactivas** (`async (tx) => …`), patrón
      con limitaciones conocidas en driver adapters Prisma 5.x. Específicamente: handovers
-     (`care/shift/end`, `claim-coverage`), eMAR (`actions/emar`), UPP (`care/upp`),
+     (`care/shift/end`, `claim-coverage`), UPP (`care/upp` ×2), cambio de condición,
      billing (`corporate/billing/*`), schedule builder (`hr/schedule/*`), kiosko externo,
      concierge, CRM. Cualquier regresión silenciosa rompe módulos clínicos en piloto.
+     *(Recontado el 15-sep-2026: decía "21 de 24" y el repo había crecido. `actions/emar`
+     salió de la lista porque el fichero se borró — estaba huérfano entero.)*
   3. Fase 1 (pooling Neon, conexiones 84→32) **ya resolvió el problema operacional**.
      La Fase 2 es optimización de latencia, no bloqueador.
 - **Condiciones para retomar**: upgrade a **Prisma 6.16+** (donde `driverAdapters` es GA,
   el API se limpia a `new PrismaNeon({ connectionString })`, y las transacciones
   interactivas son maduras sobre adapters). Pasos: branch dedicada, smoke test específico
-  de los 6 callsites clínicos críticos (shift/end ×2, claim-coverage, upp, emar.actions ×2),
+  de los 5 callsites clínicos críticos (shift/end ×2, claim-coverage, upp ×2),
   comparar latencias en preview, decidir merge.
 - **No es bloqueador del piloto**.
