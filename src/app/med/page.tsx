@@ -21,6 +21,27 @@ export default function ZendityMedPage() {
     const [crudReason, setCrudReason] = useState("");
     const [crudAction, setCrudAction] = useState<"MODIFIED" | "DISCONTINUED" | "AUTHORIZED" | null>(null);
     /**
+     * EL ERROR DEL SERVIDOR, EN PANTALLA.
+     *
+     * `handleCrudSubmit` hacia `if (data.success) {...}` y NO tenia rama else:
+     * un 403 por rol, un 404 —"Borrador no encontrado en tu sede"— o un 500
+     * dejaban el modal abierto, el boton volvia a decir "Aplicar Sello", y no
+     * habia ni una letra explicando nada.
+     *
+     * Y eso ya pasa hoy para mas de la mitad de la casa: el boton "Revisar y
+     * autorizar" se pinta sin guarda de rol, pero el POST exige WRITE_ROLES,
+     * que no incluye CAREGIVER. De los 22 usuarios activos de Cupey, 12 son
+     * cuidadoras: pueden abrir esta pantalla, ver el boton, pulsarlo y no
+     * recibir absolutamente nada.
+     *
+     * Una pantalla muda es lo que hace que una persona vuelva a pulsar. Celia
+     * pulso trece veces el boton de la OTRA pantalla por la misma razon.
+     */
+    const [crudError, setCrudError] = useState("");
+
+    /** Igual que WRITE_ROLES en api/med/crud/route.ts:9. */
+    const puedeAutorizar = !!user?.role && ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(user.role);
+    /**
      * LO QUE SE ESTA EDITANDO DE UNA RECETA VIVA.
      *
      * Antes esto era un solo `newSchedule` que se inicializaba con
@@ -128,6 +149,7 @@ export default function ZendityMedPage() {
     };
 
     const handleCrudSubmit = async () => {
+        setCrudError("");
         if (!crudReason) { alert("Obligatorio justificar el cambio (Auditoría HIPAA)."); return; }
         if (crudAction === 'MODIFIED' || crudAction === 'AUTHORIZED') {
             // Las mismas dos guardas que al añadir. Una pauta semanal sin día no
@@ -162,9 +184,14 @@ export default function ZendityMedPage() {
                 setModalOpen(false);
                 setCrudReason("");
                 fetchPatients();
+            } else {
+                // El modal NO se cierra. Cerrarlo sin guardar es lo que hace
+                // creer que se guardó.
+                setCrudError(data.error || "No se pudo guardar. Inténtalo otra vez.");
             }
         } catch (e) {
             console.error(e);
+            setCrudError("Error de red — no se guardó nada. Comprueba la conexión.");
         } finally {
             setSubmitting(false);
         }
@@ -173,6 +200,7 @@ export default function ZendityMedPage() {
     const openCruModal = (med: any, action: "MODIFIED" | "DISCONTINUED" | "AUTHORIZED") => {
         setSelectedMed(med);
         setCrudAction(action);
+        setCrudError("");
         setEditForm({
             scheduleTimes: med.scheduleTimes ?? "",
             frequency: esFrecuenciaValida(med.frequency) ? med.frequency : "DIARIO",
@@ -313,12 +341,22 @@ export default function ZendityMedPage() {
                                                 <p className="text-[11px] text-slate-500 font-medium">
                                                     {m.medication.dosage} · {m.scheduleTimes}
                                                 </p>
+                                                {/* Solo a quien de verdad puede. El POST exige WRITE_ROLES
+                                                    (api/med/crud/route.ts:9), que no incluye CAREGIVER, y en
+                                                    Cupey 12 de los 22 usuarios activos son cuidadoras: veian
+                                                    este boton, lo pulsaban, y no pasaba nada. */}
+                                                {puedeAutorizar ? (
                                                 <button
                                                     onClick={() => openCruModal(m, 'AUTHORIZED')}
                                                     className="mt-2 w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-black text-xs rounded-lg transition-colors uppercase tracking-widest"
                                                 >
                                                     Revisar y autorizar
                                                 </button>
+                                                ) : (
+                                                    <p className="mt-2 text-[11px] font-bold text-amber-700 leading-snug">
+                                                        Solo enfermería o dirección pueden autorizarlo. Avísales.
+                                                    </p>
+                                                )}
                                             </div>
                                         ))}
                                     </div>
@@ -424,9 +462,15 @@ export default function ZendityMedPage() {
                             </div>
                         </div>
 
+                        {crudError && (
+                            <div className="mt-5 bg-rose-50 border-2 border-rose-200 rounded-xl p-3">
+                                <p className="text-sm font-bold text-rose-800 leading-snug">{crudError}</p>
+                            </div>
+                        )}
+
                         <div className="flex gap-3 pt-6 border-t border-slate-100 mt-6">
                             <button onClick={() => setModalOpen(false)} className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors">Cancelar</button>
-                            <button onClick={handleCrudSubmit} className={`flex-1 py-3 font-black text-white rounded-xl shadow-lg transition-all active:scale-95 ${crudAction === 'DISCONTINUED' ? 'bg-red-500 shadow-red-500/30 hover:bg-red-600' : 'bg-teal-600 shadow-teal-500/30 hover:bg-teal-700'}`}>
+                            <button onClick={handleCrudSubmit} disabled={submitting} className={`flex-1 py-3 font-black text-white rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50 ${crudAction === 'DISCONTINUED' ? 'bg-red-500 shadow-red-500/30 hover:bg-red-600' : 'bg-teal-600 shadow-teal-500/30 hover:bg-teal-700'}`}>
                                 {submitting ? 'Guardando...' : 'Aplicar Sello'}
                             </button>
                         </div>

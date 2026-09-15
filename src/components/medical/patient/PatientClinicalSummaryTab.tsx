@@ -35,7 +35,22 @@ function Renglon({ etiqueta, valor, tono = 'text-slate-800' }: { etiqueta: strin
 
 export default function PatientClinicalSummaryTab({ patientData, onRefresh }: { patientData: any, onRefresh: () => void }) {
     const intake = patientData?.intakeData;
-    const meds = patientData?.medications?.filter((m: any) => m.isActive) || [];
+    /**
+     * TRATAMIENTO VIVO Y BORRADORES DEL INGRESO, SEPARADOS.
+     *
+     * Esta es la PRIMERA pestaña que se abre de un expediente. Filtraba
+     * `m.isActive` a secas, así que un borrador de la admisión —que nace con
+     * `isActive: false` a propósito— desaparecía por completo y el bloque
+     * imprimía "No hay medicamentos activos pre-programados".
+     *
+     * El 14-sep-2026, durante cuatro horas, las dos pestañas del expediente de
+     * Iris Delia Colón se contradijeron: Resumen Clínico decía 0 y Medicamentos
+     * decía 5. Decir "no hay" cuando lo que pasa es "hay cinco esperando" no es
+     * un matiz: es lo contrario de lo que hay que hacer.
+     */
+    const todosLosMeds = patientData?.medications ?? [];
+    const meds = todosLosMeds.filter((m: any) => m.isActive && m.status !== 'DRAFT');
+    const borradores = todosLosMeds.filter((m: any) => m.status === 'DRAFT');
     const { user } = useAuth();
     const canToggleProtocol = !!user?.role && PROTOCOL_TOGGLE_ROLES.includes(user.role);
 
@@ -332,7 +347,37 @@ export default function PatientClinicalSummaryTab({ patientData, onRefresh }: { 
                             </div>
                         ) : (
                             <div className="flex-1 flex flex-col items-center justify-center py-6 text-center bg-slate-50 rounded-2xl border border-slate-100 border-dashed">
-                                <p className="text-slate-500 font-medium">No hay medicamentos activos pre-programados.</p>
+                                <p className="text-slate-500 font-medium">
+                                    {borradores.length > 0
+                                        ? 'Todavía no hay ningún medicamento en marcha.'
+                                        : 'No hay medicamentos activos pre-programados.'}
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Los del ingreso que esperan autorización. No se pintan
+                            como tratamiento vivo porque no lo son, pero tampoco se
+                            callan: callarlos es lo que dejó al Baclofen de Carlos
+                            Varona sin darse durante sus 27 días en el hogar. */}
+                        {borradores.length > 0 && (
+                            <div className="mt-4 bg-amber-50 border-2 border-amber-300 rounded-2xl p-4">
+                                <p className="text-sm font-black text-amber-900">
+                                    {borradores.length === 1
+                                        ? '1 medicamento del ingreso, sin autorizar'
+                                        : `${borradores.length} medicamentos del ingreso, sin autorizar`}
+                                </p>
+                                <p className="text-xs font-medium text-amber-800 mt-0.5 leading-snug">
+                                    No llegan a la tableta de la cuidadora hasta que se autoricen.
+                                    Se revisan en la pestaña <strong>Medicamentos</strong>.
+                                </p>
+                                <ul className="mt-3 space-y-1">
+                                    {borradores.map((m: any) => (
+                                        <li key={m.id} className="text-sm font-bold text-amber-900">
+                                            {m.medication?.name}
+                                            <span className="font-medium text-amber-700"> — {m.scheduleTimes || 'sin horario'}</span>
+                                        </li>
+                                    ))}
+                                </ul>
                             </div>
                         )}
 
