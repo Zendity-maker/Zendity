@@ -91,6 +91,35 @@ export async function sincronizarCalendario(hqId: string): Promise<ResultadoSync
         });
     }
 
+    /**
+     * Y SE CIERRAN LAS QUE YA SE DIERON.
+     *
+     * Sin esto el calendario acumula un aviso permanente por cada dosis que
+     * alguna vez estuvo MISSED, y desde el 15-sep-2026 una dosis puede dejar de
+     * estarlo: la tableta ahora firma sobre la fila del cron, así que una firma
+     * tardía devuelve la dosis a ADMINISTERED (ver src/lib/emar-conciliar.ts).
+     *
+     * Sin esta mitad, el primer barrido de hoy habría dejado ~50 avisos fijos
+     * por dosis que se dieron con retraso normal — la alarma de limpieza otra
+     * vez, con sus 280 avisos que nadie podía apagar trabajando.
+     */
+    const perdidasVivas = new Set(dosisPerdidas.map(
+        d => `Dosis sin administrar: ${d.patientMedication.medication.name} — ${d.patientMedication.patient.name}`,
+    ));
+    const eventosEmar = await prisma.calendarEvent.findMany({
+        where: { headquartersId: hqId, originContext: 'EMAR_SYNC', status: 'SCHEDULED' },
+        select: { id: true, title: true },
+        take: 500,
+    });
+    const emarACerrar = eventosEmar.filter(e => !perdidasVivas.has(e.title)).map(e => e.id);
+    if (emarACerrar.length > 0) {
+        const r = await prisma.calendarEvent.updateMany({
+            where: { id: { in: emarACerrar } },
+            data: { status: 'COMPLETED' },
+        });
+        cerrados += r.count;
+    }
+
     // ── 2. Triage abierto de prioridad alta ──────────────────────────────
     const tickets = await prisma.triageTicket.findMany({
         where: { headquartersId: hqId, status: 'OPEN', priority: { in: ['HIGH', 'CRITICAL'] } },

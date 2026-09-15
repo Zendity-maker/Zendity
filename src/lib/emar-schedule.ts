@@ -27,11 +27,37 @@ import { MedStatus, MedActiveStatus } from '@prisma/client';
 /**
  * Gracia después de la hora programada antes de dar una dosis por perdida.
  *
- * Dos horas cubre el desfase real de un turno sin volver "perdida" una dosis
- * que se dio con retraso normal. No penaliza a nadie —nada descuenta puntos
- * por MISSED— pero sí hace visible lo que hoy es invisible.
+ * ERAN DOS HORAS, Y ESE NÚMERO NO SALÍA DE NINGÚN SITIO. El comentario decía
+ * que "dos horas cubre el desfase real de un turno". Hasta hoy nadie podía
+ * comprobarlo, porque el cron no escribía y `MISSED` no existía en toda la
+ * historia de la base.
+ *
+ * MEDIDO EL 15-SEP-2026 sobre 10.571 firmas de 45 días con franja conocida,
+ * comparando la hora de registro con la hora programada:
+ *
+ *     mediana  +1h08      p90  +3h56      p95  +4h44
+ *
+ *     más de 2h después:  1.962 de 10.571  =  18,6%
+ *     más de 4h después:    974            =   9,2%
+ *     más de 6h después:     57            =   0,5%
+ *
+ * Y por franja, el pack grande es el peor: de las 5.827 firmas de las 8:00 AM,
+ * el 26% se registran pasadas las dos horas. Las 5:00 PM, el 36%.
+ *
+ * O sea que la ventana de dos horas no medía omisiones: fabricaba una cada
+ * cuatro dosis del pack de la mañana. El primer día que el cron funcionó —hoy—
+ * iba a marcar como perdidas 208 dosis a las 10:00 que se estaban dando.
+ *
+ * SEIS HORAS deja fuera el 0,5%. Sigue siendo el mismo día y sigue siendo
+ * accionable: una dosis de las 8:00 AM se señala a las 2:00 PM, con turno de
+ * tarde todavía por delante. Lo que ya no hace es acusar al piso de no dar algo
+ * que estaba dando.
+ *
+ * La regla de fondo —una dosis es perdida cuando termina el TURNO al que
+ * pertenece, no cuando pasa un reloj fijo— es mejor y está pendiente de
+ * decisión. Esto es lo honesto que cabe en una constante.
  */
-const GRACIA_MS = 2 * 60 * 60 * 1000;
+const GRACIA_MS = 6 * 60 * 60 * 1000;
 
 /**
  * Horarios que NO se materializan, y por qué.
