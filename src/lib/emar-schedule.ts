@@ -25,39 +25,80 @@ import { MedStatus, MedActiveStatus } from '@prisma/client';
  */
 
 /**
- * Gracia después de la hora programada antes de dar una dosis por perdida.
+ * UNA DOSIS SE PIERDE CUANDO CIERRA SU TURNO, NO CUANDO PASA UN RELOJ.
  *
- * ERAN DOS HORAS, Y ESE NÚMERO NO SALÍA DE NINGÚN SITIO. El comentario decía
- * que "dos horas cubre el desfase real de un turno". Hasta hoy nadie podía
- * comprobarlo, porque el cron no escribía y `MISSED` no existía en toda la
- * historia de la base.
+ * ─────────────────────────────────────────────────────────────────────────
+ * DE DÓNDE SALE ESTA REGLA
  *
- * MEDIDO EL 15-SEP-2026 sobre 10.571 firmas de 45 días con franja conocida,
- * comparando la hora de registro con la hora programada:
+ * Aquí había una constante: primero dos horas, luego seis. Las dos eran
+ * inventadas — un número igual para el pack de las 8 de la mañana y para el de
+ * las 8 de la noche, que no se parecen en nada.
  *
- *     mediana  +1h08      p90  +3h56      p95  +4h44
+ * Medido el 15-sep-2026 sobre 10.608 firmas de 45 días, comparando la hora de
+ * registro con la hora programada:
  *
- *     más de 2h después:  1.962 de 10.571  =  18,6%
- *     más de 4h después:    974            =   9,2%
- *     más de 6h después:     57            =   0,5%
+ *     8:00 AM   n=5864   26% se registran pasadas 2 h
+ *     5:00 PM   n= 833   36%
+ *     2:00 PM   n= 132   92%
+ *     8:00 PM   n=3425    0%
+ *     5:00 AM   n= 325    0%
  *
- * Y por franja, el pack grande es el peor: de las 5.827 firmas de las 8:00 AM,
- * el 26% se registran pasadas las dos horas. Las 5:00 PM, el 36%.
+ * Ningún número fijo sirve para esas cinco a la vez. Dos horas acusaba a una de
+ * cada cuatro dosis del pack de la mañana; seis horas daba ocho horas de manga
+ * al pack de la noche, que se firma entero en hora y media.
  *
- * O sea que la ventana de dos horas no medía omisiones: fabricaba una cada
- * cuatro dosis del pack de la mañana. El primer día que el cron funcionó —hoy—
- * iba a marcar como perdidas 208 dosis a las 10:00 que se estaban dando.
+ * ─────────────────────────────────────────────────────────────────────────
+ * LO QUE LAS MISMAS 10.608 FIRMAS DICEN CONTRA EL CIERRE DE TURNO
  *
- * SEIS HORAS deja fuera el 0,5%. Sigue siendo el mismo día y sigue siendo
- * accionable: una dosis de las 8:00 AM se señala a las 2:00 PM, con turno de
- * tarde todavía por delante. Lo que ya no hace es acusar al piso de no dar algo
- * que estaba dando.
+ * Turnos de la casa: MAÑANA 06–14, TARDE 14–22, NOCHE 22–06.
  *
- * La regla de fondo —una dosis es perdida cuando termina el TURNO al que
- * pertenece, no cuando pasa un reloj fijo— es mejor y está pendiente de
- * decisión. Esto es lo honesto que cabe en una constante.
+ *     firmadas DESPUÉS de cerrar su turno:  6 de 10.608  =  0,1%
+ *
+ * Y el detalle importa más que el total: el percentil 99 del margen es de
+ * **dos minutos antes del cierre** en el pack de las 8 AM, cuatro minutos antes
+ * en el de las 5 PM, dos en el de las 8 PM. O sea que el piso no firma "dentro
+ * de X horas": firma ANTES DE ENTREGAR EL TURNO. La frontera real del hogar es
+ * el relevo, y siempre lo fue — lo que faltaba era que el sistema la usara.
+ *
+ * Por franja, el porcentaje que se pasa del cierre es 0,0% en todas menos la de
+ * las 5:00 AM, donde son 6 dosis de 325 (1,8%) y el percentil 99 está en +16 h:
+ * esas seis son retrasos de verdad, no ruido de la regla.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Y POR QUÉ MEDIA HORA DE RELEVO
+ *
+ * El turno no termina en un filo: el relevo se solapa. Como el percentil 99
+ * roza el cierre por abajo, sin margen habría parpadeos —una dosis marcada
+ * perdida a las 14:00 y firmada a las 14:05— que ahora se corrigen solos
+ * (la tableta firma sobre la fila, ver emar-conciliar.ts) pero que no hay
+ * ninguna razón para producir. Media hora los quita y no cuesta sensibilidad:
+ * de las 6 que se pasan, 5 lo hacen por más de dos horas.
  */
-const GRACIA_MS = 6 * 60 * 60 * 1000;
+const GRACIA_RELEVO_MS = 30 * 60 * 1000;
+
+/** El desfase de Puerto Rico. Sin horario de verano: es constante todo el año. */
+const AST_OFFSET_MS = 4 * 60 * 60 * 1000;
+
+/**
+ * El instante en que cierra el turno al que pertenece una dosis.
+ *
+ * MAÑANA 06–14 → cierra a las 14:00 del mismo día.
+ * TARDE  14–22 → cierra a las 22:00 del mismo día.
+ * NOCHE  22–06 → cierra a las 06:00. Si la dosis es de las 22 en adelante, ese
+ *                cierre es el del día SIGUIENTE; si es de madrugada, el de hoy.
+ */
+export function finDelTurnoDe(scheduledTime: Date): Date {
+    const horaAST = new Date(scheduledTime.getTime() - AST_OFFSET_MS).getUTCHours();
+
+    if (horaAST >= 6 && horaAST < 14) return astDateTime(scheduledTime, 14, 0);
+    if (horaAST >= 14 && horaAST < 22) return astDateTime(scheduledTime, 22, 0);
+
+    // Noche. Las de después de las 22:00 cierran en la madrugada siguiente.
+    const diaDelCierre = horaAST >= 22
+        ? new Date(scheduledTime.getTime() + 24 * 60 * 60 * 1000)
+        : scheduledTime;
+    return astDateTime(diaDelCierre, 6, 0);
+}
 
 /**
  * Horarios que NO se materializan, y por qué.
@@ -221,15 +262,42 @@ export async function materializarDosisDelDia(): Promise<{ creadas: number; omit
 }
 
 /**
- * Marca MISSED las dosis PENDING cuya hora pasó hace más de la gracia.
+ * Marca MISSED las dosis PENDING cuyo turno ya cerró.
  *
- * Sin esto, materializar solo acumularía PENDING para siempre y el
- * cumplimiento seguiría sin significar nada.
+ * Sin esto, materializar solo acumularía PENDING para siempre y el cumplimiento
+ * seguiría sin significar nada.
+ *
+ * El corte se calcula fila por fila y no con un `lt` sobre `scheduledTime`,
+ * porque el límite depende de la HORA DEL DÍA de cada dosis: las 8:00 AM cierran
+ * a las 14:00 y las 8:00 PM a las 22:00, seis horas y dos horas de margen
+ * respectivamente. Eso no se expresa en un solo `where`.
+ *
+ * El coste es leer las pendientes antes de escribir. Son ~360 al día, más las
+ * rezagadas de días anteriores que siguen abiertas; el `take` está para que un
+ * día raro no se traiga la tabla entera.
+ *
+ * Lo llaman dos crones: /api/cron/dispatch-frequent cada 15 minutos y
+ * /api/cron/operational cada hora. Con el de 15 minutos, el cierre de un turno
+ * se detecta como mucho un cuarto de hora tarde.
  */
 export async function marcarDosisVencidas(): Promise<number> {
-    const limite = new Date(Date.now() - GRACIA_MS);
+    const ahora = Date.now();
+
+    const pendientes = await prisma.medicationAdministration.findMany({
+        where: { status: MedStatus.PENDING, scheduledTime: { not: null } },
+        select: { id: true, scheduledTime: true },
+        orderBy: { scheduledTime: 'asc' },
+        take: 5000,
+    });
+
+    const vencidas = pendientes
+        .filter(d => ahora >= finDelTurnoDe(d.scheduledTime!).getTime() + GRACIA_RELEVO_MS)
+        .map(d => d.id);
+
+    if (vencidas.length === 0) return 0;
+
     const r = await prisma.medicationAdministration.updateMany({
-        where: { status: MedStatus.PENDING, scheduledTime: { lt: limite } },
+        where: { id: { in: vencidas } },
         data: { status: MedStatus.MISSED },
     });
     return r.count;
