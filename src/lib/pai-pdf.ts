@@ -194,7 +194,18 @@ export function buildPaiPDF(d: PaiPDFData): jsPDF {
     tabla(
         ['Nivel cognitivo', 'Movilidad', 'Continencia', 'Dieta / vía de alimentación'],
         [0.25, 0.25, 0.2, 0.3],
-        [[d.cognitiveLevel || '—', d.mobility || '—', d.continence || '—', d.dietDetails || '—']],
+        /**
+         * "No documentado" y no un guion: este PAI lo firma y se lo lleva la
+         * familia, y un guion en una tabla clínica se lee como "normal" o como
+         * un descuido de maquetación, no como "nadie lo preguntó".
+         *
+         * Importa sobre todo en Continencia. El asistente de ingreso estampaba
+         * "CONTINENT" de oficio —sin preguntarlo nunca— y así salió impreso en
+         * los 45 planes de la base, incluidos los de residentes encamados.
+         * Corregido el 14-sep-2026; a partir de ahora el campo llega vacío
+         * cuando nadie lo contestó, y tiene que decirlo.
+         */
+        [[d.cognitiveLevel || 'No documentado', d.mobility || 'No documentado', d.continence || 'No documentado', d.dietDetails || 'No documentado']],
     );
     if (d.interdisciplinarySummary?.trim()) {
         campo('Directrices para el equipo interdisciplinario', d.interdisciplinarySummary);

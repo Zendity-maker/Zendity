@@ -60,7 +60,23 @@ export default function IntakeWizardPage() {
     allergies: "",
     diagnoses: "",
     mobilityLevel: "INDEPENDENT",
-    continenceLevel: "CONTINENT",
+    /**
+     * CONTINENCIA — VACÍO, NO "CONTINENT".
+     *
+     * Este campo llevaba "CONTINENT" de valor inicial y NO HAY NINGÚN CONTROL
+     * en todo el asistente que lo cambie: la palabra sale dos veces en este
+     * archivo, aquí y en el envío. O sea que nadie lo ha preguntado nunca y los
+     * 47 ingresos de la base dicen "continente", incluidos los 17 encamados.
+     *
+     * Y no se queda en la base: `submitIntake` lo copia a `LifePlan.continence`
+     * (intake.actions.ts:191 y :202), que es lo que imprime el PAI que firma y
+     * recibe la familia — 45 planes, 33 aprobados, 22 ya enviados por correo.
+     *
+     * Vacío es lo honesto: el PAI escribe "No registrado" en vez de afirmar algo
+     * que nadie comprobó. El selector en el formulario viene después; esto deja
+     * de mentir hoy.
+     */
+    continenceLevel: "",
     dietSpecifics: "REGULAR",
     downtonScore: 0,
     bradenScore: 23,
@@ -282,7 +298,9 @@ export default function IntakeWizardPage() {
       allergies: data.allergies,
       diagnoses: data.diagnoses,
       mobilityLevel: data.mobilityLevel,
-      continenceLevel: data.continenceLevel,
+      // Vacío viaja como null, no como cadena vacía: null es lo que `glosa()`
+      // del PAI lee como "No registrado".
+      continenceLevel: data.continenceLevel || null,
       dietSpecifics: data.dietSpecifics,
       downtonScore: Number(data.downtonScore),
       bradenScore: Number(data.bradenScore),
