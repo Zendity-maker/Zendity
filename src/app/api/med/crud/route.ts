@@ -137,16 +137,25 @@ export async function POST(req: Request) {
          *
          * La admision deja la receta en DRAFT / isActive:false a proposito: es
          * una barrera clinica, alguien tiene que mirarla antes de que llegue a
-         * la tableta. El problema no era la barrera, era donde estaba: la unica
-         * pantalla que autorizaba —/corporate/care/triage/emar— no esta en el
-         * menu de nadie y firmaba con un usuario inventado ("SUPERVISOR-MD-01").
+         * la tableta. El problema no era la barrera, era donde estaba.
+         *
+         * La unica pantalla que autorizaba vivia en /corporate/care/triage/emar
+         * y no la enlazaba nadie. BORRADA el 15-sep-2026, porque ademas no podia
+         * funcionar: consultaba una sede de demostracion que no existe en
+         * produccion, firmaba con un usuario inventado ("SUPERVISOR-MD-01"), y
+         * su escritura de bitacora usaba campos y valores que no estan en el
+         * schema —userId/notes en vez de authorId/reason, APPROVE/DISCARD que no
+         * estan en el enum— asi que la transaccion reventaba y revertia. Nada
+         * de eso lo veia el compilador porque el cliente de la transaccion
+         * estaba tipado `any`.
+         *
          * Asi que los borradores no se autorizaban: se volvian a teclear a mano
          * en Zendity Med, que es la mitad del "hay que repetir cosas en
          * diferentes lugares" que describe Celia. Y el que no se reteclea se
          * queda: el Baclofen 10mg de Carlos Varona lleva ahi desde su ingreso.
          *
-         * Ahora se autoriza desde la misma pantalla donde se trabaja, con el
-         * usuario de verdad de la sesion y su razon escrita.
+         * Ahora se autoriza desde /med y desde la pestana Medicamentos del
+         * expediente, con el usuario de verdad de la sesion y su razon escrita.
          */
         else if (action === 'AUTHORIZED') {
             if (!patientMedicationId) {

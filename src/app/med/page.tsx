@@ -112,11 +112,15 @@ export default function ZendityMedPage() {
                      * Esta pantalla filtraba `isActive !== false` y con eso
                      * escondia DOS cosas muy distintas: las descontinuadas (bien)
                      * y los borradores que deja una admision (mal). La unica
-                     * pantalla que los mostraba —/corporate/care/triage/emar— no
-                     * esta en el menu de nadie. Medido el 11-sep-2026: el
-                     * Baclofen 10mg de Carlos Varona, capturado en su ingreso,
-                     * llevaba ahi sin autorizar y sin aparecer en ninguna parte.
-                     * Un medicamento que nadie da y que nada señala.
+                     * pantalla que los mostraba vivia en /corporate/care/triage/emar,
+                     * no la enlazaba nadie y encima no podia funcionar; se borro
+                     * el 15-sep-2026 (ver el comentario de api/med/crud/route.ts).
+                     *
+                     * Medido el 11-sep-2026: el Baclofen 10mg de Carlos Varona,
+                     * capturado en su ingreso, llevaba ahi sin autorizar y sin
+                     * aparecer en ninguna parte. Un medicamento que nadie da y
+                     * que nada señala. Carlos se fue de alta el 20-ago sin
+                     * recibirlo nunca.
                      */
                     setPatients(
                         data.patients.map((p: any) => {
