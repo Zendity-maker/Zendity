@@ -42,7 +42,8 @@
  * la que existe, nunca un error rojo que invite a pulsar otra vez.
  */
 import { prisma } from '@/lib/prisma';
-import { astDateTime, parseTimeOfDay } from '@/lib/dates';
+import { astDateTime, parseTimeOfDay, todayStartAST } from '@/lib/dates';
+import { finDelTurnoDe } from '@/lib/emar-schedule';
 import type { MedStatus } from '@prisma/client';
 
 /** Estados que significan "esta dosis todavía espera a alguien". */
@@ -115,4 +116,82 @@ export async function conciliarPack(
     }
 
     return { scheduledTime, aFirmar, yaResueltos, sinFila };
+}
+
+/**
+ * LA MISMA CONCILIACIÓN PARA UN REGISTRO SUELTO — Y SIN ADIVINAR NUNCA.
+ *
+ * El pack sabe qué franja firma. Las rutas de registro unitario no siempre:
+ * `/api/care/meds` y `/api/med` reciben el medicamento y el estado, y nada más.
+ * Con eso no se puede saber si quien escribe está firmando la dosis de las 8:00
+ * o la de las 12:00.
+ *
+ * La regla, entonces, es no adivinar:
+ *
+ *   1. Si llega la franja y se entiende, se busca la fila exacta. Igual que el
+ *      pack, por la llave única. Sin ambigüedad posible.
+ *   2. Si no llega, solo se concilia cuando hay **exactamente una** dosis
+ *      abierta del turno en curso para ese medicamento. Una es una: no hay nada
+ *      que elegir.
+ *   3. En cualquier otro caso —ninguna abierta, o dos y no se sabe cuál—
+ *      devuelve null y quien llama crea su fila suelta, como siempre.
+ *
+ * El caso 3 no es una derrota: adjudicar mal una firma es peor que dejar una
+ * fila de más. La fila de más se ve; la firma en la dosis equivocada, no.
+ *
+ * "Turno en curso" y no "el día entero" porque el turno es la frontera real del
+ * hogar (ver `finDelTurnoDe` en emar-schedule.ts): si alguien registra a media
+ * tarde, no puede estar firmando el pack de la mañana, que ya cerró.
+ */
+export async function conciliarUna(
+    patientMedicationId: string,
+    franja: string | null | undefined,
+    ahora: Date,
+): Promise<FilaProgramada | null> {
+    // 1. Con franja: búsqueda exacta.
+    const scheduledTime = instanteDeLaFranja(franja, ahora);
+    if (scheduledTime) {
+        const fila = await prisma.medicationAdministration.findFirst({
+            where: { patientMedicationId, scheduledTime, status: { in: ABIERTOS } },
+            select: { id: true, patientMedicationId: true, status: true },
+        });
+        return fila ?? null;
+    }
+
+    /**
+     * DIJO ALGO, Y ESE ALGO NO ES UNA HORA. No se concilia.
+     *
+     * El caso que lo pide es "PRN": un medicamento puede tener pauta fija Y
+     * recibir además una dosis por razón necesaria. Si "PRN" cayera al camino
+     * de abajo, esa dosis extra se firmaría encima de la programada de las
+     * 8:00 — el expediente perdería una de las dos y diría que la de las 8
+     * se dio a una hora que no fue.
+     *
+     * El camino de abajo es solo para quien NO dice nada. Decir "PRN", o
+     * "08:00 AM (Semanal)", o cualquier texto que no sea un reloj, es
+     * información: dice que esta administración no pertenece a ninguna franja
+     * programada. Se respeta.
+     */
+    if (franja && franja.trim()) return null;
+
+    // 2. Sin franja: solo si no hay nada que elegir.
+    const inicioDelDia = todayStartAST();
+    const abiertasDeHoy = await prisma.medicationAdministration.findMany({
+        where: {
+            patientMedicationId,
+            status: { in: ABIERTOS },
+            scheduledTime: { gte: inicioDelDia },
+        },
+        select: { id: true, patientMedicationId: true, status: true, scheduledTime: true },
+        take: 20,
+    });
+
+    const cierreActual = finDelTurnoDe(ahora).getTime();
+    const delTurnoEnCurso = abiertasDeHoy.filter(
+        d => d.scheduledTime && finDelTurnoDe(d.scheduledTime).getTime() === cierreActual,
+    );
+
+    if (delTurnoEnCurso.length !== 1) return null;
+    const { id, patientMedicationId: pmId, status } = delTurnoEnCurso[0];
+    return { id, patientMedicationId: pmId, status };
 }

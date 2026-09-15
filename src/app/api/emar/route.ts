@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { todayStartAST } from '@/lib/dates';
 import { withPhiAccessLog } from '@/lib/phi-audit';
 import { requireRole } from '@/lib/api-auth';
+import { conciliarUna } from '@/lib/emar-conciliar';
 
 /**
  * QUIEN PUEDE VER Y ESCRIBIR EL eMAR.
@@ -149,18 +150,39 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Medicamento no encontrado en tu sede' }, { status: 404 });
         }
 
-        // Crear el registro inmutable en PostgreSQL
-        const adminLog = await prisma.medicationAdministration.create({
-            data: {
-                patientMedicationId,
-                administeredById: nurseId,
-                status: status, // ADMINISTERED | REFUSED | OMITTED
-                notes: notes || null,
-                scheduledFor: scheduledFor || null
-            }
-        });
+        /**
+         * SE FIRMA LA DOSIS QUE EL CRON YA CREÓ.
+         *
+         * Esta pantalla manda `scheduledFor` con la franja del medicamento
+         * (`selectedMed.time`, que sale de `pm.scheduleTimes`), así que la
+         * conciliación es exacta y no una adivinanza: `conciliarUna` reconstruye
+         * el mismo instante que usó `materializarDosisDelDia` y busca por la
+         * llave única. Ver src/lib/emar-conciliar.ts.
+         *
+         * Sin esto pasaba lo que le pasó a la tableta el 15-sep-2026: dos filas
+         * por dosis —la firmada y la del cron, sin firmar— y al cerrar el turno
+         * la segunda quedaba marcada como omitida. Diez omisiones fantasma en
+         * una sola mañana, con nombre de residente encima.
+         *
+         * Si no hay fila que conciliar —un PRN, una receta creada después del
+         * cron— se crea suelta, como siempre.
+         */
+        const ahora = new Date();
+        const fila = await conciliarUna(patientMedicationId, scheduledFor, ahora);
 
-        return NextResponse.json({ success: true, adminLog });
+        const datos = {
+            administeredById: nurseId,
+            status: status, // ADMINISTERED | REFUSED | OMITTED
+            notes: notes || null,
+            scheduledFor: scheduledFor || null,
+            administeredAt: ahora,
+        };
+
+        const adminLog = fila
+            ? await prisma.medicationAdministration.update({ where: { id: fila.id }, data: datos })
+            : await prisma.medicationAdministration.create({ data: { patientMedicationId, ...datos } });
+
+        return NextResponse.json({ success: true, adminLog, conciliada: !!fila });
 
     } catch (error) {
         console.error('Error saving Medication Admin:', error);

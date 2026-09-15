@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { notifyRoles } from '@/lib/notifications';
 import { applyScoreEvent } from '@/lib/score-event';
+import { conciliarUna } from '@/lib/emar-conciliar';
 
 const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
@@ -39,7 +40,9 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: e.message || 'Sede inválida' }, { status: 400 });
         }
 
-        const { patientMedicationId, status, notes } = await req.json();
+        // `scheduleTime` es opcional y nuevo: si quien llama sabe qué franja
+        // está firmando, la conciliación es exacta. Si no, ver abajo.
+        const { patientMedicationId, status, notes, scheduleTime } = await req.json();
 
         if (!patientMedicationId) {
             return NextResponse.json({ success: false, error: 'patientMedicationId requerido' }, { status: 400 });
@@ -63,14 +66,34 @@ export async function POST(req: Request) {
 
         const adminStatus = status || 'ADMINISTERED';
 
-        const admin = await prisma.medicationAdministration.create({
-            data: {
-                patientMedicationId,
-                administeredById: invokerId,
-                status: adminStatus,
-                notes,
-            },
-        });
+        /**
+         * SE FIRMA LA FILA QUE EL CRON YA CREÓ, SI SE PUEDE SABER CUÁL.
+         *
+         * Desde el 15-sep-2026 `materializarDosisDelDia` crea una fila PENDING
+         * por dosis programada. Escribir una fila nueva al lado deja dos por
+         * dosis, y al cerrar el turno la del cron queda marcada como omitida
+         * aunque la dosis se haya dado. Eso produjo diez omisiones fantasma en
+         * la tableta el primer día que el cron funcionó.
+         *
+         * Esta ruta es de registro unitario y puede no saber qué franja firma.
+         * `conciliarUna` no adivina: concilia si llega la franja, o si hay una
+         * sola dosis abierta del turno en curso. En cualquier otro caso crea
+         * suelta, como hacía siempre. Ver src/lib/emar-conciliar.ts.
+         */
+        const ahora = new Date();
+        const fila = await conciliarUna(patientMedicationId, scheduleTime, ahora);
+
+        const datos = {
+            administeredById: invokerId,
+            status: adminStatus,
+            notes,
+            administeredAt: adminStatus === 'ADMINISTERED' ? ahora : null,
+            ...(scheduleTime ? { scheduleTime } : {}),
+        };
+
+        const admin = fila
+            ? await prisma.medicationAdministration.update({ where: { id: fila.id }, data: datos })
+            : await prisma.medicationAdministration.create({ data: { patientMedicationId, ...datos } });
 
         // FASE 45: Gamification & Trust Score Penalty
         if (adminStatus === 'OMITTED') {

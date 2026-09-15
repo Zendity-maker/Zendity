@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
+import { conciliarUna } from '@/lib/emar-conciliar';
 import { logAudit } from '@/lib/audit';
 import { withPhiAccessLog } from '@/lib/phi-audit';
 
@@ -71,7 +72,9 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { patientMedicationId, status, notes } = body;
+        // `scheduleTime` es opcional: si quien llama sabe la franja que firma,
+        // la conciliación de abajo es exacta.
+        const { patientMedicationId, status, notes, scheduleTime } = body;
 
         if (!patientMedicationId) {
             return NextResponse.json({ success: false, error: 'patientMedicationId requerido' }, { status: 400 });
@@ -89,14 +92,34 @@ export async function POST(request: Request) {
             return NextResponse.json({ success: false, error: 'Medicamento no encontrado' }, { status: 404 });
         }
 
-        const record = await prisma.medicationAdministration.create({
-            data: {
-                patientMedicationId,
-                administeredById: invokerId,
-                status: status || 'ADMINISTERED', // ADMINISTERED, MISSED, REFUSED
-                notes,
-            }
-        });
+        /**
+         * SE FIRMA LA FILA DEL CRON, NO UNA COPIA AL LADO.
+         *
+         * Misma razón que en /api/care/meds/bulk: desde el 15-sep-2026 hay una
+         * fila PENDING por dosis programada, y escribir otra encima deja dos
+         * por dosis — la firmada y la del cron, que al cerrar el turno queda
+         * como omitida aunque la dosis se diera.
+         *
+         * `conciliarUna` no adivina: exacta si llega la franja, y si no, solo
+         * cuando hay UNA sola dosis abierta del turno en curso. Si no puede
+         * saberlo, crea suelta como antes — una fila de más se ve; una firma en
+         * la dosis equivocada, no.
+         */
+        const ahora = new Date();
+        const adminStatus = status || 'ADMINISTERED'; // ADMINISTERED, MISSED, REFUSED
+        const fila = await conciliarUna(patientMedicationId, scheduleTime, ahora);
+
+        const datos = {
+            administeredById: invokerId,
+            status: adminStatus,
+            notes,
+            administeredAt: adminStatus === 'ADMINISTERED' ? ahora : null,
+            ...(scheduleTime ? { scheduleTime } : {}),
+        };
+
+        const record = fila
+            ? await prisma.medicationAdministration.update({ where: { id: fila.id }, data: datos })
+            : await prisma.medicationAdministration.create({ data: { patientMedicationId, ...datos } });
 
         // Audit trail — no-fatal
         const auditActionMap: Record<string, 'MEDICATION_ADMINISTERED' | 'MEDICATION_MISSED' | 'MEDICATION_REFUSED'> = {

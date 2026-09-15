@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/prisma";
 import { MedActiveStatus, MedStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { todayStartAST } from "@/lib/dates";
+import { marcarDosisVencidas } from "@/lib/emar-schedule";
 
 /**
  * 1. CONCILIACIÓN: DRAFT -> ACTIVE
@@ -62,27 +64,29 @@ export async function approveMedicationDraft(data: {
 
 
 /**
- * 3. GRACE PERIOD SWEEP (Manejo Tolerante de MISSED)
+ * 3. BARRIDO DE DOSIS VENCIDAS — UNA SOLA REGLA PARA TODO EL PRODUCTO.
+ *
+ * Esto era un SEGUNDO barrido, con su propia ventana de 12 horas y su propia
+ * nota automática ("Posible falla de conectividad en piso u omisión humana"),
+ * compitiendo con `marcarDosisVencidas` de src/lib/emar-schedule.ts.
+ *
+ * Nunca lo llamó nadie, y menos mal: dos reglas distintas decidiendo cuándo una
+ * dosis se da por perdida es dos respuestas distintas a la misma pregunta.
+ *
+ * La regla buena, desde el 15-sep-2026, es el CIERRE DEL TURNO al que pertenece
+ * la dosis —MAÑANA 06-14, TARDE 14-22, NOCHE 22-06, más media hora de relevo—
+ * medida sobre 10.608 firmas reales: solo el 0,1% se registran después de que
+ * cierre su turno, contra el 18,6% que se pasaba de las dos horas fijas.
+ *
+ * Esta función se queda como puente para que nadie la reinvente, pero delega.
+ * Y ya no escribe aquella nota: acusar de "omisión humana" a una dosis que
+ * simplemente todavía no se ha tecleado es exactamente lo que había que dejar
+ * de hacer.
  */
 export async function executeMissedTolerantSweep() {
   try {
-    const cutoffTime = new Date();
-    cutoffTime.setHours(cutoffTime.getHours() - 12); 
-
-    const res = await prisma.medicationAdministration.updateMany({
-      where: {
-        status: MedStatus.PENDING,
-        scheduledTime: {
-          lt: cutoffTime, 
-        },
-      },
-      data: {
-        status: MedStatus.MISSED,
-        notes: "Auto-marcado por reloj maestro (Grace Period 12h Expirado). Posible falla de conectividad en piso u omisión humana.",
-      },
-    });
-
-    return { success: true, sweptCount: res.count };
+    const sweptCount = await marcarDosisVencidas();
+    return { success: true, sweptCount };
   } catch (error) {
     console.error("[executeMissedTolerantSweep] Error:", error);
     return { success: false, error: "Error en el Sweep de limpieza" };
@@ -104,7 +108,18 @@ export async function administerPRN(data: {
       data: {
         patientMedicationId: data.patientMedicationId,
         scheduledFor: "PRN",
-        scheduledTime: now,
+        /**
+         * UN PRN NO TIENE HORA PROGRAMADA. Aquí se escribía `scheduledTime: now`
+         * y eso es afirmar que estaba agendado para este minuto — que es lo
+         * contrario de lo que significa "por razón necesaria".
+         *
+         * No era cosmético. `scheduledTime` es la mitad de la llave única
+         * (patientMedicationId, scheduledTime) y es por donde el barrido busca
+         * dosis vencidas; un PRN con hora puesta entra en cálculos de los que
+         * debe quedar fuera a propósito — el cumplimiento no puede castigar al
+         * hogar por no medicar a quien no lo necesitaba.
+         */
+        scheduledTime: null,
         administeredAt: now,
         status: MedStatus.ADMINISTERED,
         administeredById: data.userId,
@@ -180,13 +195,28 @@ export async function discardMedicationDraft(data: {
 
 export async function fetchShiftPendingDoses(hqId: string) {
   try {
-    // Para la experiencia de piso MVP, filtramos directamente 
-    // todas las PENDING programadas idealmente para hoy o vigentes
+    /**
+     * LAS DE HOY, Y CON TECHO.
+     *
+     * El comentario original decía "programadas idealmente para hoy o vigentes"
+     * y el `where` no tenía NI filtro de fecha NI `take`: devolvía todas las
+     * PENDING de la historia de la sede.
+     *
+     * Eso no se notaba porque hasta el 15-sep-2026 no existía ni una sola fila
+     * PENDING en toda la base —el cron que las crea firmaba con un usuario
+     * inexistente y el 100% de sus escrituras reventaba en silencio—. La
+     * consulta devolvía cero filas y parecía sana.
+     *
+     * Desde que el cron funciona son ~360 al día. Sin filtro, en un mes esto
+     * son diez mil filas con su residente y su medicamento enganchados, a una
+     * tableta. Es el antipatrón 11 de CLAUDE.md, activado por un arreglo.
+     */
     const doses = await prisma.medicationAdministration.findMany({
       where: {
         status: MedStatus.PENDING,
+        scheduledTime: { gte: todayStartAST() },
         patientMedication: {
-          patient: { headquartersId: hqId }
+          patient: { headquartersId: hqId, status: 'ACTIVE' }
         }
       },
       include: {
@@ -197,7 +227,8 @@ export async function fetchShiftPendingDoses(hqId: string) {
           }
         }
       },
-      orderBy: { scheduledTime: 'asc' }
+      orderBy: { scheduledTime: 'asc' },
+      take: 500,
     });
 
     return { success: true, data: doses };
