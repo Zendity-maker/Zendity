@@ -85,10 +85,26 @@ export async function GET(req: Request) {
                 include: { patient: { select: { name: true } } }
             });
 
-            // 3. Meds omitidos/rechazados
+            /**
+             * 3. Meds omitidos/rechazados — SOLO DE QUIEN ESTABA EN EL EDIFICIO.
+             *
+             * `patientIds` incluye a los de TEMPORARY_LEAVE a proposito: el piso
+             * tiene que saber quien esta en el hospital. Pero una dosis "no
+             * administrada" de alguien que no estaba aqui no es una omision del
+             * hogar, y el prologo la leia como tal.
+             *
+             * El caso: Isidra E. Beaton lleva ingresada desde el 9-sep y el
+             * prologo la sacaba con 13 medicamentos sin administrar. Esas 13
+             * filas son del 15-sep a las 06:00 —el dia que el cron materializo
+             * dosis para 12 personas que no estaban, antes de que se le pusiera
+             * el filtro de estado (commit db294f50)—.
+             *
+             * El filtro de arriba ya no las crea. Este impide que se lean, que
+             * son dos cosas distintas: las 90 de aquel dia siguen en la base.
+             */
             const omittedMeds = await prisma.medicationAdministration.findMany({
                 where: {
-                    patientMedication: { patientId: { in: patientIds } },
+                    patientMedication: { patient: { id: { in: patientIds }, status: 'ACTIVE' } },
                     createdAt: { gte: clinicalDayStart, lt: clinicalDayEnd },
                     status: { in: ['MISSED', 'REFUSED', 'OMITTED', 'HELD'] }
                 },

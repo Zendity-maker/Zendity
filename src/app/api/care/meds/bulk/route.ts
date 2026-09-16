@@ -265,7 +265,7 @@ export async function POST(req: Request) {
          * Efecto lateral bueno: firmar sobre una fila existente es idempotente.
          * Un doble toque deja el mismo expediente.
          */
-        const { aFirmar, sinFila } = await conciliarPack(idsAProcesar, scheduleTime, now);
+        const { aFirmar, sinFila, scheduledTime: instanteDeLaFranja } = await conciliarPack(idsAProcesar, scheduleTime, now);
 
         const camposDeLaFirma = {
             administeredById: invokerId,
@@ -290,11 +290,32 @@ export async function POST(req: Request) {
             firmadas = r.count;
         }
 
-        // Los que no tenían fila programada —PRN, semanales, recetados hoy
-        // después del cron— se crean como siempre.
+        /**
+         * LOS QUE TODAVIA NO TIENEN FILA — Y POR QUE SE LES PONE LA HORA.
+         *
+         * El cron materializa las dosis del dia a las 6:01 AM, pero la ronda de
+         * las 5:00 se da ANTES. Medido sobre 60 firmas de 30 dias: **50 se
+         * registran antes de las seis** — 36 a las cinco, 7 a las cuatro y 7 a
+         * las tres. O sea que cuando esa ronda se firma, su fila no existe.
+         *
+         * Si se creara sin `scheduledTime`, a las 6:01 el cron crearia SU fila
+         * para las 5:00 y a las 6:30 el barrido la marcaria omitida. Diez dosis
+         * dadas y firmadas, y un expediente diciendo que no se dieron: es
+         * exactamente lo que paso el 15-sep.
+         *
+         * Escribiendo la hora pautada, el `upsert` del cron encuentra la llave
+         * unica (patientMedicationId, scheduledTime) y no hace nada. La dosis
+         * queda con una sola fila, firmada, sin importar quien llego primero.
+         *
+         * PRN y semanales viejos no traen instante —su franja no parsea— y se
+         * crean sueltos como siempre. Ver src/lib/emar-conciliar.ts.
+         */
         const dataToInsert = sinFila.map((medId: string) => ({
             patientMedicationId: medId,
             ...camposDeLaFirma,
+            ...(instanteDeLaFranja
+                ? { scheduledTime: instanteDeLaFranja, scheduledFor: scheduleTime }
+                : {}),
         }));
 
         const creadas = dataToInsert.length > 0
