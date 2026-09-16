@@ -147,7 +147,39 @@ function tocaHoyAST(
  */
 export async function materializarDosisDelDia(): Promise<{ creadas: number; omitidas: number; noProgramables: number }> {
     const meds = await prisma.patientMedication.findMany({
-        where: { status: MedActiveStatus.ACTIVE, isActive: true },
+        /**
+         * SOLO A QUIEN ESTÁ EN EL EDIFICIO.
+         *
+         * Aquí se filtraba la RECETA —activa y no descontinuada— y nunca al
+         * RESIDENTE. Es el antipatrón 2 de CLAUDE.md, el que aparece cuatro
+         * veces en sitios sin relación: una consulta que lista personas y no
+         * filtra a quien ya no está.
+         *
+         * Medido el 15-sep-2026, el primer día que el cron escribió de verdad:
+         * de las 359 dosis que creó, **90 eran de 12 personas que no estaban en
+         * el hogar** — nueve fallecidos, dos dados de alta y una de permiso.
+         * Carlos I. Aponte murió el 10 de junio y el sistema le programó 20
+         * dosis esa mañana; a las 14:30 marcó 11 como omitidas. Wilfredo Matos,
+         * fallecido en junio, otras 3.
+         *
+         * O sea que el primer número de cumplimiento de la historia del hogar
+         * salía en 81,9% cuando el real era 95,9%: **54 de las 65 omisiones
+         * eran de residentes ausentes**. Un número que acusa al piso de no
+         * medicar a gente que no está no es un número duro, es una calumnia
+         * con decimales.
+         *
+         * TEMPORARY_LEAVE también queda fuera: el residente está fuera del
+         * edificio —hospital, casa de familia— y el hogar no puede medicarlo.
+         *
+         * Queda pendiente la otra mitad, que no es de este fichero: hay 74
+         * recetas en estado ACTIVE colgando de residentes que ya no están. El
+         * alta y el fallecimiento no las descontinúan.
+         */
+        where: {
+            status: MedActiveStatus.ACTIVE,
+            isActive: true,
+            patient: { status: 'ACTIVE' },
+        },
         // frequency y scheduleDays se piden porque SIN ELLOS no se puede saber
         // qué días toca una pauta semanal. Ver el bloque de abajo.
         select: { id: true, scheduleTimes: true, frequency: true, scheduleDays: true },
