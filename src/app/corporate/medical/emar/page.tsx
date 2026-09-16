@@ -15,10 +15,23 @@ import {
     ChevronUpIcon
 } from "@heroicons/react/24/outline";
 
+/** "05:00 AM" → 300. Para ordenar las rondas por el reloj y no por el alfabeto. */
+function minutosDe(franja: string): number {
+    const m = franja.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+    if (!m) return 9999;
+    let h = parseInt(m[1], 10);
+    const min = parseInt(m[2], 10);
+    const periodo = m[3]?.toUpperCase();
+    if (periodo === 'PM' && h !== 12) h += 12;
+    if (periodo === 'AM' && h === 12) h = 0;
+    return h * 60 + min;
+}
+
 export default function EMARDashboardPage() {
     const { user } = useAuth();
     const [patients, setPatients] = useState<any[]>([]);
-    const [activeFilter, setActiveFilter] = useState("8AM"); // 8AM, 5PM, 8PM, PRN
+    // Arranca en la ronda de las 8:00 AM si existe; si no, en la primera que haya.
+    const [activeFilter, setActiveFilter] = useState("08:00 AM");
     const [loadingData, setLoadingData] = useState(true);
     const [expandedPatientId, setExpandedPatientId] = useState<string | null>(null);
 
@@ -46,8 +59,17 @@ export default function EMARDashboardPage() {
     const [actionNotes, setActionNotes] = useState("");
     const [actionType, setActionType] = useState<"ADMINISTERED" | "REFUSED" | "OMITTED" | null>(null);
 
-    const openActionModal = (med: any, patientInfo: any, type: "ADMINISTERED" | "REFUSED" | "OMITTED") => {
-        setSelectedMed({ ...med, patientName: patientInfo.name, room: patientInfo.room });
+    /**
+     * `franja` es la ronda concreta sobre la que se actúa, no la receta entera.
+     *
+     * Antes se mandaba `selectedMed.time`, que para una receta de dos tomas es
+     * la cadena completa — "08:00 AM, 08:00 PM". Eso no identifica ninguna dosis:
+     * el servidor no puede reconstruir su hora, no encuentra su fila, y termina
+     * escribiendo una administración suelta al lado de la que el cron ya creó.
+     * Es el mismo fallo que costó las diez omisiones fantasma del 15-sep.
+     */
+    const openActionModal = (med: any, patientInfo: any, type: "ADMINISTERED" | "REFUSED" | "OMITTED", franja: string | null) => {
+        setSelectedMed({ ...med, patientName: patientInfo.name, room: patientInfo.room, franja });
         setActionType(type);
         setIsActionModalOpen(true);
     };
@@ -66,7 +88,9 @@ export default function EMARDashboardPage() {
                     patientMedicationId: selectedMed.id,
                     status: actionType,
                     notes: actionNotes,
-                    scheduledFor: selectedMed.time !== 'PRN' ? selectedMed.time : null
+                    // La franja concreta. Con ella el servidor reconstruye el
+                    // instante exacto y firma sobre la fila que ya existe.
+                    scheduledFor: selectedMed.franja ?? null,
                 })
             });
 
@@ -80,6 +104,9 @@ export default function EMARDashboardPage() {
                     )
                 }));
                 setPatients(updatedPatients);
+                // Y se relee, para que la franja recién firmada deje de contar
+                // entre las que faltan. La pintura optimista solo evita el parpadeo.
+                fetchPatients();
                 setTimeout(() => alert(` Transacción Exitosa: Fármaco [${actionType}] guardado irrevocablemente en el sistema.`), 100);
             } else {
                 alert("Error al guardar firma biométrica.");
@@ -101,14 +128,65 @@ export default function EMARDashboardPage() {
         return <div className="p-8 text-center text-red-500 font-bold">Acceso Restringido: Módulo Clínico eMAR.</div>;
     }
 
-    // Filtro Lógico
+    /**
+     * LAS RONDAS QUE DE VERDAD TIENE ESTA CASA, NO CUATRO ESCRITAS A MANO.
+     *
+     * Aquí había cuatro botones fijos —8AM, 5PM, 8PM, PRN— y el filtro era una
+     * búsqueda de texto: `m.time.includes("8") && m.time.includes("AM")`.
+     *
+     * Medido el 16-sep-2026 sobre los 251 medicamentos de la pantalla: **12 no
+     * aparecían bajo NINGÚN filtro**. Los 11 de las "05:00 AM" —que son la ronda
+     * de tiroides— y uno de las "02:00 PM". Invisibles del todo, sin manera de
+     * llegar a ellos desde esta pantalla.
+     *
+     * Y no era un detalle: ese mismo día el panel de dirección anunciaba "10
+     * medicamentos sin administrar" y enlazaba aquí. Las diez eran de las 5:00 AM.
+     * El aviso llevaba al sitio correcto y el sitio no podía enseñarlas.
+     *
+     * Además la búsqueda por texto se contaminaba: "08:00 AM, 05:00 PM" contiene
+     * un "8" y un "PM", así que salía también en la ronda de las 8 de la noche.
+     *
+     * Ahora las rondas salen de los datos y se comparan por franja exacta.
+     */
+    const RONDAS = (() => {
+        const vistas = new Set<string>();
+        for (const p of patients) {
+            for (const m of p.medications ?? []) {
+                if (m.time === 'PRN') { vistas.add('PRN'); continue; }
+                (m.dosisDeHoy ?? []).forEach((d: any) => vistas.add(d.franja));
+            }
+        }
+        const conPrn = vistas.has('PRN');
+        vistas.delete('PRN');
+        const ordenadas = [...vistas].sort((a, b) => minutosDe(a) - minutosDe(b));
+        return conPrn ? [...ordenadas, 'PRN'] : ordenadas;
+    })();
+
+    /**
+     * Si la ronda abierta no existe en esta casa, se cae a la primera que sí.
+     * Sin esto, una sede sin pack de las 8:00 AM abriría en una pestaña vacía —
+     * que es como se llega a creer que no hay medicamentos.
+     */
+    const rondaActiva = RONDAS.includes(activeFilter) ? activeFilter : (RONDAS[0] ?? activeFilter);
+
     const filterFn = (m: any) => {
-        if (activeFilter === "PRN") return m.time === "PRN";
-        if (activeFilter === "8AM") return m.time.includes("8") && m.time.includes("AM") && m.time !== "PRN";
-        if (activeFilter === "5PM") return m.time.includes("5") && m.time.includes("PM") && m.time !== "PRN";
-        if (activeFilter === "8PM") return m.time.includes("8") && m.time.includes("PM") && m.time !== "PRN";
-        return true;
+        if (rondaActiva === 'PRN') return m.time === 'PRN';
+        if (m.time === 'PRN') return false;
+        return (m.dosisDeHoy ?? []).some((d: any) => d.franja === rondaActiva);
     };
+
+    /** La franja de esta receta que toca en la ronda abierta. */
+    const dosisDeLaRonda = (m: any) =>
+        (m.dosisDeHoy ?? []).find((d: any) => d.franja === rondaActiva) ?? null;
+
+    /** Todo lo que hoy quedó sin administrar, con nombre y hora. */
+    const sinAdministrarHoy = patients.flatMap((p: any) =>
+        (p.medications ?? []).flatMap((m: any) =>
+            (m.dosisDeHoy ?? [])
+                .filter((d: any) => d.estado === 'MISSED')
+                .map((d: any) => ({ paciente: p, med: m, franja: d.franja })),
+        ),
+    );
 
     return (
         <div className="min-h-screen bg-slate-50 p-8 font-sans">
@@ -126,34 +204,59 @@ export default function EMARDashboardPage() {
                         </p>
                     </div>
 
-                    {/* Botones de Ronda Rápida */}
-                    <div className="flex bg-slate-100 p-1 rounded-xl">
-                        <button
-                            onClick={() => setActiveFilter("8AM")}
-                            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all ${activeFilter === '8AM' ? 'bg-white shadow-sm text-teal-700' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            <SunIcon className="w-5 h-5" /> 8:00 AM
-                        </button>
-                        <button
-                            onClick={() => setActiveFilter("5PM")}
-                            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all ${activeFilter === '5PM' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            <ClockIcon className="w-5 h-5" /> 5:00 PM
-                        </button>
-                        <button
-                            onClick={() => setActiveFilter("8PM")}
-                            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all ${activeFilter === '8PM' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            <MoonIcon className="w-5 h-5" /> 8:00 PM
-                        </button>
-                        <button
-                            onClick={() => setActiveFilter("PRN")}
-                            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all ${activeFilter === 'PRN' ? 'bg-white shadow-sm text-rose-600' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            <BeakerIcon className="w-5 h-5" /> P.R.N.
-                        </button>
+                    {/* Las rondas que de verdad tiene la casa. Ver el comentario de RONDAS. */}
+                    <div className="flex bg-slate-100 p-1 rounded-xl flex-wrap">
+                        {RONDAS.map(ronda => {
+                            const pendientes = sinAdministrarHoy.filter(x => x.franja === ronda).length;
+                            const Icono = ronda === 'PRN' ? BeakerIcon
+                                : minutosDe(ronda) < 12 * 60 ? SunIcon
+                                    : minutosDe(ronda) >= 18 * 60 ? MoonIcon : ClockIcon;
+                            return (
+                                <button
+                                    key={ronda}
+                                    onClick={() => setActiveFilter(ronda)}
+                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-sm transition-all ${rondaActiva === ronda ? 'bg-white shadow-sm text-teal-700' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    <Icono className="w-5 h-5" /> {ronda === 'PRN' ? 'P.R.N.' : ronda}
+                                    {pendientes > 0 && (
+                                        <span className="bg-rose-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">{pendientes}</span>
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
+
+                {/*
+                    LO QUE HOY QUEDO SIN ADMINISTRAR, ARRIBA Y CON NOMBRE.
+
+                    El panel de direccion enlaza aqui cuando cuenta medicamentos sin
+                    administrar. Antes se aterrizaba en una lista de 251 filas todas
+                    iguales; ahora lo que motivo el aviso esta en la primera pantalla.
+                */}
+                {sinAdministrarHoy.length > 0 && (
+                    <div className="bg-rose-50 border-2 border-rose-300 rounded-2xl p-5">
+                        <h2 className="text-base font-black text-rose-900 flex items-center gap-2">
+                            <ExclamationTriangleIcon className="w-5 h-5" />
+                            {sinAdministrarHoy.length === 1
+                                ? '1 dosis de hoy sin administrar'
+                                : `${sinAdministrarHoy.length} dosis de hoy sin administrar`}
+                        </h2>
+                        <p className="text-sm font-medium text-rose-800 mt-1 leading-snug">
+                            Su ronda ya cerró y nadie las registró. Si se dieron y falta anotarlas,
+                            quien las dio puede firmarlas desde la tableta y el expediente se corrige solo.
+                        </p>
+                        <ul className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
+                            {sinAdministrarHoy.map((x, i) => (
+                                <li key={i} className="text-sm flex items-baseline gap-2">
+                                    <span className="font-black text-rose-900 shrink-0">{x.franja}</span>
+                                    <span className="font-bold text-slate-800">{x.med.name}</span>
+                                    <span className="text-slate-500 truncate">— {x.paciente.name?.trim()}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
 
                 {loadingData ? (
                     <div className="p-12 text-center animate-pulse">
@@ -199,27 +302,44 @@ export default function EMARDashboardPage() {
 
                                     {isExpanded && (
                                         <div className="divide-y divide-slate-100 animate-in fade-in slide-in-from-top-2">
-                                            {filteredMeds.map((med: any) => (
-                                                <div key={med.id} className={`p-6 flex justify-between items-center transition-colors ${med.status !== 'PENDING' ? 'bg-slate-50' : 'hover:bg-slate-50/50'}`}>
+                                            {filteredMeds.map((med: any) => {
+                                            /**
+                                             * El estado de LA DOSIS DE ESTA RONDA, no el de la receta.
+                                             *
+                                             * `med.status` salía de "la última administración de hoy" y
+                                             * daba PENDING para todo lo no administrado — incluidas las
+                                             * omisiones, que es justo lo que había que ver. El 16-sep la
+                                             * pantalla pintaba 251 filas y las 251 decían PENDING.
+                                             */
+                                            const dosis = dosisDeLaRonda(med);
+                                            const estado = med.time === 'PRN' ? 'PRN' : (dosis?.estado ?? 'SIN_PROGRAMAR');
+                                            const resuelta = ['ADMINISTERED', 'REFUSED', 'OMITTED', 'HELD'].includes(estado);
+                                            const omitida = estado === 'MISSED';
+                                            return (
+                                                <div key={med.id} className={`p-6 flex justify-between items-center transition-colors ${omitida ? 'bg-rose-50 border-l-4 border-rose-400' : resuelta ? 'bg-slate-50' : 'hover:bg-slate-50/50'}`}>
 
                                                     <div className="flex gap-5">
                                                         {/* Status Indicator Icon */}
                                                         <div className="mt-1">
-                                                            {med.status === 'PENDING' && <ClockIcon className="w-6 h-6 text-slate-500" />}
-                                                            {med.status === 'ADMINISTERED' && <CheckCircleIcon className="w-6 h-6 text-emerald-500" />}
-                                                            {med.status === 'REFUSED' && <XCircleIcon className="w-6 h-6 text-rose-500" />}
-                                                            {med.status === 'OMITTED' && <ExclamationTriangleIcon className="w-6 h-6 text-amber-500" />}
+                                                            {(estado === 'PENDING' || estado === 'PRN' || estado === 'SIN_PROGRAMAR') && <ClockIcon className="w-6 h-6 text-slate-500" />}
+                                                            {estado === 'MISSED' && <ExclamationTriangleIcon className="w-6 h-6 text-rose-600" />}
+                                                            {estado === 'ADMINISTERED' && <CheckCircleIcon className="w-6 h-6 text-emerald-500" />}
+                                                            {estado === 'REFUSED' && <XCircleIcon className="w-6 h-6 text-rose-500" />}
+                                                            {(estado === 'OMITTED' || estado === 'HELD') && <ExclamationTriangleIcon className="w-6 h-6 text-amber-500" />}
                                                         </div>
 
                                                         <div>
                                                             <div className="flex items-center gap-3">
-                                                                <h3 className={`font-black text-lg ${med.status !== 'PENDING' ? 'text-slate-500 line-through decoration-slate-300' : 'text-slate-800'}`}>
+                                                                <h3 className={`font-black text-lg ${resuelta ? 'text-slate-500 line-through decoration-slate-300' : omitida ? 'text-rose-900' : 'text-slate-800'}`}>
                                                                     {med.name}
                                                                 </h3>
                                                                 {med.time === 'PRN' ? (
                                                                     <span className="bg-rose-100 text-rose-700 text-[10px] font-black uppercase px-2 py-0.5 rounded-md tracking-wider">SOS / PRN</span>
                                                                 ) : (
-                                                                    <span className="bg-slate-100 text-slate-600 text-[10px] font-black uppercase px-2 py-0.5 rounded-md tracking-wider">{med.time}</span>
+                                                                    <span className="bg-slate-100 text-slate-600 text-[10px] font-black uppercase px-2 py-0.5 rounded-md tracking-wider">{dosis?.franja ?? med.time}</span>
+                                                                )}
+                                                                {omitida && (
+                                                                    <span className="bg-rose-600 text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-md tracking-wider">Sin administrar</span>
                                                                 )}
                                                             </div>
 
@@ -236,23 +356,26 @@ export default function EMARDashboardPage() {
                                                         </div>
                                                     </div>
 
-                                                    {/* Action Buttons (Firma Electrónica) */}
-                                                    {med.status === 'PENDING' ? (
+                                                    {/* Action Buttons (Firma Electrónica).
+                                                        Una dosis MISSED tambien se puede firmar: si se dio y
+                                                        falta anotarla, anotarla es lo correcto y la fila se
+                                                        corrige. Lo que no se vuelve a tocar es lo ya resuelto. */}
+                                                    {!resuelta ? (
                                                         <div className="flex gap-2">
                                                             <button
-                                                                onClick={() => openActionModal(med, patient, 'ADMINISTERED')}
+                                                                onClick={() => openActionModal(med, patient, 'ADMINISTERED', dosis?.franja ?? null)}
                                                                 className="bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-200 hover:border-emerald-600 px-4 py-2 rounded-xl font-bold text-sm shadow-sm transition-all"
                                                             >
                                                                 Suministrar
                                                             </button>
                                                             <button
-                                                                onClick={() => openActionModal(med, patient, 'REFUSED')}
+                                                                onClick={() => openActionModal(med, patient, 'REFUSED', dosis?.franja ?? null)}
                                                                 className="bg-white text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 px-4 py-2 rounded-xl font-bold text-sm shadow-sm transition-all"
                                                             >
                                                                 Rechazó
                                                             </button>
                                                             <button
-                                                                onClick={() => openActionModal(med, patient, 'OMITTED')}
+                                                                onClick={() => openActionModal(med, patient, 'OMITTED', dosis?.franja ?? null)}
                                                                 className="bg-white text-amber-600 hover:bg-amber-50 border border-slate-200 hover:border-amber-200 px-4 py-2 rounded-xl font-bold text-sm shadow-sm transition-all"
                                                             >
                                                                 Omitir
@@ -265,7 +388,8 @@ export default function EMARDashboardPage() {
                                                     )}
 
                                                 </div>
-                                            ))}
+                                            );
+                                            })}
                                         </div>
                                     )}
                                 </div>

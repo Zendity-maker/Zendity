@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { format } from 'date-fns';
-import { todayStartAST } from '@/lib/dates';
+import { todayStartAST, astDateTime } from '@/lib/dates';
 import { withPhiAccessLog } from '@/lib/phi-audit';
 import { requireRole } from '@/lib/api-auth';
 import { conciliarUna } from '@/lib/emar-conciliar';
@@ -56,6 +56,10 @@ async function getEmarRosterHandler(req: Request) {
         const hqId = auth.headquartersId;
         const todayStart = todayStartAST();
         const todayEnd = new Date();
+        // El dia NATURAL de Puerto Rico. `todayStartAST()` es el dia CLINICO
+        // (arranca a las 6 AM) y parte en dos el pack de las 5:00 AM.
+        const inicioDelDiaAST = astDateTime(todayEnd, 0, 0);
+        const finDelDiaAST = new Date(inicioDelDiaAST.getTime() + 24 * 60 * 60 * 1000);
 
         // 1. Obtener todos los residentes de la HQ que tengan medicación activa
         // Excluye DISCHARGED y DECEASED (alineado con convención estándar
@@ -71,16 +75,39 @@ async function getEmarRosterHandler(req: Request) {
                     where: { isActive: true },
                     include: {
                         medication: true,
-                        // Traer solo las administraciones de HOY para ver si ya se le dio el fármaco
+                        /**
+                         * LAS DOSIS DE HOY, UNA POR UNA — NO "LA ULTIMA".
+                         *
+                         * Esto traia `take: 1` de las administraciones con
+                         * `administeredAt` de hoy, y de ahi salia UN estado por
+                         * receta. Con eso la pantalla no podia distinguir nada:
+                         * medido el 16-sep, pintaba 251 filas y las 251 decian
+                         * PENDING, incluidas las 10 dosis que el panel de
+                         * direccion anunciaba como no administradas.
+                         *
+                         * Ademas `administeredAt` es nulo en todo lo que no se
+                         * administro —justamente lo que se quiere ver—, asi que
+                         * una omision no podia aparecer nunca.
+                         *
+                         * Ahora viajan las dosis de hoy con su hora y su estado,
+                         * y la pantalla puede decir "las 5:00 AM sin administrar"
+                         * en vez de un PENDING generico. La ventana es el dia
+                         * NATURAL de Puerto Rico y va por `scheduledTime`, que es
+                         * la identidad de la dosis; `administeredAt` solo decide
+                         * en las filas sin hora pautada (PRN y lo anterior al cron).
+                         */
                         administrations: {
                             where: {
-                                administeredAt: {
-                                    gte: todayStart,
-                                    lte: todayEnd
-                                }
+                                OR: [
+                                    { scheduledTime: { gte: inicioDelDiaAST, lt: finDelDiaAST } },
+                                    { scheduledTime: null, administeredAt: { gte: todayStart, lte: todayEnd } },
+                                ],
                             },
-                            orderBy: { administeredAt: 'desc' },
-                            take: 1
+                            orderBy: { scheduledTime: 'asc' },
+                            select: {
+                                id: true, status: true, scheduledFor: true,
+                                scheduledTime: true, administeredAt: true,
+                            },
                         }
                     }
                 }
@@ -94,8 +121,37 @@ async function getEmarRosterHandler(req: Request) {
                 name: p.name,
                 room: p.roomNumber || 'Piso General',
                 medications: p.medications.map((pm: any) => {
+                    /**
+                     * LAS FRANJAS PAUTADAS DE ESTA RECETA, y la dosis de hoy de
+                     * cada una. `scheduleTimes` es texto separado por comas
+                     * ("08:00 AM, 08:00 PM"), y la pantalla necesita poder actuar
+                     * sobre UNA franja, no sobre la receta entera: mandar la
+                     * cadena completa como `scheduledFor` no identifica ninguna
+                     * dosis y la conciliacion no encuentra su fila.
+                     */
+                    const franjas: string[] = pm.frequency === 'PRN'
+                        ? []
+                        : String(pm.scheduleTimes ?? '').split(',').map((t: string) => t.trim()).filter(Boolean);
+
+                    const dosisDeHoy = franjas.map((franja: string) => {
+                        const fila = pm.administrations.find((a: any) => a.scheduledFor === franja)
+                            // Respaldo para lo anterior al cron, que guardaba la franja en `scheduleTime`.
+                            ?? pm.administrations.find((a: any) => !a.scheduledFor && a.scheduledTime === null);
+                        return {
+                            franja,
+                            estado: fila ? fila.status : 'SIN_PROGRAMAR',
+                            administeredAt: fila?.administeredAt ?? null,
+                        };
+                    });
+
+                    const sinAdministrar = dosisDeHoy.filter((d: any) => d.estado === 'MISSED');
+
                     const latestAdmin = pm.administrations[0];
                     return {
+                        // Las franjas de hoy con su estado real. Lo que permite a la
+                        // pantalla decir "las 5:00 AM sin administrar".
+                        dosisDeHoy,
+                        sinAdministrar: sinAdministrar.length,
                         id: pm.id,
                         name: pm.medication.name,
                         dosage: pm.medication.dosage,
