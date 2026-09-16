@@ -75,6 +75,23 @@ export async function POST(
                     status: "ACTIVE",
                     leaveType: null,
                     leaveDate: null,
+                    /**
+                     * Y SE LIMPIA EL REPORTE DE FALLECIMIENTO.
+                     *
+                     * Si el piso reporta un fallecimiento y dirección lo corrige con
+                     * RETURN, el residente volvía a ACTIVE pero quedaba marcado para
+                     * siempre — y marcado quiere decir INVISIBLE:
+                     * /api/care/reportar-fallecimiento:62-64 devuelve 409 con la sola
+                     * presencia de `fallecimientoReportadoAt`. El día que esa persona
+                     * falleciera de verdad, el botón fallaría delante de la enfermera
+                     * y nadie sabría por qué.
+                     *
+                     * Medido el 16-sep-2026: 0 de 48 residentes tienen el campo puesto,
+                     * así que no hay ningún caso vivo. Es una mina sin pisar todavía.
+                     */
+                    fallecimientoReportadoAt: null,
+                    fallecimientoReportadoPorId: null,
+                    fallecimientoNota: null,
                 };
                 break;
 
@@ -92,10 +109,87 @@ export async function POST(
                 return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 });
         }
 
-        const updatedPatient = await prisma.patient.update({
-            where: { id: patientId },
-            data: updateData,
-        });
+        /**
+         * AL CERRAR EL EXPEDIENTE SE CIERRAN SUS RECETAS.
+         *
+         * Hasta el 16-sep-2026 el alta y el fallecimiento cambiaban el estado del
+         * residente y dejaban sus prescripciones vivas. Medido ese día: **62
+         * recetas en ACTIVE colgando de 11 residentes cerrados** — 15 de Carlos
+         * I. Aponte, fallecido el 10 de junio; 10 de Víctor M. Rosa, cerrado el
+         * 30 de mayo. La más vieja llevaba tres meses y medio.
+         *
+         * Lo que eso costaba, medido: el contador de recetas de la sede decía 312
+         * cuando las vivas son 238, y al abrir el expediente de alguien cerrado
+         * sus recetas se pintaban como tratamiento en curso. Y el 15-sep, el
+         * primer día que el cron de dosis funcionó, materializó 90 dosis para 12
+         * personas que no estaban y acusó al piso de 54 omisiones que no
+         * existían. Aquello se tapó filtrando en el cron (commit db294f50); esto
+         * cierra la puerta por donde entraba.
+         *
+         * LOS DOS CAMPOS, no uno. `api/care/route.ts:117` exige `isActive` Y
+         * `status`; `api/emar/patient/[id]:38` mira además `status: DRAFT`. Con
+         * solo uno de los dos la receta seguiría viva en alguna pantalla. Es lo
+         * mismo que escribe el camino manual en `med/crud/route.ts` al
+         * descontinuar a mano.
+         *
+         * TEMPORARY_LEAVE NO descontinúa, y es deliberado: el residente vuelve.
+         * Isidra Beaton lleva desde el 9-sep en el hospital con 13 recetas;
+         * obligarla a que se le reescriban trece prescripciones a mano al volver
+         * sería peor. Y mientras está fuera ya no le llegan a la tableta ni le
+         * generan dosis.
+         *
+         * En transacción con el cambio de estado: si el expediente se cierra y la
+         * descontinuación falla en silencio, queda exactamente el estado que
+         * llevábamos desde mayo.
+         */
+        const cierraElExpediente = action === 'DISCHARGED' || action === 'DECEASED';
+
+        const { updatedPatient, recetasCerradas } = await prisma.$transaction(async (tx) => {
+            const paciente = await tx.patient.update({
+                where: { id: patientId },
+                data: updateData,
+            });
+
+            if (!cierraElExpediente) return { updatedPatient: paciente, recetasCerradas: 0 };
+
+            const vivas = await tx.patientMedication.findMany({
+                where: {
+                    patientId,
+                    OR: [
+                        { isActive: true },
+                        { status: { in: ['ACTIVE', 'PRN', 'SUSPENDED', 'DRAFT'] } },
+                    ],
+                },
+                select: { id: true },
+            });
+            if (vivas.length === 0) return { updatedPatient: paciente, recetasCerradas: 0 };
+
+            await tx.patientMedication.updateMany({
+                where: { id: { in: vivas.map(v => v.id) } },
+                data: { isActive: false, status: 'DISCONTINUED' },
+            });
+
+            // El rastro es el propio registro de auditoría del medicamento.
+            // `authorId` es llave foránea NO nula a User: va el usuario de la
+            // sesión, que el control de rol de arriba garantiza DIRECTOR o ADMIN.
+            const motivoCierre = action === 'DECEASED'
+                ? 'Descontinuada al cerrar el expediente por fallecimiento.'
+                : 'Descontinuada al cerrar el expediente por alta.';
+            await tx.medicationAuditLog.createMany({
+                data: vivas.map(v => ({
+                    patientMedicationId: v.id,
+                    action: 'DISCONTINUED' as const,
+                    authorId: invokerId,
+                    reason: `${motivoCierre}${reason ? ` Motivo del alta: ${String(reason).slice(0, 200)}` : ''}`,
+                })),
+            });
+
+            return { updatedPatient: paciente, recetasCerradas: vivas.length };
+        }, { timeout: 20000 });
+
+        if (recetasCerradas > 0) {
+            console.log(`[discharge] ${recetasCerradas} recetas descontinuadas al cerrar ${patientId} (${action})`);
+        }
 
         /**
          * EL TRASLADO SE CIERRA SOLO CUANDO EL RESIDENTE VUELVE.
@@ -141,7 +235,7 @@ export async function POST(
             }
         }
 
-        return NextResponse.json({ success: true, patient: updatedPatient });
+        return NextResponse.json({ success: true, patient: updatedPatient, recetasCerradas });
 
     } catch (error: any) {
         console.error("Discharge Flow Error:", error);
