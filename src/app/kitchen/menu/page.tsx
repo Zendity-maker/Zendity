@@ -8,6 +8,21 @@ import { es } from "date-fns/locale";
 import { UtensilsCrossed, Calendar as CalendarIcon, Save, ChevronLeft, ChevronRight, Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
+/**
+ * La fecha de Puerto Rico en formato YYYY-MM-DD.
+ *
+ * `toISOString()` sobre una fecha local convierte a UTC, así que a partir de las
+ * 8:00 PM de aquí devuelve el día SIGUIENTE. La cocina que deja el menú listo la
+ * noche antes lo estaba guardando —y leyendo— con la fecha equivocada.
+ *
+ * Es consistente consigo mismo, así que desde la cocina no se notaba: guardabas
+ * y leías la misma fila mal etiquetada. Se notaba al día siguiente, cuando el
+ * panel pedía el menú de hoy y encontraba el de mañana.
+ */
+function fechaAST(d: Date): string {
+    return new Date(d.getTime() - 4 * 60 * 60 * 1000).toISOString().split('T')[0];
+}
+
 export default function KitchenMenuSync() {
     const { user } = useAuth();
     const router = useRouter();
@@ -38,7 +53,7 @@ export default function KitchenMenuSync() {
         setLoading(true);
         setMessage({ type: "", text: "" });
         try {
-            const dateStr = date.toISOString().split("T")[0];
+            const dateStr = fechaAST(date);
             const hqId = user?.headquartersId || user?.hqId;
             const res = await fetch(`/api/kitchen/menu?hqId=${hqId}&date=${dateStr}`);
             const data = await res.json();
@@ -66,7 +81,12 @@ export default function KitchenMenuSync() {
         setSaving(true);
         setMessage({ type: "", text: "" });
         try {
-            const dateStr = currentDate.toISOString().split("T")[0];
+            // La fecha DE PUERTO RICO, no la del meridiano de Greenwich.
+            // `toISOString()` sobre una hora local convierte a UTC: a partir de
+            // las 8:00 PM de aqui, "hoy" se guardaba con la fecha de MAÑANA. La
+            // cocina que deja el menu listo la noche antes lo estaba etiquetando
+            // un dia adelante sin enterarse.
+            const dateStr = fechaAST(currentDate);
             const hqId = user?.headquartersId || user?.hqId;
 
             const res = await fetch(`/api/kitchen/menu`, {

@@ -103,6 +103,27 @@ export function clinicalDayCalendarUTC(): Date {
 }
 
 /**
+ * LA FECHA DEL CALENDARIO DE PUERTO RICO, a medianoche UTC.
+ *
+ * Distinta de `clinicalDayCalendarUTC()` en una cosa que importa: esta NO
+ * retrocede antes de las 6 de la mañana. El día clínico sí — un turno de noche
+ * a las 3 AM pertenece al día anterior, y eso es correcto para turnos, rondas y
+ * dosis.
+ *
+ * Pero no para todo. El MENÚ es el caso que lo pidió: a las 3 de la mañana, la
+ * comida que viene es el desayuno de HOY, no el de ayer. Con el día clínico, la
+ * pared de la sala de descanso habría enseñado el menú de ayer todas las
+ * madrugadas, de medianoche a las seis.
+ *
+ * Devuelve exactamente la llave con la que cocina guarda el menú: medianoche
+ * UTC del día natural de aquí. Comprobado hora a hora: coinciden las 24.
+ */
+export function fechaCalendarioAST(at: Date = new Date()): Date {
+    const pared = new Date(at.getTime() - AST_OFFSET_MIN * 60 * 1000);
+    return new Date(Date.UTC(pared.getUTCFullYear(), pared.getUTCMonth(), pared.getUTCDate()));
+}
+
+/**
  * Rango completo del día calendar AST en UTC — útil cuando una query
  * combina `gte` y `lt`/`lte` sobre ScheduledShift.date.
  */

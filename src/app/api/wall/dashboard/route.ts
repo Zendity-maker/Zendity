@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { todayStartAST, clinicalDayCalendarUTC } from '@/lib/dates';
+import { todayStartAST, fechaCalendarioAST } from '@/lib/dates';
 import { ULCERA_ABIERTA } from '@/lib/upp';
 import { requireWallViewer } from '@/lib/wall-auth';
 
@@ -129,14 +129,19 @@ async function wallHandler(req: Request) {
             /**
              * EL MENÚ, O LA VERDAD DE QUE NO HAY.
              *
-             * `findUnique` por la llave [sede, fecha] con la medianoche UTC que
-             * es lo que cocina persiste. Antes era un `findFirst` con una ventana
-             * que empezaba a las 6 AM AST: entre las 6:30 de la mañana y las 8 de
-             * la noche NO PODÍA contener ninguna medianoche UTC. O sea que
-             * durante desayuno, almuerzo y cena el acierto era imposible.
+             * Por la LLAVE [sede, fecha], no por una ventana. Antes era un
+             * `findFirst` con un rango que empezaba a las 6 AM AST: entre las 6:30
+             * de la mañana y las 8 de la noche NO PODÍA contener ninguna
+             * medianoche UTC, que es como cocina guarda. Durante desayuno,
+             * almuerzo y cena el acierto era imposible.
+             *
+             * Y es `fechaCalendarioAST()`, no `clinicalDayCalendarUTC()`: ese
+             * retrocede antes de las 6 AM. Comprobado hora a hora, habría enseñado
+             * el menú de ayer todas las madrugadas, de medianoche a las seis — y
+             * a esa hora lo que viene es el desayuno de hoy.
              */
             prisma.dailyMenu.findFirst({
-                where: { headquartersId, date: clinicalDayCalendarUTC() },
+                where: { headquartersId, date: fechaCalendarioAST() },
                 select: { breakfast: true, lunch: true, dinner: true },
             }),
 

@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { requireRole } from '@/lib/api-auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
-import { todayStartAST } from '@/lib/dates';
+import { fechaCalendarioAST, todayStartAST } from '@/lib/dates';
 import { MOTIVOS_DE_COCINA, etiquetaMotivo } from '@/lib/comida';
 
 export const dynamic = 'force-dynamic';
@@ -61,14 +61,30 @@ export async function GET(request: Request) {
                 orderBy: { createdAt: 'desc' },
                 take: 20
             }),
+            /**
+             * EL MENU DE HOY — POR SU LLAVE, NO POR UNA VENTANA.
+             *
+             * Esto buscaba en el rango [todayStartAST(), hoy 23:59:59]. Las dos
+             * puntas estaban mal para este dato:
+             *
+             *   · `todayStartAST()` es el arranque del DIA CLINICO, las 6:00 AM.
+             *   · Cocina guarda la fecha como MEDIANOCHE UTC (api/kitchen/menu:106).
+             *
+             * Entre las 6:30 de la manana y las 8 de la noche esa ventana no puede
+             * contener ninguna medianoche UTC. O sea que cocina no veia su propio
+             * menu en su propio panel durante todo el turno de cocina. La pared
+             * tenia el mismo fallo y por eso llevaba 99 dias enseñando un menu
+             * inventado.
+             *
+             * `fechaCalendarioAST()` devuelve exactamente la medianoche UTC del dia
+             * natural de aqui, que es la llave con la que cocina guarda. Y NO es
+             * `clinicalDayCalendarUTC()`: ese retrocede antes de las 6 AM, asi que
+             * de madrugada pediria el menu de ayer. Para un turno eso es correcto;
+             * para la comida no — a las 3 de la manana lo que viene es el desayuno
+             * de HOY.
+             */
             prisma.dailyMenu.findFirst({
-                where: {
-                    headquartersId: hqId!,
-                    date: {
-                        gte: todayStartAST(),
-                        lt: new Date(new Date().setHours(23, 59, 59, 999))
-                    }
-                }
+                where: { headquartersId: hqId!, date: fechaCalendarioAST() },
             }),
             /**
              * LO QUE NO SE COMIERON, Y POR QUE.
