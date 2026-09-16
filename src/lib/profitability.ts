@@ -119,6 +119,64 @@ export async function getProfitabilitySeries(opts: {
     return series;
 }
 
+/**
+ * LOS MESES CERRADOS, Y EL EN CURSO APARTE.
+ *
+ * Pedido de Andrés el 16-sep-2026: "en rentabilidad operativa quiero que ahí
+ * aparezcan los tres meses anteriores cerrados... así voy a tener un health
+ * real".
+ *
+ * La razón es aritmética: el mes en curso tiene los ingresos de un mes completo
+ * —la facturación se emite el día 1— y solo los gastos que se han cargado hasta
+ * hoy. Medido el 16-sep: septiembre llevaba $23.708 en gastos contra $34.963 de
+ * agosto a la misma altura del mes. Mezclarlo con los cerrados infla el margen
+ * y el número deja de servir para decidir nada.
+ *
+ * El mes en curso NO se esconde: se devuelve aparte y marcado, para que se vea
+ * cómo va sin que contamine la salud del negocio.
+ */
+export function partirPorCierre(series: MonthProfitability[], mesEnCurso: string) {
+    const cerrados = series.filter(s => s.mes < mesEnCurso);
+    return {
+        cerrados,
+        /** Los tres últimos cerrados — la ventana que se mira para la salud. */
+        ultimosTresCerrados: cerrados.slice(-3),
+        enCurso: series.find(s => s.mes === mesEnCurso) ?? null,
+    };
+}
+
+/**
+ * LA ESTRUCTURA DE COSTOS DE VARIOS MESES A LA VEZ.
+ *
+ * El desglose se sacaba del ÚLTIMO mes con datos, y por eso "no están todas las
+ * opciones que lleno": agosto tenía seis categorías cargadas y septiembre
+ * cuatro, así que Alimentos, Utilidades y Seguros desaparecían de la pantalla.
+ *
+ * Sumando la ventana entera aparece todo lo que de verdad se ha gastado, y cada
+ * categoría pesa lo que pesa sobre el período — que es lo que se quiere ver en
+ * una estructura de costos.
+ */
+export function estructuraDeCostos(series: MonthProfitability[]) {
+    const bucket = new Map<ExpenseCategory, number>();
+    for (const mes of series) {
+        for (const c of mes.porCategoria) {
+            bucket.set(c.category, round2((bucket.get(c.category) ?? 0) + c.amount));
+        }
+    }
+    const total = round2([...bucket.values()].reduce((a, b) => a + b, 0));
+    return {
+        total,
+        categorias: EXPENSE_ORDER
+            .filter(c => bucket.has(c))
+            .map(c => ({
+                category: c,
+                label: EXPENSE_LABELS[c],
+                amount: bucket.get(c)!,
+                pct: total > 0 ? Math.round((bucket.get(c)! / total) * 100) : 0,
+            })),
+    };
+}
+
 /** Resumen del período completo — para las tarjetas hero del dashboard. */
 export function summarizeProfitability(series: MonthProfitability[]) {
     const withData = series.filter(s => s.hasExpenseData);

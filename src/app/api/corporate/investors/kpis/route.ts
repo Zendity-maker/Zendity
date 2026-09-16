@@ -4,7 +4,7 @@ import { requireRole } from '@/lib/api-auth';
 import { calculateFacilityHealthScore } from '@/lib/facility-health';
 import { billableResidentsWhere } from '@/lib/billable-residents';
 import { round2 } from '@/lib/payment-math';
-import { getProfitabilitySeries, summarizeProfitability, calculateBreakEven } from '@/lib/profitability';
+import { getProfitabilitySeries, summarizeProfitability, calculateBreakEven, partirPorCierre, estructuraDeCostos } from '@/lib/profitability';
 import { getGrowthFunnel } from '@/lib/growth';
 import { logError } from '@/lib/logger';
 import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
@@ -241,7 +241,24 @@ export async function GET(_req: Request) {
             // Gastos de carga manual; un mes sin cargar NO reporta margen del
             // 100% (hasExpenseData=false). Ver profitability.ts.
             const profitSeries = await getProfitabilitySeries({ hqId: hq.id, from: seriesStart, to: monthEnd });
-            const profitSummary = summarizeProfitability(profitSeries);
+
+            /**
+             * LA SALUD SE MIDE SOBRE MESES CERRADOS.
+             *
+             * El mes en curso factura completo el día 1 y acumula gastos poco a
+             * poco, así que su margen sale inflado hasta el último día. Medido el
+             * 16-sep: septiembre llevaba $23.708 de gastos contra los $34.963 de
+             * agosto — mezclarlos da un número que no sirve para decidir.
+             *
+             * Los tres últimos meses CERRADOS mandan; el mes en curso viaja
+             * aparte y marcado, para verlo sin que contamine.
+             */
+            const mesEnCursoKey = `${y}-${String(m + 1).padStart(2, '0')}`;
+            const { ultimosTresCerrados, enCurso } = partirPorCierre(profitSeries, mesEnCursoKey);
+            const profitSummary = summarizeProfitability(ultimosTresCerrados);
+            // La estructura de costos suma la ventana entera: con un solo mes
+            // desaparecen las categorías que ese mes no llevaba cargadas.
+            const estructura = estructuraDeCostos(ultimosTresCerrados);
             const breakEven = calculateBreakEven({
                 gastoMensualPromedio: profitSummary.gastoMensualPromedio,
                 arpu,
@@ -330,7 +347,12 @@ export async function GET(_req: Request) {
                 },
                 rentabilidad: {
                     ...profitSummary,
-                    serie: profitSeries,
+                    /** Los tres cerrados: lo que sostiene el margen y el equilibrio. */
+                    serie: ultimosTresCerrados,
+                    /** El mes en curso, aparte y marcado. No entra en el margen. */
+                    enCurso,
+                    /** Estructura de costos de los tres cerrados juntos. */
+                    estructura,
                     breakEven,
                 },
             });

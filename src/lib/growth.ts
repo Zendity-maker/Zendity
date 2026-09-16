@@ -26,8 +26,8 @@ export interface GrowthMonth {
     contracts: number;
     admissions: number;
     hasData: boolean;
-    /** De dónde salió el dato de ESTE mes. */
-    source: 'CRM' | 'MANUAL' | 'NONE';
+    /** De dónde salió el dato de ESTE mes. `MANUAL+CRM` = se combinaron por máximo. */
+    source: 'CRM' | 'MANUAL' | 'MANUAL+CRM' | 'NONE';
 }
 
 /** Etapa del CRM → campo del embudo. */
@@ -109,29 +109,48 @@ export async function getGrowthFunnel(opts: {
         const crm = crmByMonth.get(key);
         const row = byMonth.get(key);
 
-        if (crm) {
-            serie.push({
-                mes: key,
-                prospects: crm.get('prospects')?.size ?? 0,
-                tours: crm.get('tours')?.size ?? 0,
-                evaluations: crm.get('evaluations')?.size ?? 0,
-                contracts: crm.get('contracts')?.size ?? 0,
-                admissions: crm.get('admissions')?.size ?? 0,
-                hasData: true,
-                source: 'CRM',
-            });
-        } else {
-            serie.push({
-                mes: key,
-                prospects: row?.prospects ?? 0,
-                tours: row?.tours ?? 0,
-                evaluations: row?.evaluations ?? 0,
-                contracts: row?.contracts ?? 0,
-                admissions: row?.admissions ?? 0,
-                hasData: !!row,
-                source: row ? 'MANUAL' : 'NONE',
-            });
-        }
+        /**
+         * SE COMBINAN, NO SE REEMPLAZAN — Y ESTE ERA EL FALLO.
+         *
+         * Antes bastaba `if (crm)` para descartar lo cargado a mano. Medido el
+         * 16-sep-2026: en septiembre habia UN SOLO evento de CRM —un tour— y la
+         * carga manual de Andres decia 10 prospectos, 8 tours, 2 evaluaciones,
+         * 1 contrato y 1 admision. La pantalla enseñaba tours=1 y el resto en
+         * cero. Una tarjeta suelta en el kanban borraba el mes entero, y por eso
+         * "no actualiza lo que voy agregando en el mes corriente".
+         *
+         * Se toma el MAXIMO campo por campo, no la suma: el CRM ve un
+         * subconjunto de lo que el Director cuenta —el mismo tour esta en los
+         * dos— asi que sumar lo contaria dos veces. El maximo respeta el dato
+         * mas completo sin inventar ninguno.
+         */
+        const delCrm = {
+            prospects: crm?.get('prospects')?.size ?? 0,
+            tours: crm?.get('tours')?.size ?? 0,
+            evaluations: crm?.get('evaluations')?.size ?? 0,
+            contracts: crm?.get('contracts')?.size ?? 0,
+            admissions: crm?.get('admissions')?.size ?? 0,
+        };
+        const aMano = {
+            prospects: row?.prospects ?? 0,
+            tours: row?.tours ?? 0,
+            evaluations: row?.evaluations ?? 0,
+            contracts: row?.contracts ?? 0,
+            admissions: row?.admissions ?? 0,
+        };
+        const hayCrm = !!crm;
+        const hayMano = !!row;
+
+        serie.push({
+            mes: key,
+            prospects: Math.max(delCrm.prospects, aMano.prospects),
+            tours: Math.max(delCrm.tours, aMano.tours),
+            evaluations: Math.max(delCrm.evaluations, aMano.evaluations),
+            contracts: Math.max(delCrm.contracts, aMano.contracts),
+            admissions: Math.max(delCrm.admissions, aMano.admissions),
+            hasData: hayCrm || hayMano,
+            source: hayMano && hayCrm ? 'MANUAL+CRM' : hayMano ? 'MANUAL' : hayCrm ? 'CRM' : 'NONE',
+        });
         m++; if (m > 11) { m = 0; y++; }
     }
 
@@ -148,8 +167,8 @@ export async function getGrowthFunnel(opts: {
         serie,
         totales,
         mesesConDatos: withData.length,
-        mesesDesdeCRM: serie.filter(s => s.source === 'CRM').length,
-        mesesManuales: serie.filter(s => s.source === 'MANUAL').length,
+        mesesDesdeCRM: serie.filter(s => s.source === 'CRM' || s.source === 'MANUAL+CRM').length,
+        mesesManuales: serie.filter(s => s.source === 'MANUAL' || s.source === 'MANUAL+CRM').length,
         conversionPct: totales.prospects > 0 ? Math.round((totales.admissions / totales.prospects) * 100) : null,
         tourRatePct: totales.prospects > 0 ? Math.round((totales.tours / totales.prospects) * 100) : null,
         admisionesMensualPromedio: withData.length > 0

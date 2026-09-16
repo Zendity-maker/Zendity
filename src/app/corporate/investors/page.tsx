@@ -85,6 +85,14 @@ interface VividKPI {
             margenPct: number | null; hasExpenseData: boolean;
             porCategoria: { category: string; label: string; amount: number }[];
         }[];
+        enCurso: {
+            mes: string; ingresos: number; gastos: number; margen: number;
+            margenPct: number | null; hasExpenseData: boolean;
+        } | null;
+        estructura: {
+            total: number;
+            categorias: { category: string; label: string; amount: number; pct: number }[];
+        };
         breakEven: {
             camasNecesarias: number;
             camasSobreEquilibrio: number;
@@ -404,6 +412,9 @@ export default function VividInvestorsDashboard() {
                                 <div className="flex items-center justify-between flex-wrap gap-3">
                                     <h3 className="text-lg font-bold text-[#FAF6EE] flex items-center gap-2">
                                         <PiggyBank className="w-5 h-5 text-[#C5E69A]" /> Rentabilidad Operativa
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-[#8CBBE8]/55 ml-1">
+                                            últimos 3 meses cerrados
+                                        </span>
                                     </h3>
                                     {p.mesesSinDatos > 0 && (
                                         <span className="text-[10px] font-black uppercase tracking-widest text-[#C5E69A] bg-[#C5E69A]/10 border border-[#C5E69A]/25 px-3 py-1 rounded-full">
@@ -427,8 +438,17 @@ export default function VividInvestorsDashboard() {
                                             {[
                                                 { label: 'Ingresos', value: fmt(p.ingresos), tone: 'text-[#FAF6EE]' },
                                                 { label: 'Gastos', value: fmt(p.gastos), tone: 'text-rose-400' },
-                                                { label: 'Margen', value: fmt(p.margen), tone: p.margen >= 0 ? 'text-[#C5E69A]' : 'text-rose-400' },
-                                                { label: 'Margen %', value: p.margenPct !== null ? `${p.margenPct}%` : '—', tone: (p.margenPct ?? 0) >= 0 ? 'text-[#C5E69A]' : 'text-rose-400' },
+                                                /**
+                                                 * "Margen antes de overhead", no "Margen" a secas.
+                                                 *
+                                                 * Andrés, 16-sep-2026: "hay márgenes de gastos que no se
+                                                 * documentan directo en Zéndity... la idea es mantener
+                                                 * abierta la posibilidad de que hay gastos que no están
+                                                 * registrados". El nombre tiene que decirlo: este número
+                                                 * es un techo, no el beneficio final.
+                                                 */
+                                                { label: 'Margen antes de overhead', value: fmt(p.margen), tone: p.margen >= 0 ? 'text-[#C5E69A]' : 'text-rose-400' },
+                                                { label: '% antes de overhead', value: p.margenPct !== null ? `${p.margenPct}%` : '—', tone: (p.margenPct ?? 0) >= 0 ? 'text-[#C5E69A]' : 'text-rose-400' },
                                             ].map(k => (
                                                 <div key={k.label} className="bg-[#101B33]/50 rounded-2xl p-5 border border-[#8CBBE8]/20">
                                                     <p className="text-[10px] text-[#8CBBE8]/55 font-black uppercase tracking-widest">{k.label}</p>
@@ -508,19 +528,24 @@ export default function VividInvestorsDashboard() {
                                             </div>
                                         )}
 
-                                        {/* Desglose del mes más reciente con datos */}
+                                        {/*
+                                            ESTRUCTURA DE COSTOS DE LOS TRES MESES, NO DE UNO.
+
+                                            Salía del último mes con datos, y por eso "no están todas
+                                            las opciones que lleno": agosto llevaba seis categorías
+                                            cargadas y septiembre cuatro, así que Alimentos, Utilidades
+                                            y Seguros desaparecían de la pantalla.
+                                        */}
                                         {(() => {
-                                            const ultimo = [...p.serie].reverse().find(s => s.hasExpenseData);
-                                            if (!ultimo || ultimo.porCategoria.length === 0) return null;
-                                            const [yy, mm] = ultimo.mes.split('-');
-                                            const maxCat = Math.max(...ultimo.porCategoria.map(c2 => c2.amount), 1);
+                                            if (!p.estructura || p.estructura.categorias.length === 0) return null;
+                                            const maxCat = Math.max(...p.estructura.categorias.map(c2 => c2.amount), 1);
                                             return (
                                                 <div className="pt-2 border-t border-[#8CBBE8]/20">
                                                     <p className="text-[10px] text-[#8CBBE8]/55 font-black uppercase tracking-widest mb-4">
-                                                        Estructura de costos — {MESES_ES[mm]} {yy}
+                                                        Estructura de costos — {p.mesesConDatos} mes{p.mesesConDatos !== 1 ? 'es' : ''} cerrado{p.mesesConDatos !== 1 ? 's' : ''} · {fmt(p.estructura.total)}
                                                     </p>
                                                     <div className="space-y-2.5">
-                                                        {ultimo.porCategoria.map(cat => (
+                                                        {p.estructura.categorias.map(cat => (
                                                             <div key={cat.category} className="flex items-center gap-3">
                                                                 <span className="text-[11px] text-[#8CBBE8]/70 font-bold w-36 shrink-0 truncate">{cat.label}</span>
                                                                 <div className="flex-1 h-2.5 bg-[#101B33] rounded-full overflow-hidden">
@@ -528,7 +553,7 @@ export default function VividInvestorsDashboard() {
                                                                 </div>
                                                                 <span className="text-[#FAF6EE] font-bold text-xs w-20 text-right">{fmt(cat.amount)}</span>
                                                                 <span className="text-[#8CBBE8]/55 font-bold text-[10px] w-10 text-right">
-                                                                    {Math.round((cat.amount / ultimo.gastos) * 100)}%
+                                                                    {cat.pct}%
                                                                 </span>
                                                             </div>
                                                         ))}
@@ -536,6 +561,43 @@ export default function VividInvestorsDashboard() {
                                                 </div>
                                             );
                                         })()}
+
+                                        {/*
+                                            EL MES EN CURSO, APARTE Y CON SU AVISO.
+
+                                            No entra en el margen ni en el punto de equilibrio: factura
+                                            completo el día 1 y acumula gastos poco a poco, así que
+                                            hasta el último día del mes su margen sale inflado. Se
+                                            enseña para poder mirarlo, no para promediarlo.
+                                        */}
+                                        {p.enCurso && (
+                                            <div className="rounded-2xl p-5 border border-[#8CBBE8]/25 bg-[#101B33]/40">
+                                                <div className="flex items-baseline justify-between flex-wrap gap-2">
+                                                    <p className="text-[10px] text-[#8CBBE8]/55 font-black uppercase tracking-widest">
+                                                        Mes en curso — {MESES_ES[p.enCurso.mes.split('-')[1]]} · no entra en el margen
+                                                    </p>
+                                                    <span className="text-[#8CBBE8]/55 text-xs">
+                                                        <span className="text-[#FAF6EE] font-bold">{fmt(p.enCurso.ingresos)}</span>
+                                                        <span className="mx-1.5 text-[#1C3170]">−</span>
+                                                        <span className="text-rose-400 font-bold">{fmt(p.enCurso.gastos)}</span>
+                                                        {!p.enCurso.hasExpenseData && (
+                                                            <span className="ml-2 text-[#C5E69A]/70 font-bold text-[10px] uppercase tracking-wider">gastos sin cargar</span>
+                                                        )}
+                                                    </span>
+                                                </div>
+                                                <p className="text-[#8CBBE8]/45 text-[11px] mt-2 leading-snug">
+                                                    Va a mitad de camino: la facturación del mes ya se emitió entera y los gastos
+                                                    se cargan a lo largo del mes. Se cierra cuando termine.
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        <p className="text-[#8CBBE8]/45 text-[11px] leading-snug border-t border-[#8CBBE8]/15 pt-4">
+                                            <strong className="text-[#8CBBE8]/70">Antes de overhead.</strong> El margen se calcula
+                                            con los gastos cargados en Zéndity. Hay costos que no se documentan aquí —los que
+                                            sepas que faltan hay que restarlos por fuera—, así que este número es un techo, no el
+                                            beneficio final.
+                                        </p>
                                     </>
                                 )}
                             </div>
