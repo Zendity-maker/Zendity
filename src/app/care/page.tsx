@@ -3521,19 +3521,26 @@ export default function ZendityCareTabletPage() {
                 {events.length > 0 && (
                     <div className="mb-8 flex flex-col gap-3">
                         {events.map((e: any) => {
-                            const timeStr = new Date(e.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            const cuando = new Date(e.startTime);
+                            const timeStr = cuando.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            // Ahora la ventana trae el dia entero, asi que hay que
+                            // distinguir lo que VIENE de lo que ya paso: un aviso
+                            // que se lee igual antes y despues no dice cuando actuar.
+                            const yaPaso = cuando.getTime() < Date.now();
+                            const enUnaHora = !yaPaso && cuando.getTime() - Date.now() < 60 * 60 * 1000;
                             return (
-                                <div key={e.id} className="bg-amber-100 border-l-8 border-amber-500 p-4 rounded-xl shadow-sm animate-in fade-in slide-in-from-top-4 flex items-center justify-between">
+                                <div key={e.id} className={`${yaPaso ? 'bg-slate-100 border-slate-300' : enUnaHora ? 'bg-amber-100 border-amber-500' : 'bg-sky-50 border-sky-400'} border-l-8 p-4 rounded-xl shadow-sm animate-in fade-in slide-in-from-top-4 flex items-center justify-between`}>
                                     <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center text-white text-xl"></div>
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-xl ${yaPaso ? 'bg-slate-400' : enUnaHora ? 'bg-amber-500' : 'bg-sky-500'}`}></div>
                                         <div>
-                                            <p className="font-bold text-amber-900 leading-tight">Calendario: {e.title}</p>
-                                            <p className="text-sm font-medium text-amber-700">
-                                                Hoy a las {timeStr} {e.patient ? ` Residente: ${e.patient.name}` : ' Actividad Global'}
+                                            <p className={`font-bold leading-tight ${yaPaso ? 'text-slate-600' : 'text-slate-900'}`}>{e.title}</p>
+                                            <p className={`text-sm font-medium ${yaPaso ? 'text-slate-500' : 'text-slate-700'}`}>
+                                                {yaPaso ? 'Fue' : enUnaHora ? 'En menos de una hora —' : 'Hoy'} a las {timeStr}
+                                                {e.patient ? ` · ${e.patient.name}` : ' · actividad del hogar'}
                                             </p>
                                         </div>
                                     </div>
-                                    <span className="text-amber-600/50 font-black text-xs uppercase tracking-widest">{e.type}</span>
+                                    <span className={`font-black text-xs uppercase tracking-widest ${yaPaso ? 'text-slate-400' : 'text-slate-500'}`}>{e.type}</span>
                                 </div>
                             );
                         })}

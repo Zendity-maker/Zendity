@@ -264,10 +264,26 @@ export async function GET(req: Request) {
             ? [{ targetPopulation: 'SPECIFIC', targetPatients: { hasSome: misPacientes } }]
             : [];
 
+        /**
+         * EL DIA ENTERO, NO "HASTA AHORA".
+         *
+         * La ventana era [inicio del dia clinico .. `todayEnd`], y `todayEnd` es
+         * `new Date()` — o sea AHORA. Con eso un evento de las 11:00 no aparecia
+         * a las 8:00: aparecia a las 11:00, cuando ya habia empezado.
+         *
+         * El caso que lo destapo: la videollamada de Hector Velez con su hija
+         * era hoy 16-sep a las 11:00, aprobada el domingo. La cuidadora que tenia
+         * que tenerlo listo no pudo verla en la tableta hasta las 11:00 en punto.
+         *
+         * Un aviso que llega cuando el acto ya empezo no es un aviso. Ahora la
+         * ventana cubre el dia clinico completo: lo que viene se ve venir.
+         */
+        const finDelDiaClinico = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+
         const events = await prisma.headquartersEvent.findMany({
             where: {
                 headquartersId: hqId,
-                startTime: { gte: todayStart, lte: todayEnd },
+                startTime: { gte: todayStart, lt: finDelDiaClinico },
                 type: { not: 'INFRASTRUCTURE' },
                 assignedToId: null,
                 targetPopulation: { not: 'STAFF' },

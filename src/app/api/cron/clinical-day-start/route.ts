@@ -118,6 +118,32 @@ export async function GET(req: Request) {
                 }
             });
 
+            /**
+             * 3b. LO QUE HAY AGENDADO PARA HOY.
+             *
+             * El prólogo resumía lo que PASÓ y no decía nada de lo que VIENE. Y
+             * lo que viene tiene dueño: una videollamada de familia obliga a que
+             * alguien tenga al residente despierto, presentable y con la tableta
+             * a mano a esa hora.
+             *
+             * Medido el 16-sep-2026: las 19 solicitudes de la casa son de la
+             * misma familia —María del Pilar Vélez, hija de Héctor— y doce son
+             * videollamadas. Ninguna llegó nunca al piso por el sistema.
+             */
+            const agendaDeHoy = await prisma.familyAppointment.findMany({
+                where: {
+                    headquartersId: hq.id,
+                    status: 'APPROVED',
+                    requestedDate: { gte: clinicalDayEnd, lt: new Date(clinicalDayEnd.getTime() + 24 * 3600 * 1000) },
+                },
+                select: {
+                    type: true, requestedTime: true,
+                    patient: { select: { name: true, roomNumber: true } },
+                    familyMember: { select: { name: true } },
+                },
+                orderBy: { requestedTime: 'asc' },
+            });
+
             // 4. Vitales críticos
             const criticalVitals = await prisma.vitalSigns.findMany({
                 where: {
@@ -158,6 +184,7 @@ export async function GET(req: Request) {
             );
 
             const noEvents =
+                agendaDeHoy.length === 0 &&
                 incidents.length === 0 &&
                 omittedMeds.length === 0 &&
                 criticalVitals.length === 0 &&
@@ -187,6 +214,19 @@ export async function GET(req: Request) {
                 }
             }
 
+            // Lo agendado va SIEMPRE, con novedades o sin ellas: es lo único del
+            // prólogo que pide preparar algo antes de que ocurra.
+            if (agendaDeHoy.length > 0) {
+                const etiqueta: Record<string, string> = {
+                    VIDEO_CALL: 'Videollamada', PHONE_CALL: 'Llamada telefónica',
+                    VISIT: 'Visita presencial', DIRECTOR_MEETING: 'Reunión con dirección',
+                    SPECIAL_OCCASION: 'Ocasión especial',
+                };
+                dataBlock += `AGENDADO PARA HOY (hay que tenerlos listos a esa hora):\n${agendaDeHoy.map(a =>
+                    `- ${a.requestedTime} · ${etiqueta[a.type] ?? a.type} — ${a.patient.name.trim()} (${a.patient.roomNumber ?? 's/n'}) con ${a.familyMember.name.trim()}`,
+                ).join('\n')}\n\n`;
+            }
+
             const prompt = `
 Eres Zendi AI. Generas el Prólogo del Día Clínico (6:00 AM AST) para ${fechaHoy}, sede ${hq.name}.
 Tu audiencia: CAREGIVERS, ENFERMERAS y SUPERVISOR del turno de mañana que inician su día.
@@ -198,6 +238,10 @@ Incluye:
 - Medicamentos omitidos o rechazados que requieren seguimiento
 - Vitales fuera de rango que necesitan revisión
 - UPPs nuevas y residentes en hospital
+- LO AGENDADO PARA HOY: si hay citas de familia, nómbralas con su hora, el
+  residente y su cuarto. Es lo único del prólogo que pide preparar algo ANTES
+  de que pase — una videollamada a las 11:00 significa tener a esa persona
+  despierta, presentable y con la tableta a mano a las 11:00.
 - Prioridades y tareas pendientes para el turno de mañana
 
 Tono: ejecutivo, directo, operacional. Formato markdown con viñetas claras.

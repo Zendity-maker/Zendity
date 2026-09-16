@@ -23,6 +23,8 @@ import { prisma } from '@/lib/prisma';
 import { astDateTime, parseTimeOfDay, formatASTDateLong, AST_TZ_LABEL } from '@/lib/dates';
 import { buildAppointmentICS, googleCalendarLink } from '@/lib/ics';
 import { buildAppointmentCopy } from '@/lib/family/appointment-copy';
+import { cuidadorasDeResidente } from '@/lib/cuidadora-a-cargo';
+import { notifyUser, notifyRoles } from '@/lib/notifications';
 
 // Init SendGrid una vez por proceso, igual que hacía el PATCH al cargar el módulo.
 if (process.env.SENDGRID_API_KEY) {
@@ -271,6 +273,18 @@ export function buildApprovedAppointmentEmail(args: BuildApprovedEmailArgs): App
 
 export interface SendApprovedNotificationsArgs {
     stage:            EffectStage;
+
+    /** La sede y el residente, para poder avisar a quien lo lleva. */
+    hqId:             string;
+    patientId:        string;
+    /**
+     * `false` cuando quien aprueba ES el piso — avisarle a quien acaba de
+     * escribir la cita es ruido. Ese fue el motivo por el que originalmente se
+     * omitió el aviso al staff en el POST-create-APPROVED (Wanda crea la cita
+     * ella misma). Lo que estaba mal era aplicar esa misma regla al caso en que
+     * la familia pide y dirección aprueba, donde sí hay alguien sin enterarse.
+     */
+    notificarAlPiso?: boolean;
     appointmentId:    string;
     apptType:         string;
     requestedDate:    Date;
@@ -333,6 +347,54 @@ export async function sendApprovedAppointmentNotifications(
                 });
             }
         } catch { /* no-fatal */ }
+    }
+
+    /**
+     * ── Y AL PISO. Esto es lo que faltaba. ─────────────────────────────────
+     *
+     * Medido el 16-sep-2026: hay 403 notificaciones de este tipo en la base y
+     * TODAS van a DIRECTOR y SUPERVISOR. A una cuidadora: CERO.
+     *
+     * El circuito avisaba a dirección cuando la familia PIDE, y a la familia
+     * cuando se APRUEBA. La persona que tiene que tener al residente despierto,
+     * presentable y con la tableta a mano a esa hora no se enteraba por el
+     * sistema — se enteraba porque alguien se lo decía por fuera.
+     *
+     * El caso real: las 19 solicitudes de la casa son de María del Pilar Vélez,
+     * hija de Héctor. Doce son videollamadas. La de hoy era a las 11:00,
+     * aprobada el domingo, y en la tableta no se pudo ver hasta las 11:00 en
+     * punto (ver la ventana de eventos en /api/care).
+     *
+     * `cuidadorasDeResidente` ya resuelve esto mismo para las visitas de
+     * recepción — prefiere a quien TIENE SESIÓN ABIERTA sobre quien debería
+     * estar según el horario. Y si no resuelve a nadie, no se calla: sube a
+     * supervisión, que es quien lo recibe hoy.
+     */
+    if (args.notificarAlPiso !== false) {
+        try {
+            const alPiso = await cuidadorasDeResidente(args.hqId, args.patientId);
+            const cuando = `${formattedDate} a las ${args.requestedTime}`;
+            const titulo = `📅 ${typeLabel} de ${args.patientName.trim()}`;
+            const mensaje = `${args.familyMemberName} — ${cuando}. Hay que tenerlo listo a esa hora.`;
+
+            if (alPiso.length > 0) {
+                for (const c of alPiso) {
+                    await notifyUser(c.userId, {
+                        type: 'FAMILY_VISIT', title: titulo, message: mensaje, link: '/care',
+                    });
+                }
+            } else {
+                // Nadie resuelto: baja de precisión, no desaparece.
+                await notifyRoles(args.hqId, ['SUPERVISOR', 'NURSE'], {
+                    type: 'FAMILY_VISIT',
+                    title: titulo,
+                    message: `${mensaje} (no se pudo resolver quién lo lleva)`,
+                    link: '/care/supervisor',
+                });
+            }
+        } catch (e) {
+            console.error(`${logTag} aviso al piso:`, e);
+        }
     }
 
     // ── Email + ICS + GCal (best-effort, gateado) ──────────────────────────

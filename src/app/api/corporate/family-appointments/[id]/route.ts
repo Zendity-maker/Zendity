@@ -175,6 +175,11 @@ async function patchHandler(
             // aprobada permanece. Mismos gates que tenía inline.
             await sendApprovedAppointmentNotifications({
                 stage:             'APPROVE_PATCH',
+                // La familia pidió y dirección aprobó: alguien en el piso tiene
+                // que tenerlo listo a esa hora y hoy no se entera por el sistema.
+                hqId,
+                patientId:         appt.patientId,
+                notificarAlPiso:   true,
                 appointmentId:     updated.id,
                 apptType:          appt.type,
                 requestedDate:     appt.requestedDate,

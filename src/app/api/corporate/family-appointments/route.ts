@@ -272,11 +272,18 @@ async function createFamilyAppointmentHandler(req: Request) {
         // ── Side-effects post-DB (best-effort, never throws) ───────────────
         // Mismo helper que usa el PATCH-approve; stage='CREATE_APPROVED' para
         // que los logs de email se distingan en Vercel.
-        // NO se notifica al staff (notifyRoles deliberadamente omitido — Wanda
-        // ES staff; la notif al staff sería ruido). El helper sí notifica al
-        // familiar (in-app + email cuando vuelva el quota de SendGrid).
+        // NO se notifica al piso (notificarAlPiso: false — Wanda ES staff y
+        // acaba de escribir esta cita; avisarle sería ruido). El helper sí
+        // notifica al familiar. En el PATCH-approve, donde la familia pide y
+        // dirección aprueba, SÍ se avisa: ahí hay alguien sin enterarse.
         await sendApprovedAppointmentNotifications({
             stage:             'CREATE_APPROVED',
+            hqId,
+            patientId:         patient.id,
+            // Aquí la cita la escribe el propio staff, así que avisarle sería
+            // ruido. Es el caso para el que se omitió el aviso originalmente —
+            // y sigue siendo correcto AQUÍ, solo aquí.
+            notificarAlPiso:   false,
             appointmentId:     created.id,
             apptType:          type,
             requestedDate:     dateObj,
