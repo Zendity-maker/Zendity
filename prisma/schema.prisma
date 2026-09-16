@@ -3965,6 +3965,17 @@ model ExternalKioskDevice {
   floorNumber    Int // 1 o 2 — qué piso opera esta tablet
   label          String // "Tablet Piso 1", "Tablet Lobby" — texto humano para el admin
   deviceToken    String    @unique // secreto único que la tablet guarda en localStorage
+
+  /// PARA QUÉ SIRVE ESTE DISPOSITIVO.
+  ///
+  /// `EXTERNAL_KIOSK` — la tableta que registra proveedores externos.
+  /// `WALL`           — una pantalla de pared, siempre encendida, solo lectura.
+  ///
+  /// Existe para que un token no sirva para lo que no es. Sin este campo, el
+  /// token de una pared colgada en la sala de descanso podría llamar a los
+  /// endpoints del kiosco y registrar visitas. Son dos aparatos con el mismo
+  /// mecanismo de autenticación y permisos distintos.
+  purpose        String    @default("EXTERNAL_KIOSK")
   isActive       Boolean   @default(true)
   lastSeenAt     DateTime?
   createdAt      DateTime  @default(now())

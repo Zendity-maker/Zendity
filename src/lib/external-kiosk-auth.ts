@@ -37,8 +37,18 @@ export async function requireKioskDevice(req: Request): Promise<
             label: true,
             isActive: true,
             revokedAt: true,
+            purpose: true,
         },
     });
+
+    // Un token de pared no sirve para registrar visitas: son dos aparatos con
+    // el mismo mecanismo y permisos distintos. Ver el campo `purpose`.
+    if (device && device.purpose !== 'EXTERNAL_KIOSK') {
+        return NextResponse.json(
+            { success: false, error: 'Este dispositivo no es un kiosco.' },
+            { status: 403 },
+        );
+    }
 
     if (!device || !device.isActive || device.revokedAt) {
         return NextResponse.json(
