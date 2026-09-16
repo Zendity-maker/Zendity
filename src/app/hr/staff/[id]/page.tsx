@@ -14,6 +14,7 @@ import {
 import EditStaffRolesModal from "./EditStaffRolesModal";
 import WriteIncidentModal from "@/components/hr/WriteIncidentModal";
 import FormacionDelEmpleado from "@/components/hr/FormacionDelEmpleado";
+import DialogoMotivoAusencia from "@/components/hr/DialogoMotivoAusencia";
 import { Z_SCORE_VISIBLE, Z_SCORE_OCULTO_MOTIVO } from '@/lib/z-score-visible';
 
 export default function EmployeeProfilePage({ params }: { params: Promise<{ id: string }> }) {
@@ -37,6 +38,34 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
     // divergiendo es deuda que se paga en cada cambio — se unifican aquí.
     const [hrMetrics, setHrMetrics] = useState<any>(null);
     const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
+
+    /**
+     * COMPLETAR EL MOTIVO DE UNA AUSENCIA YA MARCADA.
+     *
+     * Se marca a alguien ausente a las siete de la mañana y muchas veces no se
+     * sabe por qué: la persona contesta el teléfono a media mañana. El motivo es
+     * obligatorio al marcar, con "Todavía no se sabe" como salida honesta — y
+     * aquí es donde se termina de contestar.
+     */
+    const [anotando, setAnotando] = useState<any>(null);
+    const puedeAnotarMotivo = !!user?.role && ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'HR_MANAGER'].includes(user.role);
+
+    const guardarMotivo = async (detalle: { absenceReason: string; absenceNotified: boolean; absenceNotes?: string }) => {
+        if (!anotando) return;
+        try {
+            const res = await fetch('/api/hr/schedule/absent/motivo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ scheduledShiftId: anotando.id, ...detalle }),
+            });
+            const data = await res.json();
+            if (!data.success) { alert(data.error || 'No se pudo guardar el motivo'); return; }
+            setAnotando(null);
+            fetchProfile();
+        } catch {
+            alert('Error de red — no se guardó nada.');
+        }
+    };
 
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState({ name: "", email: "", newPin: "" });
@@ -768,8 +797,19 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                                 </p>
                             ) : (
                                 <div className="space-y-2">
-                                    {attendance.detalle.map((a: any) => (
-                                        <div key={a.id} className="flex items-center gap-3 flex-wrap px-4 py-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors">
+                                    {attendance.detalle.map((a: any) => {
+                                        /**
+                                         * FALTA EL MOTIVO, O ESTA SIN CONFIRMAR.
+                                         *
+                                         * Las dos cosas son trabajo pendiente, pero no son lo mismo:
+                                         * vacio es "nadie lo escribio" —las once anteriores al 14-sep,
+                                         * cuando el dialogo todavia no estaba en la pantalla por la que
+                                         * se marcan— y "sin confirmar" es "se pregunto y no hay
+                                         * respuesta todavia".
+                                         */
+                                        const faltaMotivo = !a.motivo || a.motivo === 'PENDIENTE_CONFIRMAR';
+                                        return (
+                                        <div key={a.id} className={`flex items-center gap-3 flex-wrap px-4 py-3 rounded-xl border transition-colors ${faltaMotivo ? 'border-amber-300 bg-amber-50/60' : 'border-slate-200 hover:bg-slate-50'}`}>
                                             <span className="font-bold text-slate-800 text-sm w-24">
                                                 {new Date(a.fecha).toLocaleDateString('es-PR', { day: '2-digit', month: 'short', timeZone: 'UTC' })}
                                             </span>
@@ -777,6 +817,14 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                                             <span className="text-sm text-slate-600">
                                                 {a.motivoLabel ?? <span className="italic text-slate-400">Sin motivo registrado</span>}
                                             </span>
+                                            {faltaMotivo && puedeAnotarMotivo && (
+                                                <button
+                                                    onClick={() => setAnotando(a)}
+                                                    className="text-[11px] font-black uppercase tracking-wide text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-2.5 py-1 rounded-full transition-colors"
+                                                >
+                                                    Anotar motivo
+                                                </button>
+                                            )}
                                             <span className={`ml-auto text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border ${
                                                 a.avisoPrevio
                                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -788,7 +836,8 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                                                 <p className="w-full text-xs text-slate-500 pl-24 -mt-1">{a.nota}</p>
                                             )}
                                         </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
 
@@ -864,6 +913,22 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                         </div>
                     )}
                 </div>
+
+                {/* Completar el motivo de una ausencia ya marcada. Mismo diálogo
+                    que al marcarla — una sola forma de contestar la pregunta. */}
+                {anotando && (
+                    <DialogoMotivoAusencia
+                        nombre={`${employee.name} — ${new Date(anotando.fecha).toLocaleDateString('es-PR', { day: '2-digit', month: 'long', timeZone: 'UTC' })}`}
+                        titulo="Anotar el motivo"
+                        inicial={{
+                            absenceReason: anotando.motivo === 'PENDIENTE_CONFIRMAR' ? '' : (anotando.motivo ?? ''),
+                            absenceNotified: anotando.avisoPrevio,
+                            absenceNotes: anotando.nota ?? '',
+                        }}
+                        onCancel={() => setAnotando(null)}
+                        onConfirm={guardarMotivo}
+                    />
+                )}
 
                 <WriteIncidentModal
                     isOpen={isIncidentModalOpen}

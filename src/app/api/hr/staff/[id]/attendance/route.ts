@@ -36,6 +36,9 @@ const REASON_LABELS: Record<string, string> = {
     PERSONAL: 'Asunto personal',
     NO_SHOW: 'No se presentó',
     OTHER: 'Otro',
+    // La salida honesta: se marcó la ausencia sin saber todavía por qué.
+    // No es un campo vacío — es trabajo pendiente, y el perfil lo señala.
+    PENDIENTE_CONFIRMAR: 'Motivo sin confirmar',
 };
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {

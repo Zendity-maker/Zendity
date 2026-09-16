@@ -38,7 +38,21 @@ export async function POST(req: Request) {
         const hqId = auth.headquartersId;
         const body = await req.json();
         const { scheduledShiftId } = body;
-        const REASONS = ['SICK', 'FAMILY_EMERGENCY', 'MEDICAL_APPOINTMENT', 'PERSONAL', 'NO_SHOW', 'OTHER'];
+        /**
+         * EL MOTIVO ES OBLIGATORIO.
+         *
+         * Antes un motivo invalido o ausente se guardaba como null en silencio, y
+         * eso tiene consecuencia: `absenceNotified` cae a false, y el detector de
+         * patrones cuenta SOLO las ausencias sin aviso para levantar una
+         * observacion disciplinaria. O sea que no anotar el motivo convertia una
+         * ausencia avisada en una falta sin avisar.
+         *
+         * PENDIENTE_CONFIRMAR es la salida honesta: se marca a las siete de la
+         * mañana y el motivo llega cuando la persona contesta. Sin esa opcion,
+         * obligar solo consigue que alguien ponga "Enfermedad" por no dejarlo en
+         * blanco — y ese dato ya no se distingue nunca de una enfermedad real.
+         */
+        const REASONS = ['SICK', 'FAMILY_EMERGENCY', 'MEDICAL_APPOINTMENT', 'PERSONAL', 'NO_SHOW', 'OTHER', 'PENDIENTE_CONFIRMAR'];
         const absenceReason: string | null = REASONS.includes(body.absenceReason) ? body.absenceReason : null;
         // Un NO_SHOW es, por definición, sin aviso.
         const absenceNotified = absenceReason === 'NO_SHOW' ? false : !!body.absenceNotified;
@@ -46,6 +60,12 @@ export async function POST(req: Request) {
 
         if (!scheduledShiftId) {
             return NextResponse.json({ success: false, error: 'scheduledShiftId es requerido' }, { status: 400 });
+        }
+        if (!absenceReason) {
+            return NextResponse.json({
+                success: false,
+                error: 'Falta el motivo de la ausencia. Si todavía no se sabe, elige "Todavía no se sabe" y complétalo después desde su perfil.',
+            }, { status: 400 });
         }
 
         // Tenant check — el turno debe pertenecer a un horario de tu sede

@@ -20,13 +20,24 @@
  */
 import { useState } from 'react';
 
-const ABSENCE_REASONS: { value: string; label: string; hint: string }[] = [
+export const ABSENCE_REASONS: { value: string; label: string; hint: string }[] = [
     { value: 'SICK', label: 'Enfermedad', hint: 'Se reportó enferma/o' },
     { value: 'FAMILY_EMERGENCY', label: 'Emergencia familiar', hint: 'Situación urgente en su familia' },
     { value: 'MEDICAL_APPOINTMENT', label: 'Cita médica', hint: 'Cita programada' },
     { value: 'PERSONAL', label: 'Asunto personal', hint: 'Motivo personal informado' },
     { value: 'NO_SHOW', label: 'No se presentó', hint: 'No llegó y no avisó' },
     { value: 'OTHER', label: 'Otro', hint: 'Detállalo en la nota' },
+    /**
+     * LA SALIDA HONESTA.
+     *
+     * El motivo es obligatorio, y una lista cerrada sin esta opción obliga a
+     * elegir la menos equivocada: alguien pondría "Enfermedad" por no dejarlo en
+     * blanco, y ese dato ya no se distingue nunca de una enfermedad de verdad.
+     *
+     * Se marca la ausencia a las siete de la mañana; el motivo llega cuando la
+     * persona contesta el teléfono. Queda como trabajo pendiente en su perfil.
+     */
+    { value: 'PENDIENTE_CONFIRMAR', label: 'Todavía no se sabe', hint: 'Se completa después, desde su perfil' },
 ];
 
 export interface DetalleAusencia {
@@ -36,16 +47,26 @@ export interface DetalleAusencia {
 }
 
 export default function DialogoMotivoAusencia({
-    nombre, onCancel, onConfirm,
+    nombre, onCancel, onConfirm, inicial, titulo,
 }: {
     /** De quién es la ausencia. Lo único que el diálogo necesita saber. */
     nombre: string;
     onCancel: () => void;
     onConfirm: (d: DetalleAusencia) => void;
+    /** Para completar una ausencia ya marcada desde el perfil. */
+    inicial?: Partial<DetalleAusencia>;
+    titulo?: string;
 }) {
-    const [reason, setReason] = useState('SICK');
-    const [notified, setNotified] = useState(true);
-    const [notes, setNotes] = useState('');
+    /**
+     * SIN NADA PRESELECCIONADO, a propósito.
+     *
+     * Venía con 'SICK' puesto. Quien pulsara confirmar sin mirar registraba
+     * "Enfermedad" sin haberlo elegido — un dato que después nadie distingue de
+     * una enfermedad que sí se preguntó. Ahora hay que elegir.
+     */
+    const [reason, setReason] = useState(inicial?.absenceReason ?? '');
+    const [notified, setNotified] = useState(inicial?.absenceNotified ?? true);
+    const [notes, setNotes] = useState(inicial?.absenceNotes ?? '');
     // Un "no se presentó" es, por definición, sin aviso.
     const esNoShow = reason === 'NO_SHOW';
 
@@ -53,7 +74,7 @@ export default function DialogoMotivoAusencia({
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
             <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
                 <div className="px-6 py-5 border-b border-slate-100">
-                    <h3 className="text-lg font-black text-slate-800">Marcar ausencia</h3>
+                    <h3 className="text-lg font-black text-slate-800">{titulo ?? 'Marcar ausencia'}</h3>
                     <p className="text-sm text-slate-500 mt-0.5">{nombre}</p>
                 </div>
 
@@ -122,9 +143,10 @@ export default function DialogoMotivoAusencia({
                     </button>
                     <button
                         onClick={() => onConfirm({ absenceReason: reason, absenceNotified: esNoShow ? false : notified, absenceNotes: notes.trim() || undefined })}
-                        className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold transition-colors"
+                        disabled={!reason}
+                        className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                        Marcar ausente
+                        {!reason ? 'Elige un motivo' : (titulo ? 'Guardar motivo' : 'Marcar ausente')}
                     </button>
                 </div>
             </div>

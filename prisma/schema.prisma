@@ -3085,6 +3085,19 @@ enum AbsenceReason {
   PERSONAL // asunto personal
   NO_SHOW // no se presentó ni avisó
   OTHER
+
+  /// TODAVÍA NO SE SABE. Se marca la ausencia a las 7 de la mañana y el motivo
+  /// llega cuando la persona contesta el teléfono, a veces horas después.
+  ///
+  /// Existe porque el motivo pasa a ser OBLIGATORIO al marcar, y una lista
+  /// cerrada sin salida honesta obliga a elegir la opción menos equivocada:
+  /// alguien pondría "Enfermedad" por no dejarlo en blanco, y ese dato ya no se
+  /// distingue nunca más de una enfermedad de verdad.
+  ///
+  /// No es lo mismo que un campo vacío. Vacío es "nadie lo escribió"; esto es
+  /// "se preguntó y todavía no hay respuesta", y por eso puede aparecer como
+  /// trabajo pendiente en el perfil de la persona hasta que se complete.
+  PENDIENTE_CONFIRMAR
 }
 
 enum IncidentCategory {

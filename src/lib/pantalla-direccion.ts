@@ -188,7 +188,15 @@ export async function construirPantallaDireccion(hqId: string, hqNombre: string)
         prisma.scheduledShift.count({
             where: {
                 schedule: { headquartersId: hqId }, isAbsent: true,
-                absentMarkedAt: { gte: hace30d }, absenceReason: null,
+                absentMarkedAt: { gte: hace30d },
+                // Vacío y "sin confirmar" son dos cosas distintas y las dos son
+                // trabajo pendiente. Desde el 16-sep-2026 el motivo es obligatorio
+                // al marcar, con PENDIENTE_CONFIRMAR como salida honesta para
+                // cuando todavía no se sabe — y eso sigue pidiendo que alguien lo
+                // complete después, desde el perfil de la persona.
+                OR: [{ absenceReason: null }, { absenceReason: 'PENDIENTE_CONFIRMAR' }],
+                // Una ausencia revertida ya no pide nada.
+                absentClearedAt: null,
             },
         }),
 
@@ -227,7 +235,9 @@ export async function construirPantallaDireccion(hqId: string, hqNombre: string)
     if (ausenciasSinMotivo > 0) {
         parado.push({
             que: ausenciasSinMotivo === 1 ? 'Una ausencia sin motivo anotado' : `${ausenciasSinMotivo} ausencias sin motivo anotado`,
-            dias: 0, cuantos: ausenciasSinMotivo, enlace: '/hr/schedule',
+            // Al Directorio de Personal: el motivo se completa desde el perfil de
+            // quien faltó, no desde el constructor de horarios.
+            dias: 0, cuantos: ausenciasSinMotivo, enlace: '/hr',
         });
     }
     parado.sort((a, b) => b.dias - a.dias);
