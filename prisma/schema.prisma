@@ -1496,7 +1496,39 @@ model PosturalChangeLog {
   nurseId           String
   position          String // Ej: "Decúbito Lateral Izquierdo", "Supino"
   performedAt       DateTime @default(now())
-  isComplianceAlert Boolean  @default(false) // Si se hizo tardío (fuera de las 2hrs)
+  /// EL HECHO CLÍNICO: este residente pasó más de 2h15 sin girarse.
+  ///
+  /// Se queda como está y NO se apaga nunca, aunque a nadie se le cobre por él.
+  /// Lo leen el supervisor en la línea de tiempo del turno, el reporte de
+  /// supervisión y el cron de úlceras: un hueco de quince horas sigue siendo un
+  /// problema que alguien tiene que ver.
+  isComplianceAlert Boolean  @default(false)
+
+  /// LA FACTURA: ¿este hueco es imputable a quien registró la rotación?
+  ///
+  /// Hasta el 16-sep-2026 `isComplianceAlert` hacía los dos trabajos a la vez —el
+  /// hecho y el cobro— y el cobro salía mal. La penalidad se mide contra la
+  /// ÚLTIMA rotación del residente, sin mirar quién la hizo, así que la cobra
+  /// quien CIERRA el hueco y no quien lo abrió.
+  ///
+  /// Medido sobre las 26 penalidades de 30 días: 18 son huecos heredados. Los
+  /// dueños reales eran Zuleyka Valcárcel (10), Carlos Negrón (5), Brendali
+  /// Collazo (2) y Yedaira González (1); se le cobraron a Neylianne Torres (17)
+  /// y a Caridad Veras (1). Una de ellas arrastraba quince horas: la rotación
+  /// anterior era de las 5:42 de la mañana y ella entró a las 20:44.
+  ///
+  /// Y seis de esas penalidades eran UNA sola ráfaga del 21-ago a las 15:43: el
+  /// mismo hueco de 2,6h cobrado seis veces, una por residente tocado. Treinta
+  /// puntos por una sesión de tecleo.
+  ///
+  /// La regla: se cobra solo el hueco que abriste tú —la rotación anterior es
+  /// tuya— y una sola vez por hueco. Las tres exenciones que ya existían en
+  /// /api/care/postural (no requiere rotación, no está en el edificio, el hueco
+  /// cruza una caída del sistema) apagan este campo; antes solo apagaban un
+  /// contador que no escribía en ninguna parte.
+  ///
+  /// Lo cuentan src/lib/compliance-score.ts y /api/hr/performance/[userId].
+  esImputable       Boolean  @default(false)
 
   patient Patient @relation(fields: [patientId], references: [id])
   nurse   User    @relation(fields: [nurseId], references: [id])

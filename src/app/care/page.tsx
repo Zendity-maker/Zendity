@@ -2013,13 +2013,13 @@ export default function ZendityCareTabletPage() {
                 // mensaje clínico. Antes se leía "Cambio Postural registrado.
                 // ¡Excelente tiempo clínico! +2 Puntos Zendity." — mezclando el
                 // registro del expediente con la puntuación de desempeño.
-                const atrasada = data.pointsDelta < 0;
-
+                // `tarde` es el hecho: pasaron más de 2h15 desde la rotación
+                // anterior de este residente. Ya no viene `pointsDelta` porque la
+                // penalidad dejó de decidirse aquí — ver src/lib/rotacion-imputable.ts.
                 avisoOk(
-                    atrasada
+                    data.tarde
                         ? `Cambio postural a ${position} registrado, fuera de la ventana de 2 horas.`
                         : `Cambio postural a ${position} registrado.`,
-                    data.pointsDelta,
                 );
                 refreshPatientsSilently(selectedColor!);
                 setActivePatient({

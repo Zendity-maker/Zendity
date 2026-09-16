@@ -127,7 +127,7 @@ export async function GET(req: Request, { params }: any) {
             // ── KPI 4: Rotaciones a Tiempo ────────────────────────────────────
             const [rotOnTime, rotLate] = await Promise.all([
                 prisma.posturalChangeLog.count({ where: { nurseId: userId, isComplianceAlert: false, performedAt: { gte: sevenDaysAgo } } }),
-                prisma.posturalChangeLog.count({ where: { nurseId: userId, isComplianceAlert: true, performedAt: { gte: sevenDaysAgo } } }),
+                prisma.posturalChangeLog.count({ where: { nurseId: userId, esImputable: true, performedAt: { gte: sevenDaysAgo } } }),
             ]);
             const totalRot = rotOnTime + rotLate;
             const rotationTimeliness = totalRot === 0 ? 100 : Math.round((rotOnTime / totalRot) * 100);

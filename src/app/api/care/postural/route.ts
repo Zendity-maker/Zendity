@@ -3,9 +3,9 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { ULCERA_ABIERTA } from '@/lib/upp';
-import { applyScoreEvent } from '@/lib/score-event';
 import { solapaConSinServicio } from '@/lib/ventanas-sin-servicio';
 import { resolverHoraReal } from '@/lib/hora-real';
+import { evaluarRotacion } from '@/lib/rotacion-imputable';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,31 +101,11 @@ export async function POST(req: Request) {
 
         const lastRotation = await prisma.posturalChangeLog.findFirst({
             where: { patientId },
-            orderBy: { performedAt: 'desc' }
+            orderBy: { performedAt: 'desc' },
+            // `nurseId` es lo que permite saber DE QUIEN era el hueco. Sin el,
+            // la tardanza la paga quien la cierra. Ver src/lib/rotacion-imputable.ts.
+            select: { nurseId: true, performedAt: true },
         });
-
-        let pointsDelta = 0;
-        let isLate = false;
-
-        if (lastRotation) {
-            // Contra el momento REAL de esta rotacion, no contra el reloj: si
-            // ella la hizo a las 7:00 y la registra a las 8:47, la tardanza se
-            // mide desde las 7:00. De lo contrario el sistema la castigaria por
-            // el rato que tardo en sentarse con la tableta.
-            const diffMs = momento.getTime() - new Date(lastRotation.performedAt).getTime();
-            const diffMins = diffMs / (1000 * 60);
-
-            // Objetivo 120 min. Tolerancia legal 15 mins (135 min max).
-            if (diffMins > 135) {
-                isLate = true;
-                pointsDelta = -5; // Castigo por negligencia (strike)
-            } else if (diffMins >= 60 && diffMins <= 135) {
-                pointsDelta = 2;  // Recompensa operativa impecable
-            }
-        } else {
-            // Primera rotación registrada de este paciente (Bonus inicial)
-            pointsDelta = 2;
-        }
 
         /**
          * ¿Se puede castigar por esta rotación?
@@ -147,53 +127,43 @@ export async function POST(req: Request) {
          */
         const requiereRotacion = patient.requiresPosturalChanges || patient.pressureUlcers.length > 0;
         const enElEdificio = patient.status === 'ACTIVE';
-        if (pointsDelta < 0 && (!requiereRotacion || !enElEdificio)) {
-            pointsDelta = 0;
-        }
 
         /**
-         * Tampoco se castiga si el hueco atraviesa una caída del sistema.
+         * LA EVALUACIÓN, EN UN SOLO SITIO.
          *
-         * La penalidad mira el tiempo desde la ultima rotacion. Tras la caida
-         * del 28-ago —casi ocho horas sin que el personal pudiera entrar— la
-         * PRIMERA rotacion que alguien registrara arrastraba el hueco entero y
-         * se llevaba los -5. Es decir: se castigaba justo a quien estaba
-         * cerrando el hueco, por un fallo que no era suyo.
+         * Tres exenciones, y hasta hoy las tres protegían una vía muerta: ponían
+         * `pointsDelta = 0`, y el bloque que leía `pointsDelta` estaba vacío
+         * desde el 05-sep. El único canal que de verdad cobra es el contador de
+         * banderas de `compliance-score.ts`, y ese leía `isComplianceAlert`, que
+         * ninguna exención tocaba. O sea que todo el trabajo de "no se castiga a
+         * quien no pudo entrar" y "no se castiga por no girar a quien nadie mandó
+         * girar" llevaba once días sin efecto.
          *
-         * Ver src/lib/ventanas-sin-servicio.ts.
+         * Ahora las exenciones apagan `esImputable`, que es lo que se cobra.
+         *
+         *   1. El residente no requiere rotación, o no estaba en el edificio.
+         *   2. El hueco atraviesa una caída del sistema — tras la del 28-ago,
+         *      casi ocho horas sin que nadie pudiera entrar, la primera rotación
+         *      que alguien registrara arrastraba el hueco entero.
+         *   3. Y la nueva: el hueco no es suyo, o ya se cobró una vez.
+         *      Ver src/lib/rotacion-imputable.ts.
          */
-        if (pointsDelta < 0 && lastRotation
-            && solapaConSinServicio(new Date(lastRotation.performedAt), new Date())) {
-            pointsDelta = 0;
-        }
+        const exento =
+            !requiereRotacion ||
+            !enElEdificio ||
+            (!!lastRotation && solapaConSinServicio(new Date(lastRotation.performedAt), new Date()));
 
-        // Gamificación HR (Deducción o Ganancia)
-        if (pointsDelta !== 0) {
-            const rotReason = pointsDelta > 0
-                ? 'Rotación UPP a tiempo'
-                : 'Rotación UPP retrasada (>135 min)';
-            /**
-             * La penalidad queda AQUI y solo aqui: `applyScoreEvent` escribe un
-             * ScoreEvent con categoria ROTATION a nombre de la persona, que es
-             * donde vive el desempeno del personal.
-             *
-             * ANTES ESCRIBIA ADEMAS UN INCIDENTE CLINICO EN EL EXPEDIENTE DEL
-             * RESIDENTE, con `type: "ULCER"` y firma "zendity-ai-auditor".
-             *
-             * Medido en Cupey el 05-sep-2026: 129 filas en el registro de
-             * incidentes de la sede, y las 129 eran esto. CERO incidentes
-             * clinicos reales. Luz M. Rios —que si tiene una ulcera sacra
-             * estadio 4— acumulaba 32 "incidentes de ulcera" en su expediente
-             * que no eran suyos, sino sanciones al personal.
-             *
-             * Tres cosas mal a la vez: el registro clinico dejaba de servir para
-             * lo clinico, el badge del supervisor contaba sanciones como tareas
-             * de piso, y una auditoria externa leeria 129 incidentes de ulcera
-             * en un hogar que tiene cuatro.
-             *
-             * Ademas era doble contabilidad: el ScoreEvent ya existia. Esto no
-             * anadia informacion, solo la ponia donde no va.
-             */
+        const veredicto = await evaluarRotacion({
+            caregiverId,
+            anterior: lastRotation,
+            momento,
+            exento,
+        });
+
+        if (veredicto.tarde && !veredicto.imputable) {
+            // Se deja constancia de por qué no se cobró. La fila guarda el hecho;
+            // el motivo vive en el log, que es donde se puede auditar una regla.
+            console.log(`[postural] tardía no imputable (${veredicto.porque})`, { patientId, caregiverId });
         }
 
         const newRotation = await prisma.posturalChangeLog.create({
@@ -202,11 +172,20 @@ export async function POST(req: Request) {
                 nurseId: caregiverId,
                 position,
                 performedAt: momento,
-                isComplianceAlert: isLate
+                // El hecho clínico. No se apaga nunca: un hueco de quince horas
+                // es un problema aunque a nadie se le cobre.
+                isComplianceAlert: veredicto.tarde,
+                // La factura. Es lo único que mira el desempeño.
+                esImputable: veredicto.imputable,
             }
         });
 
-        return NextResponse.json({ success: true, rotation: newRotation, pointsDelta });
+        return NextResponse.json({
+            success: true,
+            rotation: newRotation,
+            tarde: veredicto.tarde,
+            imputable: veredicto.imputable,
+        });
 
     } catch (error) {
         console.error("Postural Change Route Error:", error);

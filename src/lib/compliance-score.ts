@@ -157,8 +157,23 @@ export async function calculateDynamicScore(userId: string) {
         prisma.medicationAdministration.count({
             where: { administeredById: userId, status: 'OMITTED', createdAt: { gte: sevenDaysAgo } }
         }),
+        /**
+         * SE CUENTA LA FACTURA, NO EL HECHO.
+         *
+         * Esto contaba `isComplianceAlert`, que es el hecho clínico —hubo un
+         * hueco— y lo cobraba a 8 puntos. Pero el hueco lo paga quien lo CIERRA,
+         * no quien lo abre: medido el 16-sep-2026, 18 de las 26 banderas de 30
+         * días eran huecos heredados de otra persona, y 17 cayeron sobre la misma
+         * cuidadora.
+         *
+         * `esImputable` es el campo que separa las dos cosas. El hecho se queda
+         * en el expediente para que el supervisor lo vea; lo que se cobra es solo
+         * el hueco propio, y una vez por hueco.
+         *
+         * Ver src/lib/rotacion-imputable.ts.
+         */
         prisma.posturalChangeLog.count({
-            where: { nurseId: userId, isComplianceAlert: true, performedAt: { gte: sevenDaysAgo } }
+            where: { nurseId: userId, esImputable: true, performedAt: { gte: sevenDaysAgo } }
         }),
         prisma.fastActionAssignment.count({
             // Excluir NOTAS ([NOTA]) — son instrucciones sin penalización, no
