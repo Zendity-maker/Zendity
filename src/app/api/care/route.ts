@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { todayStartAST } from '@/lib/dates';
+import { todayStartAST, astDateTime } from '@/lib/dates';
 import { ACTIVE_PRESENCE_MAX_HOURS } from '@/lib/shift-coverage';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
@@ -49,6 +49,17 @@ export async function GET(req: Request) {
 
         const todayStart = todayStartAST();
         const todayEnd = new Date();
+
+        /**
+         * El DIA CALENDARIO de Puerto Rico, de medianoche a medianoche.
+         *
+         * No es lo mismo que `todayStartAST()`, que devuelve el arranque del DIA
+         * CLINICO — las 6:00 AM. Esa frontera parte en dos el pack de las 5:00 AM,
+         * que es exactamente lo que rompio la ronda de tiroides del 16-sep. Para
+         * decidir si una dosis pautada es "de hoy" hace falta el dia natural.
+         */
+        const inicioDelDiaAST = astDateTime(todayEnd, 0, 0);
+        const finDelDiaAST = new Date(inicioDelDiaAST.getTime() + 24 * 60 * 60 * 1000);
         // Cap UNIFICADO de presencia (16h sliding). Alineado con
         // isSoloCaregiver y caregiver-rounds — los 3 call-sites que cuentan
         // "presencia" en piso usan el mismo umbral.
@@ -119,10 +130,36 @@ export async function GET(req: Request) {
                     },
                     include: {
                         medication: true,
-                        // Administraciones de HOY (ventana AST) para calcular packs completos en el tablet
+                        /**
+                         * QUE DOSIS DE HOY YA ESTAN RESUELTAS.
+                         *
+                         * Esto filtraba por `createdAt` dentro del dia clinico, y desde
+                         * el 15-sep-2026 `createdAt` DEJO DE SIGNIFICAR "cuando se cuido":
+                         * ahora la fila la crea el cron a las 06:00:37, asi que esa fecha
+                         * dice cuando corrio el cron y nada mas.
+                         *
+                         * LO QUE ESO ROMPIO, el 16-sep a las 5 de la madrugada. El dia
+                         * clinico empieza a las 6:00 AM y hay un pack a las 5:00 AM, o sea
+                         * justo del otro lado de la frontera. La firma de la ronda de
+                         * tiroides del dia anterior vivia en una fila creada a las
+                         * 06:00:39 — dentro del dia clinico que aun corria— asi que la
+                         * tableta la conto como de hoy y enseño el pack COMPLETO.
+                         * Carlos Negron y Yedaira Gonzalez administraron las diez dosis y
+                         * el sistema ya se creia firmado. A las 6:30 el barrido las marco
+                         * omitidas. Diez residentes medicados y un expediente que decia
+                         * lo contrario.
+                         *
+                         * LA REGLA CORRECTA: una dosis se identifica por `scheduledTime`
+                         * —el instante para el que estaba pautada—, no por cuando se
+                         * escribio la fila. `createdAt` solo decide en las filas que no
+                         * tienen hora pautada: PRN, semanales y lo anterior al cron.
+                         */
                         administrations: {
                             where: {
-                                createdAt: { gte: todayStart, lte: todayEnd },
+                                OR: [
+                                    { scheduledTime: { gte: inicioDelDiaAST, lt: finDelDiaAST } },
+                                    { scheduledTime: null, createdAt: { gte: todayStart, lte: todayEnd } },
+                                ],
                                 // HELD incluido desde sep-2026: una omision por
                                 // indicacion medica ya no se guarda como OMITTED.
                                 // Ver src/lib/omision-medicamento.ts.

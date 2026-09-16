@@ -137,19 +137,53 @@ export async function POST(req: Request) {
          * administración se conserva —lo ya resuelto no se vuelve a escribir—
          * pero deja de castigar a quien registra lo que de verdad pasó.
          */
+        /**
+         * LA DOSIS SE IDENTIFICA POR SU HORA PAUTADA, NO POR CUANDO SE ESCRIBIO.
+         *
+         * Esta guarda buscaba por `createdAt >= todayStartAST()`. Las dos mitades
+         * de esa condicion dejaron de servir el 15-sep-2026:
+         *
+         *   · `createdAt` ya no dice cuando se cuido. La fila la crea el cron a
+         *     las 06:00:37, asi que esa fecha dice cuando corrio el cron.
+         *   · `todayStartAST()` es el arranque del DIA CLINICO, las 6:00 AM. Y
+         *     hay un pack a las 5:00 AM — del otro lado de la frontera.
+         *
+         * Juntas produjeron esto el 16-sep de madrugada: la ronda de tiroides
+         * firmada el dia anterior vivia en una fila creada a las 06:00:39, que
+         * seguia dentro del dia clinico en curso. La guarda la conto como de hoy
+         * y devolvio 409 "Este pack ya fue procesado hoy". Carlos Negron y
+         * Yedaira Gonzalez administraron las diez dosis con la tableta
+         * diciendoles que ya estaban firmadas.
+         *
+         * `conciliarPack` no tiene ese problema: reconstruye el instante exacto
+         * de la franja para HOY y busca por la llave unica
+         * (patientMedicationId, scheduledTime). Una dosis de ayer no puede
+         * colarse, porque su instante es otro.
+         */
+        const ahoraGuarda = new Date();
         let idsAProcesar: string[] = medicationIds;
         let yaResueltos = 0;
         if ((isPack || isOmit) && scheduleTime) {
-            const resueltos = await prisma.medicationAdministration.findMany({
-                where: {
-                    patientMedicationId: { in: medicationIds },
-                    scheduleTime,
-                    createdAt: { gte: todayStartAST() },
-                    status: { in: ['ADMINISTERED', 'OMITTED', 'REFUSED', 'HELD'] }
-                },
-                select: { patientMedicationId: true }
-            });
-            const yaHechos = new Set(resueltos.map(r => r.patientMedicationId));
+            const previo = await conciliarPack(medicationIds, scheduleTime, ahoraGuarda);
+            const yaHechos = new Set(previo.yaResueltos);
+
+            // Las recetas sin fila pautada —PRN, semanales, recetadas despues del
+            // cron— no las cubre la llave unica. Para esas se conserva la guarda
+            // vieja, que es lo que habia antes de que el cron existiera.
+            if (previo.sinFila.length > 0) {
+                const legacy = await prisma.medicationAdministration.findMany({
+                    where: {
+                        patientMedicationId: { in: previo.sinFila },
+                        scheduleTime,
+                        scheduledTime: null,
+                        createdAt: { gte: todayStartAST() },
+                        status: { in: ['ADMINISTERED', 'OMITTED', 'REFUSED', 'HELD'] },
+                    },
+                    select: { patientMedicationId: true },
+                });
+                legacy.forEach(r => yaHechos.add(r.patientMedicationId));
+            }
+
             yaResueltos = yaHechos.size;
             idsAProcesar = medicationIds.filter((id: string) => !yaHechos.has(id));
 
