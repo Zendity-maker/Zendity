@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { resolverHoraReal } from '@/lib/hora-real';
+import { evaluarRotacion } from '@/lib/rotacion-imputable';
+import { solapaConSinServicio } from '@/lib/ventanas-sin-servicio';
+import { ULCERA_ABIERTA } from '@/lib/upp';
 
 const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
@@ -99,16 +102,70 @@ export async function POST(req: Request) {
                 });
             }
 
+            /**
+             * ESTA PANTALLA TAMBIEN MIDE. Antes escribia `isComplianceAlert: false`
+             * en duro, o sea que declaraba "a tiempo" sin mirar el reloj.
+             *
+             * Medido el 16-sep-2026: de 5.454 rotaciones en 30 dias, **5.316 —el
+             * 97,5%— salen por aqui** y ninguna se evaluaba. Las 138 restantes
+             * pasaban por /api/care/postural y cargaban las 48 banderas de la casa.
+             * O sea que la penalidad no medía el trabajo: medía QUE PANTALLA usaste.
+             *
+             * Y era peor que no medir, porque `compliance-score.ts` cuenta
+             * `isComplianceAlert: false` como rotacion PUNTUAL: la pantalla que no
+             * medía, PREMIABA. Diez de trece cuidadoras marcaban exactamente 100%
+             * de puntualidad. Carlos Negron tenia 667 rotaciones, cero banderas, y
+             * era dueño de 5 de los 18 huecos que se le cobraron a otra persona.
+             *
+             * Con la regla de autoria esto no dispara una avalancha: de 1.110
+             * huecos reales de mas de 135 min en 30 dias, 592 son del propio autor
+             * y quedan **148 imputables**, repartidas entre doce personas. Era la
+             * misma medicion que antes daba ~1.100 con la regla vieja de cobrarle
+             * al que cierra.
+             */
+            const anterior = await prisma.posturalChangeLog.findFirst({
+                where: { patientId },
+                orderBy: { performedAt: 'desc' },
+                select: { nurseId: true, performedAt: true },
+            });
+
+            const conOrden = await prisma.patient.findUnique({
+                where: { id: patientId },
+                select: {
+                    status: true,
+                    requiresPosturalChanges: true,
+                    pressureUlcers: { where: ULCERA_ABIERTA, select: { id: true } },
+                },
+            });
+
+            const exento =
+                !conOrden ||
+                !(conOrden.requiresPosturalChanges || conOrden.pressureUlcers.length > 0) ||
+                conOrden.status !== 'ACTIVE' ||
+                (!!anterior && solapaConSinServicio(new Date(anterior.performedAt), new Date()));
+
+            const veredicto = await evaluarRotacion({
+                caregiverId: authorId,
+                anterior,
+                momento: hora.hora,
+                exento,
+            });
+
             await prisma.posturalChangeLog.create({
                 data: {
                     patientId,
                     nurseId: authorId,
                     position: position || "Rotación General (Pre-programada Zendi)",
                     performedAt: hora.hora,
-                    isComplianceAlert: false
+                    isComplianceAlert: veredicto.tarde,
+                    esImputable: veredicto.imputable,
                 }
             });
-            return NextResponse.json({ success: true, message: 'Rotación guardada' });
+            return NextResponse.json({
+                success: true,
+                message: 'Rotación guardada',
+                tarde: veredicto.tarde,
+            });
         } else if (type === 'RONDA_NOCTURNA') {
             /**
              * EL SELLO DE LA RONDA DE NOCHE.
