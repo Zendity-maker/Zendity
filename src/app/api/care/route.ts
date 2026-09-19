@@ -4,15 +4,72 @@ import { todayStartAST, astDateTime } from '@/lib/dates';
 import { ACTIVE_PRESENCE_MAX_HOURS } from '@/lib/shift-coverage';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { logError } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+/**
+ * QUIEN PUEDE PEDIR EL TABLERO DEL PISO.
+ *
+ * Esta ruta solo comprobaba que hubiera SESION, sin mirar el rol. Y devuelve,
+ * por cada uno de los 33 residentes de la sede: la medicacion activa con las
+ * dosis del dia, el resumen clinico y los riesgos del PAI, el detalle de
+ * dieta, los signos vitales de hoy y las ulceras por presion con localizacion
+ * y estadio. Ese cuadro clinico completo lo tenia CUALQUIER cuenta con sesion
+ * — al 16-sep-2026, en produccion: cocina, mantenimiento, el inversionista y
+ * la cuenta de RRHH. Minimo necesario de manual.
+ *
+ * La lista es quien cuida o responde por el cuidado. requireRole mira tambien
+ * los roles secundarios, asi que Celia (DIRECTOR + NURSE) y las dos
+ * supervisoras con CAREGIVER secundario entran por cualquiera de los dos.
+ */
+const QUIEN_CUIDA_EL_PISO = [
+    // El piso. Esta ruta ES su tableta: eligen color, firman dosis y registran
+    // el cambio de aposito sobre esta misma respuesta.
+    'CAREGIVER', 'NURSE', 'SUPERVISOR',
+    // Responden por el cuidado y aterrizan en "/", que pide esta ruta con
+    // ?color=ALL para el widget de estado de residentes.
+    'DIRECTOR', 'ADMIN', 'CLINICAL_DIRECTOR', 'HQ_OWNER', 'SUPER_ADMIN',
+    // Trabajo social: dos cuentas activas, con contacto directo con el
+    // residente, y AuthContext no las rebota de "/". Entra para no dejarles el
+    // widget en ceros; si se decide que no necesitan medicacion ni estadio de
+    // ulcera, lo que toca es una ruta mas flaca, no un panel que miente.
+    'SOCIAL_WORKER',
+];
+
+/**
+ * Fuera a proposito, y por que:
+ *
+ *  · KITCHEN     — necesita la dieta, no el estadio de una ulcera ni la lista
+ *                  de medicamentos. Ya tiene su censo con dieta y textura en
+ *                  /api/kitchen/dashboard.
+ *  · MAINTENANCE — circulan por el edificio; no cuidan a nadie.
+ *  · CLEANING
+ *  · INVESTOR    — panel de socios, sin PHI por diseño.
+ *  · HR_MANAGER  — el rol se creo (24-ago-2026) explicitamente SIN acceso
+ *                  clinico: personal si, residentes no. Ver el enum Role.
+ *  · FAMILY      — tiene sesion y headquartersId; con la guarda vieja podia
+ *                  leer el censo clinico entero, no solo a su familiar.
+ *  · THERAPIST, BEAUTY_SPECIALIST, COORDINATOR — AuthContext los confina a
+ *                  /specialists y /coordinator, y ninguna de esas pantallas
+ *                  llama aqui (los unicos consumidores son "/" y /care).
+ *                  Incluirlos no abriria ninguna pantalla y si ampliaria la
+ *                  superficie. Si alguno pasa a llevar tableta de piso se
+ *                  añade aqui; y un COORDINATOR con NURSE o DIRECTOR
+ *                  secundario ya entra hoy por el rol secundario.
+ */
+
 // GET: Obtiene residentes filtrados por el Color seleccionado en el turno
 export async function GET(req: Request) {
     try {
+        const auth = await requireRole(QUIEN_CUIDA_EL_PISO);
+        if (auth instanceof NextResponse) return auth;
+
+        // resolveEffectiveHqId todavia pide el Session crudo de NextAuth (no el
+        // SessionUser de requireRole); se lee aparte, ya pasado el gate de rol.
         const session = await getServerSession(authOptions);
         if (!session?.user) {
             return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
@@ -21,7 +78,7 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url);
         const colorParam = searchParams.get('color') || 'UNASSIGNED';
         const requestedHqId = searchParams.get('hqId');
-        const invokerId = (session.user as any).id;
+        const invokerId = auth.id;
 
         // Sprint N.4 — multi-color. El param puede venir como 'RED' (legacy)
         // o 'RED,YELLOW' (sustituto cubriendo varios grupos). Split por coma.
