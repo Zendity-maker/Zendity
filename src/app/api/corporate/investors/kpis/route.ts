@@ -77,6 +77,182 @@ export const GET = withPhiAccessLog(getKpisHandler, {
     action: PhiAccessAction.READ,
 });
 
+/** Lo que cada sede aporta a la suma. Interno: no sale en el payload. */
+interface AporteSede {
+    hqId: string;
+    name: string;
+    capacity: number;
+    ocupadas: number;
+    fisicos: number;
+    enHospital: number;
+    camasLibres: number;
+    mrr: number;
+    facturadoMes: number;
+    cobradoMes: number;
+    vencidoTotal: number;
+    brechaFacturacion: number;
+    mesesCerradosConDatos: number;
+    ingresosCerrados: number;
+    gastosCerrados: number;
+    mesesDeLaVentana: string[];
+    gastoMesEnCurso: number;
+    gastoPrevioALaSerie: number;
+    esPreApertura: boolean;
+}
+
+/**
+ * LA VISTA CONSOLIDADA — pedida por el dueño el 19-sep-2026: "una vista
+ * consolidada de ambas me gusta."
+ *
+ * Es dueño de Cupey y de Mayagüez, y el número de su negocio es la suma. Hasta
+ * hoy el payload era un array por sede y el total no existía en ninguna parte:
+ * había que sacarlo a mano de dos pestañas, que es justo donde se cometen los
+ * errores que siguen.
+ *
+ * ── LOS PORCENTAJES SE RECALCULAN, NO SE PROMEDIAN ────────────────────────
+ * El margen consolidado es (ingresos totales − gastos totales) / ingresos
+ * totales. NUNCA el promedio de los márgenes de cada sede. Con estos datos la
+ * diferencia todavía no muerde porque solo una sede aporta, pero en cuanto
+ * Mayagüez facture, promediar un 30% de una sede que factura 139.048 con un 5%
+ * de otra que factura 4.000 daría 17,5% cuando el negocio va al 29%. Lo mismo
+ * vale para la ocupación: camas ocupadas sobre camas totales, no la media de
+ * dos porcentajes calculados sobre denominadores distintos.
+ *
+ * ── QUÉ HACE UNA SEDE SIN MESES CERRADOS ──────────────────────────────────
+ * NO entra en el margen consolidado, y su gasto TAMPOCO. No es un trato
+ * especial para Mayagüez: es la misma regla que ya rige por sede —el margen se
+ * mide sobre meses CERRADOS— aplicada a la suma. El septiembre de Cupey
+ * (88.417 facturados contra 22.041 de gasto a día 19) está fuera por la misma
+ * razón que el de Mayagüez.
+ *
+ * Si se metiera el gasto de Mayagüez sin su ingreso, el margen consolidado
+ * pasaría de 42.012,91 sobre 139.048 (30%) a 25.346,25 sobre 139.048 (18%): un
+ * derrumbe de doce puntos que no ocurrió, producido por sumar un costo de
+ * septiembre a unos ingresos de julio y agosto. Sería la misma aritmética que
+ * el mes en curso ya tiene prohibida.
+ *
+ * Pero ese gasto NO se esconde, que es la otra forma de mentir: viaja en
+ * `gastoDeSedesSinCerrar`, con su propio nombre y contado aparte, para que se
+ * vea que existe sin que contamine un margen.
+ *
+ * ── UNA SOLA SEDE ─────────────────────────────────────────────────────────
+ * Devuelve null. Un "consolidado" de una sede es la misma sede dos veces, y
+ * repetir un número en otra tarjeta lo hace parecer una segunda confirmación.
+ *
+ * ── PRIVACIDAD ────────────────────────────────────────────────────────────
+ * Solo agregados y nombres de SEDE. Ni residentes, ni facturas, ni staff.
+ * Aplica la regla de la cabecera de esta ruta.
+ */
+function consolidar(aportes: AporteSede[]) {
+    if (aportes.length < 2) return null;
+
+    const suma = (f: (a: AporteSede) => number) => round2(aportes.reduce((s, a) => s + f(a), 0));
+
+    const aportanMargen = aportes.filter(a => a.mesesCerradosConDatos > 0);
+    const sinCerrar = aportes.filter(a => a.mesesCerradosConDatos === 0);
+
+    const ingresos = round2(aportanMargen.reduce((s, a) => s + a.ingresosCerrados, 0));
+    const gastos = round2(aportanMargen.reduce((s, a) => s + a.gastosCerrados, 0));
+    const margen = round2(ingresos - gastos);
+
+    // Los meses que de verdad entraron en la suma. Si dos sedes tuvieran
+    // ventanas distintas —cada una mira SUS tres últimos cerrados— esto lo
+    // enseña en vez de dejar creer que es el mismo trimestre para las dos.
+    const meses = [...new Set(aportanMargen.flatMap(a => a.mesesDeLaVentana))].sort();
+
+    const capacity = aportes.reduce((s, a) => s + a.capacity, 0);
+    const ocupadas = aportes.reduce((s, a) => s + a.ocupadas, 0);
+
+    return {
+        sedes: aportes.length,
+        nombres: aportes.map(a => a.name),
+
+        rentabilidad: {
+            /** Meses cerrados (con gastos cargados) que entran en la suma. */
+            meses,
+            desde: meses[0] ?? null,
+            hasta: meses[meses.length - 1] ?? null,
+            ingresos,
+            gastos,
+            margen,
+            // Recalculado sobre los totales. Nunca el promedio de los márgenes.
+            margenPct: ingresos > 0 ? Math.round((margen / ingresos) * 100) : null,
+            sedesQueAportan: aportanMargen.length,
+            sedesSinMesesCerrados: sinCerrar.length,
+            /**
+             * Gasto REAL de las sedes que no aportan al margen, dentro de su
+             * propia ventana. Hoy: los 16.666,66 de renta de Mayagüez en
+             * septiembre. Está fuera del margen a propósito —no tiene ingreso
+             * contra el cual medirse— y se enseña aparte para que nadie lo dé
+             * por perdido ni lo sume por su cuenta al 42.012,91 de arriba.
+             */
+            gastoDeSedesSinCerrar: round2(sinCerrar.reduce((s, a) => s + a.gastoMesEnCurso, 0)),
+            /**
+             * Gasto acumulado por sedes en pre-apertura ANTES de que empezara su
+             * serie: 168.333,21 de Mayagüez en once meses (oct-2025 → ago-2026),
+             * todo renta, contra cero facturado.
+             *
+             * Es inversión previa a la apertura, no una pérdida operativa, y por
+             * eso no toca ningún margen. La base NO guarda quién pagó esa renta:
+             * el acuerdo de que sale de fondos de Cupey y Mayagüez se la devuelve
+             * es una decisión del dueño del 19-sep-2026, no un dato del sistema.
+             * La pantalla puede llamarlo "invertido antes de abrir"; no puede
+             * llamarlo "deuda entre sedes" sin que alguien lo confirme fuera.
+             */
+            gastoPreAperturaAcumulado: round2(aportes.reduce((s, a) => s + a.gastoPrevioALaSerie, 0)),
+        },
+
+        ocupacion: {
+            capacity,
+            ocupadas,
+            camasLibres: aportes.reduce((s, a) => s + a.camasLibres, 0),
+            // Sobre las camas totales de las dos sedes, no la media de dos %.
+            occupancyRate: capacity > 0 ? Math.round((ocupadas / capacity) * 100) : 0,
+            /**
+             * Camas que están en el denominador pero en una sede que todavía no
+             * abrió. Hoy son 50 de 100, y por eso la ocupación consolidada sale
+             * 32% mientras Cupey sola va al 64%. El 32% es aritméticamente
+             * correcto —el dueño paga por las dos plantas— pero sin este número
+             * al lado se lee como que el negocio está medio vacío, cuando lo que
+             * está vacío es un edificio que abre en octubre. Va aparte para que
+             * la pantalla pueda decir las dos cosas sin recalcular nada.
+             */
+            camasEnPreApertura: aportes.filter(a => a.esPreApertura).reduce((s, a) => s + a.capacity, 0),
+            /** La misma ocupación contando solo sedes abiertas. Hoy: 64%. */
+            occupancyRateAbiertas: (() => {
+                const abiertas = aportes.filter(a => !a.esPreApertura);
+                const cap = abiertas.reduce((s, a) => s + a.capacity, 0);
+                const ocu = abiertas.reduce((s, a) => s + a.ocupadas, 0);
+                return cap > 0 ? Math.round((ocu / cap) * 100) : null;
+            })(),
+        },
+
+        residentes: {
+            total: ocupadas,
+            fisicos: aportes.reduce((s, a) => s + a.fisicos, 0),
+            enHospital: aportes.reduce((s, a) => s + a.enHospital, 0),
+        },
+
+        /**
+         * El mes en curso consolidado va SIN margen, a propósito. Sumar el
+         * facturado de las dos sedes es legítimo —son dólares del mismo mes— pero
+         * un margen del mes en curso ya está prohibido por sede (la facturación
+         * sale el día 1 y los gastos llegan goteando), y consolidarlo lo empeora:
+         * hoy mezclaría los 88.417 de Cupey con los 16.666 de renta de una sede
+         * que todavía no factura.
+         */
+        mesEnCurso: {
+            facturado: suma(a => a.facturadoMes),
+            cobrado: suma(a => a.cobradoMes),
+            vencidoTotal: suma(a => a.vencidoTotal),
+            brechaFacturacion: suma(a => a.brechaFacturacion),
+        },
+
+        /** Ingreso recurrente de las dos sedes juntas. */
+        mrr: suma(a => a.mrr),
+    };
+}
+
 async function getKpisHandler(_req: Request) {
     try {
         const auth = await requireRole(ALLOWED_ROLES);
@@ -128,6 +304,7 @@ async function getKpisHandler(_req: Request) {
         const seriesFloor = new Date(Date.UTC(SERIES_FLOOR.year, SERIES_FLOOR.month, 1));
 
         const kpisByHq = [];
+        const aportes: AporteSede[] = [];
 
         for (const hq of targetHqs) {
             // Ancla POR SEDE: el mayor entre el piso global y el mes de
@@ -157,6 +334,7 @@ async function getKpisHandler(_req: Request) {
                 staffAll,
                 clinicalStaff,
                 fhs,
+                facturasHistoricas,
             ] = await Promise.all([
                 // Censo facturable — cama reservada = cama que factura
                 prisma.patient.findMany({
@@ -205,6 +383,12 @@ async function getKpisHandler(_req: Request) {
                     select: { complianceScore: true },
                 }),
                 calculateFacilityHealthScore(hq.id),
+                // SIN ventana de fechas A PROPÓSITO: la pregunta no es "¿cuánto
+                // facturó este mes?" sino "¿esta sede ha facturado ALGUNA VEZ?".
+                // Es lo que separa una sede que todavía no abrió de una que abrió
+                // y tuvo un mes flojo. Mayagüez: 0 facturas desde que existe
+                // (medido 19-sep-2026). Cupey: 95.
+                prisma.invoice.count({ where: { headquartersId: hq.id } }),
             ]);
 
             // ── Ocupación ────────────────────────────────────────────────
@@ -294,8 +478,124 @@ async function getKpisHandler(_req: Request) {
              * aparte y marcado, para verlo sin que contamine.
              */
             const mesEnCursoKey = `${y}-${String(m + 1).padStart(2, '0')}`;
-            const { ultimosTresCerrados, enCurso } = partirPorCierre(profitSeries, mesEnCursoKey);
+            const { cerrados, ultimosTresCerrados, enCurso } = partirPorCierre(profitSeries, mesEnCursoKey);
             const profitSummary = summarizeProfitability(ultimosTresCerrados);
+
+            /**
+             * DOS CAUSAS DISTINTAS QUE HASTA HOY DECÍAN LA MISMA FRASE.
+             *
+             * `profitSummary.mesesConDatos === 0` se leía siempre como "falta
+             * cargar los gastos". Para Mayagüez eso era FALSO y además le echaba
+             * la culpa al dueño: sus gastos SÍ están cargados —16.666,66 de renta
+             * en septiembre, cargados el 16-sep a las 12:03— y aun así el bullet
+             * le pedía que los cargara. Lo que no tiene es un mes CERRADO: entró
+             * al sistema el 02-sep y abre en octubre, así que su serie empieza en
+             * septiembre y septiembre todavía no termina. `cerrados` sale vacío,
+             * `summarizeProfitability([])` devuelve mesesConDatos 0 Y
+             * mesesSinDatos 0 —no hay meses de los que faltar nada— y las dos
+             * situaciones caían en el mismo `else`.
+             *
+             * Se separan:
+             *   SIN_MESES_CERRADOS  → no se le pide nada. Se le dice lo que es.
+             *   SIN_GASTOS_CARGADOS → hay meses cerrados y nadie cargó gastos.
+             */
+            const motivoSinRentabilidad: 'SIN_MESES_CERRADOS' | 'SIN_GASTOS_CARGADOS' | null =
+                profitSummary.mesesConDatos > 0
+                    ? null
+                    : cerrados.length === 0
+                        ? 'SIN_MESES_CERRADOS'
+                        : 'SIN_GASTOS_CARGADOS';
+
+            const ventanaRentabilidad = {
+                /** Primer mes de la serie de ESTA sede (el ancla, no el piso global). */
+                desde: profitSeries[0]?.mes ?? mesEnCursoKey,
+                /** Último mes CERRADO. null cuando la sede no ha cerrado ninguno. */
+                hasta: cerrados.length > 0 ? cerrados[cerrados.length - 1].mes : null,
+                mesEnCurso: mesEnCursoKey,
+                /** Meses cerrados que EXISTEN en la serie de la sede. */
+                mesesCerrados: cerrados.length,
+                /** De esos, los que entran en el margen (los tres últimos). */
+                mesesEnResumen: ultimosTresCerrados.length,
+                motivoSinRentabilidad,
+            };
+
+            /**
+             * ¿ESTA SEDE ABRIÓ YA?
+             *
+             * `isOpen` del payload NO contesta esto y por eso no se reutiliza:
+             * sale de `hq.isActive`, y `targetHqs` ya filtra `isActive: true`, así
+             * que hoy `isOpen` es true para TODAS las sedes que llegan aquí —
+             * incluida Mayagüez, que abre en octubre. `isActive` significa "la
+             * sede está dada de alta en el sistema", que es otra pregunta.
+             *
+             * Pre-apertura = CENSO VACÍO, nunca emitió una factura, y ningún mes
+             * cerrado. Se piden las TRES:
+             *
+             *  · sin facturas pero con meses cerrados → una sede abierta que no
+             *    está cobrando. Eso es una alarma, no una obra en curso.
+             *  · con facturas pero sin meses cerrados → una sede que abrió este
+             *    mismo mes.
+             *  · con residentes pero sin facturas todavía → una sede que YA
+             *    ABRIÓ y cuya primera facturación aún no salió. Sin esta tercera
+             *    condición, Mayagüez en octubre —primeros ingresos el día 3, el
+             *    cron de facturas corre el día 1 del mes siguiente— seguiría
+             *    marcada como pre-apertura, y el bullet de abajo afirmaría "no
+             *    recibe residentes" en la misma lista donde el primer bullet ya
+             *    dice "Ocupación 6% — 3 de 50 camas". Un rótulo no puede afirmar
+             *    un estado que el censo de dos líneas más arriba desmiente.
+             *
+             * Hoy (19-sep-2026) las tres valen para Mayagüez: 0 residentes
+             * facturables, 0 facturas en toda su vida, 0 meses cerrados.
+             */
+            const esPreApertura = billable.length === 0 && facturasHistoricas === 0 && cerrados.length === 0;
+
+            /**
+             * GASTO CARGADO ANTES DE QUE EMPEZARA LA SERIE.
+             *
+             * Solo se calcula para una sede en pre-apertura, y no por ahorro: para
+             * Cupey este número sería 47.405,72 —el junio que el SERIES_FLOOR deja
+             * fuera a propósito— y eso NO es inversión previa a la apertura, es un
+             * mes operativo excluido. El mismo número significa cosas opuestas
+             * según la sede, así que solo se expone donde significa una.
+             *
+             * En Mayagüez son 168.333,21 en once meses (oct-2025 → ago-2026), todo
+             * de categoría RENT, contra cero facturado. Es renta pagada de un
+             * edificio que todavía no recibe a nadie.
+             *
+             * LO QUE ESTE NÚMERO NO DICE: quién puso el dinero. El dueño decidió
+             * el 19-sep-2026 que la renta de Mayagüez la pagan fondos de Cupey y
+             * se contabiliza en Mayagüez, que se la devolverá. Eso es un acuerdo
+             * entre socios, no una columna de la base: `MonthlyExpense` no guarda
+             * quién pagó. Por eso el campo se llama gasto, no deuda, y la pantalla
+             * no debe llamarlo "lo que Mayagüez le debe a Cupey" sin que alguien
+             * lo confirme fuera del sistema.
+             */
+            let gastoPrevioALaSerie: number | null = null;
+            let mesesDeGastoPrevio = 0;
+            let primerMesConGasto: string | null = null;
+            if (esPreApertura) {
+                const previos = await prisma.monthlyExpense.findMany({
+                    where: { headquartersId: hq.id, periodMonth: { lt: seriesStart } },
+                    select: { periodMonth: true, amount: true },
+                    orderBy: { periodMonth: 'asc' },
+                });
+                if (previos.length > 0) {
+                    gastoPrevioALaSerie = round2(previos.reduce((s, e) => s + e.amount, 0));
+                    mesesDeGastoPrevio = new Set(previos.map(e => e.periodMonth.toISOString().slice(0, 7))).size;
+                    primerMesConGasto = previos[0].periodMonth.toISOString().slice(0, 7);
+                }
+            }
+
+            const apertura = {
+                /** Mes en que la sede entró al sistema (Headquarters.createdAt). */
+                mesAlta: `${(hqCreated ?? now).getUTCFullYear()}-${String((hqCreated ?? now).getUTCMonth() + 1).padStart(2, '0')}`,
+                /** true = la sede no ha emitido una sola factura en toda su vida. */
+                sinFacturacionHistorica: facturasHistoricas === 0,
+                esPreApertura,
+                gastoPrevioALaSerie,
+                mesesDeGastoPrevio,
+                primerMesConGasto,
+            };
             // La estructura de costos suma la ventana entera: con un solo mes
             // desaparecen las categorías que ese mes no llevaba cargadas.
             const estructura = estructuraDeCostos(ultimosTresCerrados);
@@ -308,6 +608,35 @@ async function getKpisHandler(_req: Request) {
 
             // ── Resumen ejecutivo — bullets deterministas desde los datos ──
             const fmt = (n: number) => `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+
+            /**
+             * EL BULLET QUE IMPRIMÍA LA PALABRA "null".
+             *
+             * Decía, tal cual, lo que veía un socio al abrir la pantalla:
+             *   Cupey:    "Salud operativa: 70/100 (ALERTA) — compliance clínico
+             *              promedio null/100."
+             *   Mayagüez: "Salud operativa: null/100 (null) — compliance clínico
+             *              promedio null/100."
+             *
+             * `avgCompliance` es null desde el 09-sep porque Z_SCORE_VISIBLE está
+             * en false, y `${null}` dentro de un template string no desaparece:
+             * escribe las cuatro letras. El comentario de arriba prometía que "la
+             * pantalla omite la tarjeta" y esa guarda nunca se escribió.
+             *
+             * La guarda va sobre el VALOR, no sobre el flag. Si se escribiera
+             * `if (Z_SCORE_VISIBLE)` el bug sobreviviría a su propio arreglo: el
+             * día que se encienda el flag, Mayagüez —cero empleados clínicos—
+             * seguiría dando null y volvería a imprimir "null". Un null se
+             * comprueba donde está, no donde creemos que se originó.
+             *
+             * Lo mismo con `fhs.score`, que desde el 19-sep puede ser null cuando
+             * la sede no tiene expedientes que medir (ver facility-health.ts).
+             */
+            const bulletSalud = fhs.score !== null
+                ? `Salud operativa: ${fhs.score}/100 (${fhs.grade})` +
+                  (avgCompliance !== null ? ` — compliance clínico promedio ${avgCompliance}/100.` : '.')
+                : `Salud operativa: no se mide todavía — ${fhs.motivoNoMedible ?? 'sin datos clínicos'}.`;
+
             const resumen: string[] = [
                 `Ocupación ${occupancyRate}% — ${billable.length} de ${capacity} camas${enHospital > 0 ? ` (${enHospital} en hospital con cama reservada)` : ''}${altasMes > 0 ? `, +${altasMes} admisión${altasMes > 1 ? 'es' : ''} este mes` : ''}${bajasMes > 0 ? `, −${bajasMes} egreso${bajasMes > 1 ? 's' : ''}` : ''}.`,
                 `Mes en curso: ${fmt(facturadoMes)} facturado, ${fmt(cobradoMes)} cobrado${tasaCobranza !== null ? ` (${tasaCobranza}% cobranza)` : ''}${vencidoTotal > 0 ? ` — ${fmt(vencidoTotal)} vencido acumulado` : ''}.`,
@@ -320,8 +649,24 @@ async function getKpisHandler(_req: Request) {
                     : mesesAFullOcupacion !== null
                         ? `Crecimiento: ${leadsActivos} prospecto${leadsActivos !== 1 ? 's' : ''} en pipeline; al ritmo actual, plena ocupación en ~${mesesAFullOcupacion} meses.`
                         : `Crecimiento: ${leadsActivos} prospecto${leadsActivos !== 1 ? 's' : ''} en pipeline activo.`,
-                `Salud operativa: ${fhs.score}/100 (${fhs.grade}) — compliance clínico promedio ${avgCompliance}/100.`,
+                bulletSalud,
             ];
+
+            /**
+             * Una sede que todavía no abrió encabeza su propio resumen diciéndolo.
+             * Sin esto, los bullets de arriba —0% de ocupación, $0 facturado, 0
+             * prospectos— se leen como una sede que se está hundiendo, cuando son
+             * exactamente los números que debe tener un edificio que abre el mes
+             * que viene. El cero es la verdad; lo que faltaba era el contexto.
+             */
+            if (esPreApertura) {
+                resumen.unshift(
+                    `Pre-apertura: esta sede todavía no recibe residentes, así que sus ceros son reales y no un fallo de carga.` +
+                    (gastoPrevioALaSerie !== null
+                        ? ` Lleva ${fmt(gastoPrevioALaSerie)} de gasto acumulado en ${mesesDeGastoPrevio} mes${mesesDeGastoPrevio !== 1 ? 'es' : ''} desde ${primerMesConGasto}, antes de facturar un solo dólar.`
+                        : '')
+                );
+            }
 
             // Rentabilidad: solo se afirma con datos cargados. Si faltan, el
             // bullet lo dice en vez de callar — un socio debe saber por qué no
@@ -336,15 +681,42 @@ async function getKpisHandler(_req: Request) {
                               : ` — NO alcanzable con ${capacity} camas al ARPU actual.`)
                         : '')
                 );
+            } else if (motivoSinRentabilidad === 'SIN_MESES_CERRADOS') {
+                // NO se le pide nada. Una sede que lleva 17 días dada de alta no
+                // tiene un mes cerrado, y eso no es un descuido de nadie. Si
+                // además tiene gastos cargados, se dicen: son ciertos y son suyos,
+                // solo que no hay ingreso contra el cual medirlos todavía.
+                resumen.push(
+                    `Rentabilidad: todavía no hay ningún mes cerrado que medir — la serie de esta sede empieza en ${ventanaRentabilidad.desde} y ${mesEnCursoKey} sigue en curso.` +
+                    (enCurso?.hasExpenseData
+                        ? ` Los gastos del mes SÍ están cargados (${fmt(enCurso.gastos)}); el margen aparecerá cuando cierre el mes.`
+                        : '')
+                );
             } else {
-                resumen.push('Rentabilidad: sin datos — falta cargar los gastos operativos mensuales para calcular margen.');
+                // El conteo que va en la frase es el de la VENTANA que se mide
+                // (los tres últimos cerrados), no el de todos los meses cerrados
+                // de la sede. No es lo mismo: en noviembre Cupey tendrá cuatro
+                // cerrados y la ventana mirará tres, así que decir "hay 4 meses
+                // cerrados pero nadie cargó los gastos" acusaría de estar vacío a
+                // un julio que sí los tiene cargados —solo que ya no se mira—.
+                // La frase habla de lo que se midió.
+                const n = ventanaRentabilidad.mesesEnResumen;
+                resumen.push(
+                    `Rentabilidad: sin datos — ${n} mes${n !== 1 ? 'es' : ''} cerrado${n !== 1 ? 's' : ''} en la ventana y ninguno tiene gastos operativos cargados, así que no se puede calcular margen.`
+                );
             }
 
             kpisByHq.push({
                 hqId: hq.id,
                 name: hq.name,
                 logoUrl: (hq as any).logoUrl ?? null,
+                // OJO: `isOpen` NO dice si la sede abrió sus puertas. Es
+                // `isActive`, o sea "está dada de alta en el sistema", y como
+                // `targetHqs` ya filtra por `isActive: true`, aquí siempre vale
+                // true. Se deja tal cual para no romper a quien lo consuma; la
+                // pregunta de si abrió se contesta en `apertura`, abajo.
                 isOpen: (hq as any).isActive ?? true,
+                apertura,
                 resumen,
                 ocupacion: {
                     capacity,
@@ -375,9 +747,14 @@ async function getKpisHandler(_req: Request) {
                     funnel,
                 },
                 calidad: {
+                    /** number | null — null = sede sin expedientes, no hay nota. */
                     facilityHealthScore: fhs.score,
                     facilityHealthGrade: fhs.grade,
+                    /** false → la pantalla pinta "—", NO un 0 ni un "null". */
+                    facilityHealthMedible: fhs.medible,
+                    facilityHealthMotivo: fhs.motivoNoMedible,
                     facilityHealthBreakdown: fhs.breakdown,
+                    /** number | null — null mientras Z_SCORE_VISIBLE siga en false. */
                     clinicalComplianceRate: avgCompliance,
                 },
                 equipo: {
@@ -394,11 +771,40 @@ async function getKpisHandler(_req: Request) {
                     /** Estructura de costos de los tres cerrados juntos. */
                     estructura,
                     breakEven,
+                    /** Qué meses cubre esto, y por qué no hay margen si no lo hay. */
+                    ventana: ventanaRentabilidad,
                 },
+            });
+
+            // Lo que esta sede aporta al consolidado. Se guarda aparte del payload
+            // para no tener que releer el objeto público ni volver a la base.
+            aportes.push({
+                hqId: hq.id,
+                name: hq.name,
+                capacity,
+                ocupadas: billable.length,
+                fisicos,
+                enHospital,
+                camasLibres,
+                mrr,
+                facturadoMes,
+                cobradoMes,
+                vencidoTotal,
+                brechaFacturacion,
+                // De la ventana CERRADA. profitSummary ya descarta los meses sin
+                // gastos cargados, y eso es lo correcto para un margen: un mes
+                // aporta sus ingresos Y sus costos, o no aporta ninguno de los dos.
+                mesesCerradosConDatos: profitSummary.mesesConDatos,
+                ingresosCerrados: profitSummary.ingresos,
+                gastosCerrados: profitSummary.gastos,
+                mesesDeLaVentana: ultimosTresCerrados.filter(mes => mes.hasExpenseData).map(mes => mes.mes),
+                gastoMesEnCurso: enCurso?.gastos ?? 0,
+                gastoPrevioALaSerie: gastoPrevioALaSerie ?? 0,
+                esPreApertura,
             });
         }
 
-        return NextResponse.json({ success: true, targets: kpisByHq });
+        return NextResponse.json({ success: true, targets: kpisByHq, consolidado: consolidar(aportes) });
     } catch (error) {
         logError('corporate.investors.kpis', error);
         return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });

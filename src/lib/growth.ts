@@ -47,12 +47,93 @@ export interface GrowthFunnel {
     mesesManuales: number;
     totales: Record<GrowthKey, number>;
     mesesConDatos: number;
-    /** % de prospectos que terminaron admitidos. null sin datos suficientes. */
+    /**
+     * % de prospectos que terminaron admitidos. null si no hay prospectos o si
+     * el resultado no es interpretable — ver `tasaEmbudo`.
+     */
     conversionPct: number | null;
-    /** % de prospectos que llegaron a tour — mide calidad del lead. */
+    /**
+     * % de prospectos que llegaron a tour — mide calidad del lead. null cuando
+     * hay más tours que prospectos, que es el caso de Cupey al 19-sep-2026
+     * (36 tours contra 31 prospectos) — ver `tasaEmbudo`.
+     */
     tourRatePct: number | null;
-    /** Admisiones por mes según lo cargado a mano. */
+    /**
+     * Admisiones por mes sobre los MESES CERRADOS con datos — el mes en curso
+     * no entra. null si todavía no hay ningún mes cerrado con datos; el
+     * consumidor (`investors/kpis`) ya cae entonces a las altas desde el ancla.
+     * Ver `promedioSobreMesesCerrados`.
+     */
     admisionesMensualPromedio: number | null;
+}
+
+/**
+ * Tasa de un paso del embudo, o null cuando el número no significa nada.
+ *
+ * POR QUE EXISTE ESTO — medido el 19-sep-2026 en Cupey, ventana jul→sep:
+ * prospectos 31, tours 36. `tourRatePct` daba **116%**. Un embudo no puede
+ * convertir por encima del 100%: al socio le estábamos enseñando que de cada
+ * 100 personas que preguntan, 116 vienen a visitar.
+ *
+ * No es un error de conteo, los dos números son correctos. Es que los
+ * snapshots manuales NO son una cohorte: el Director cuenta ACTOS DEL MES
+ * —"este mes hice 14 tours"— y un tour de septiembre puede venir de un
+ * prospecto de agosto. Dividir dos conteos de meses distintos no da una tasa
+ * de conversión, da un número sin significado. En junio la distancia es aún
+ * más clara: 8 prospectos contra 22 tours (275%).
+ *
+ * Por eso NO se acota con Math.min(100): un 100% clavado tampoco significa
+ * nada y además esconde que el dato no da para esta pregunta. Cuando el
+ * numerador supera al denominador devolvemos null, y la pantalla omite el
+ * dato en vez de mentir. Las dos consumidoras ya lo hacen
+ * (`corporate/investors/page.tsx` y el texto narrativo de `investors/kpis`,
+ * ambas con `!== null`).
+ *
+ * Lo que SÍ sigue siendo verdad y se sigue enseñando son los conteos crudos
+ * —31 prospectos, 36 tours, 13 admisiones—: esos son actos ocurridos, no
+ * ratios entre cohortes que no se cruzan.
+ */
+function tasaEmbudo(numerador: number, denominador: number): number | null {
+    if (denominador <= 0) return null;
+    if (numerador > denominador) return null;
+    return Math.round((numerador / denominador) * 100);
+}
+
+/** 'YYYY-MM' de hoy en UTC — misma clave con la que se arma la serie. */
+function mesEnCursoUTC(): string {
+    const hoy = new Date();
+    return `${hoy.getUTCFullYear()}-${String(hoy.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+/**
+ * Admisiones por mes, contando SOLO meses cerrados.
+ *
+ * POR QUE NO ENTRA EL MES EN CURSO — medido el 19-sep-2026 en Cupey:
+ * el promedio salía 13 admisiones / 3 meses = 4,3, y ese 3 metía septiembre
+ * —día 19, 2 admisiones— como si fuera un mes entero. Sobre meses cerrados
+ * son 11 / 2 = 5,5.
+ *
+ * El sesgo va SIEMPRE en la misma dirección: un mes a medio andar aporta
+ * medio mes de admisiones y un mes entero al divisor, así que el promedio
+ * baja todos los meses hasta que el mes cierra. Y este número alimenta
+ * `ritmoMensual` en `investors/kpis`, que es lo que calcula
+ * `mesesAFullOcupacion`: con 18 camas libres, la pantalla le prometía al
+ * socio ~5 meses a llenar cuando su ritmo cerrado da ~4. Le decía que tarda
+ * más de lo que tarda, y el día 1 de cada mes era cuando peor mentía.
+ *
+ * Mismo criterio que `partirPorCierre` en profitability.ts: lo que se mide
+ * para decidir se mide sobre meses cerrados, y el mes en curso se enseña
+ * aparte (aquí, en `serie`, que sí lo trae marcado con su `source`).
+ *
+ * Si no hay ni un mes cerrado con datos devuelve null —no medio mes
+ * disfrazado de mes— y `investors/kpis` cae a las altas desde el ancla.
+ */
+function promedioSobreMesesCerrados(withData: GrowthMonth[]): number | null {
+    const mesEnCurso = mesEnCursoUTC();
+    const cerrados = withData.filter(s => s.mes !== mesEnCurso);
+    if (cerrados.length === 0) return null;
+    const admisiones = cerrados.reduce((s, r) => s + r.admissions, 0);
+    return Math.round((admisiones / cerrados.length) * 10) / 10;
 }
 
 /**
@@ -169,10 +250,13 @@ export async function getGrowthFunnel(opts: {
         mesesConDatos: withData.length,
         mesesDesdeCRM: serie.filter(s => s.source === 'CRM' || s.source === 'MANUAL+CRM').length,
         mesesManuales: serie.filter(s => s.source === 'MANUAL' || s.source === 'MANUAL+CRM').length,
-        conversionPct: totales.prospects > 0 ? Math.round((totales.admissions / totales.prospects) * 100) : null,
-        tourRatePct: totales.prospects > 0 ? Math.round((totales.tours / totales.prospects) * 100) : null,
-        admisionesMensualPromedio: withData.length > 0
-            ? Math.round((totales.admissions / withData.length) * 10) / 10
-            : null,
+        // Mismo tratamiento para los dos: ambos mezclan meses igual. Hoy en
+        // Cupey conversión da 13/31 = 42% (pasa la guarda, admisiones <
+        // prospectos) y tours 36/31 se va a null. Si un mes llega a cerrar más
+        // admisiones que prospectos nuevos —agosto solo ya fue 7 de 9— la
+        // conversión se calla por la misma razón, sin tocar nada más.
+        conversionPct: tasaEmbudo(totales.admissions, totales.prospects),
+        tourRatePct: tasaEmbudo(totales.tours, totales.prospects),
+        admisionesMensualPromedio: promedioSobreMesesCerrados(withData),
     };
 }
