@@ -74,6 +74,45 @@ export async function POST(req: Request) {
         const text = content.trim();
         const preview = text.slice(0, 80) + (text.length > 80 ? '…' : '');
 
+        /**
+         * Guarda contra doble envío — misma forma que /care/vitals y /api/intake.
+         *
+         * Aquí un solo toque escribe una fila POR FAMILIA y manda un correo a
+         * todas (24 filas de broadcast en la base al 16-sep-2026, ninguna
+         * duplicada todavía). Un doble toque, o un reintento porque la pantalla
+         * se vio lenta mientras SendGrid tardaba, y cada familia recibe el mismo
+         * anuncio dos veces en el portal y dos veces por correo.
+         *
+         * Desde que el mensaje del hogar nace sin leer, además se ve: el badge
+         * del portal marca 2 donde hubo un solo anuncio.
+         *
+         * La ventana son 10 minutos, como en el alta: mandar el MISMO texto a
+         * toda la comunidad dos veces en diez minutos no es un caso real que
+         * valga la pena proteger frente a éste.
+         *
+         * Devuelve ÉXITO, no error: quien pulsó hizo lo correcto, y un error en
+         * rojo le hace intentarlo otra vez — que es lo que produce el duplicado.
+         */
+        const diezMinutosAtras = new Date(Date.now() - 10 * 60 * 1000);
+        const yaEnviado = await prisma.familyMessage.count({
+            where: {
+                senderType:    'STAFF',
+                senderId:      staffId,
+                recipientType: 'ADMINISTRATION',
+                content:       text,
+                createdAt:     { gte: diezMinutosAtras },
+                patient:       { headquartersId: hqId },
+            },
+        });
+        if (yaEnviado > 0) {
+            return NextResponse.json({
+                success:   true,
+                duplicada: true,
+                sent:      yaEnviado,
+                message:   `Este mensaje ya se había enviado hace un momento a ${yaEnviado} familiar${yaEnviado !== 1 ? 'es' : ''}.`,
+            });
+        }
+
         // 1. Crear FamilyMessage por cada familiar
         await prisma.familyMessage.createMany({
             data: familyMembers.map(fm => ({
@@ -83,7 +122,8 @@ export async function POST(req: Request) {
                 content:       text,
                 imageBase64:   imageBase64 || null,
                 recipientType: 'ADMINISTRATION',
-                isRead:        true, // broadcast no genera unread en el panel del staff
+                // Sin isRead: nace en false (default del schema). Con isRead:true no habia una sola
+                // fila STAFF sin leer en toda la base (0, 16-sep-2026): el badge familiar no podia encender.
             })),
         });
 

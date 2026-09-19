@@ -28,7 +28,31 @@ export default async function FamilyLayout({ children }: { children: React.React
     // Tema por tenant — Vivid: navy + lima + crema. Fallback teal Zéndity.
     const theme = resolveFamilyTheme(hq as any);
 
-    // Conteo de mensajes no leídos para badge en navegación
+    // Conteo de mensajes que la familia todavía no ha visto, para el badge.
+    //
+    // Dos cosas que hacían imposible que este número pasara de 0 (medido el
+    // 16-sep-2026):
+    //  · sólo miraba senderType STAFF, y los 10 avisos SYSTEM —confirmaciones
+    //    de cita y de concierge— no los contaba nadie: 10 avisos que la
+    //    pantalla no podía enseñar. Ahora entran los dos.
+    //  · el propio GET del portal marcaba leído lo que acababa de listar, y la
+    //    pantalla hace poll cada 10s. Ese updateMany ya no existe: isRead sólo
+    //    lo apaga el PATCH que dispara la pantalla de mensajes cuando está
+    //    delante de la persona.
+    //
+    // Y por eso el conteo se acota a la MISMA ventana que la pantalla puede
+    // enseñar. Si el badge contara todo el historial contaría avisos que la
+    // conversación ya no lista, y entonces nada podría apagarlos: la familia
+    // pulsa, no ve nada nuevo, y el número se queda encendido para siempre.
+    // Medido el 16-sep-2026: de los 10 avisos sin ver, 6 son de junio —4 de
+    // Héctor Vélez y 2 de Natalia Díaz, ambos residentes activos— y quedarían
+    // fuera del listado de 90 días. Ese es el badge que nunca se apaga.
+    // La ventana tiene que seguir a DIAS_DE_HISTORIAL de
+    // src/app/api/family/messages/route.ts (un route.ts no puede exportar
+    // constantes: Next rechaza cualquier export que no sea un handler).
+    const DIAS_DE_HISTORIAL = 90;
+    const desdeBadge = new Date(Date.now() - DIAS_DE_HISTORIAL * 24 * 60 * 60 * 1000);
+
     let unreadMessages = 0;
     try {
         const familyMember = await prisma.familyMember.findUnique({
@@ -37,7 +61,12 @@ export default async function FamilyLayout({ children }: { children: React.React
         });
         if (familyMember?.patientId) {
             unreadMessages = await prisma.familyMessage.count({
-                where: { patientId: familyMember.patientId, senderType: 'STAFF', isRead: false },
+                where: {
+                    patientId: familyMember.patientId,
+                    senderType: { in: ['STAFF', 'SYSTEM'] },
+                    isRead: false,
+                    createdAt: { gte: desdeBadge },
+                },
             });
         }
     } catch { /* no-fatal */ }

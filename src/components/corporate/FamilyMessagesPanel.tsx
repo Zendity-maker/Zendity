@@ -2,13 +2,55 @@
 
 import { useState, useEffect, useRef } from "react";
 import { FaPaperPlane } from "react-icons/fa";
-import { X, MessageSquare, ArrowLeft } from "lucide-react";
+import { X, MessageSquare, ArrowLeft, Clock, Check } from "lucide-react";
 
 interface Props {
     open: boolean;
     onClose: () => void;
-    onUnreadChange: (count: number) => void;
+    /**
+     * Lo que sube al badge del header ya NO es "sin leer": son HILOS
+     * PENDIENTES —familias que escribieron y nadie contestó—, que es lo único
+     * que puede moverse. El "sin leer" era cero en las 23 conversaciones
+     * porque abrir el hilo lo marcaba entero. Ver la cabecera del GET en
+     * /api/corporate/family-messages.
+     */
+    onPendientesChange: (count: number) => void;
 }
+
+/**
+ * Días que lleva esperando una familia. Se cuenta en días enteros porque así
+ * lo lee una persona: "esperando 68 días", no "hace 1.632 horas".
+ *
+ * Vive aquí y lo importa la página del hub (/corporate/family-messages) para
+ * que las dos pantallas cuenten igual: si una redondea hacia arriba y la otra
+ * hacia abajo, el mismo hilo sale con 68 días en una y 69 en la otra.
+ */
+export function diasEsperando(desde: string | Date): number {
+    const ms = Date.now() - new Date(desde).getTime();
+    return Math.max(0, Math.floor(ms / 86400000));
+}
+
+export function etiquetaEspera(dias: number): string {
+    if (dias === 0) return 'esperando hoy';
+    if (dias === 1) return 'esperando 1 día';
+    return `esperando ${dias} días`;
+}
+
+/**
+ * El color sube con la espera: lo que lleva dos semanas sin respuesta no puede
+ * verse igual que lo de esta mañana. Rojo sólido es "esto pide decisión ya",
+ * el mismo criterio que el panel de dirección.
+ */
+export function estiloEspera(dias: number): string {
+    if (dias >= 14) return 'bg-rose-600 text-white';
+    if (dias >= 3)  return 'bg-rose-50 text-rose-700';
+    return 'bg-amber-50 text-amber-700';
+}
+
+const NOMBRE_BANDEJA: Record<string, string> = {
+    NURSING: 'Enfermería',
+    ADMINISTRATION: 'Administración',
+};
 
 function formatDateLabel(dateStr: string): string {
     const d = new Date(dateStr);
@@ -24,13 +66,15 @@ function isSameDay(a: string, b: string): boolean {
     return new Date(a).toDateString() === new Date(b).toDateString();
 }
 
-export default function FamilyMessagesPanel({ open, onClose, onUnreadChange }: Props) {
+export default function FamilyMessagesPanel({ open, onClose, onPendientesChange }: Props) {
     const [conversations, setConversations] = useState<any[]>([]);
     const [selected, setSelected] = useState<any | null>(null);
     const [reply, setReply] = useState("");
     const [loading, setLoading] = useState(false);
     const [sending, setSending] = useState(false);
     const [isImproving, setIsImproving] = useState(false);
+    const [marcando, setMarcando] = useState(false);
+    const [errorMarcar, setErrorMarcar] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const loadConversations = async (silent = false) => {
@@ -40,8 +84,8 @@ export default function FamilyMessagesPanel({ open, onClose, onUnreadChange }: P
             const data = await res.json();
             if (data.success) {
                 setConversations(data.conversations);
-                const total: number = data.conversations.reduce((acc: number, c: any) => acc + c.unreadCount, 0);
-                onUnreadChange(total);
+                const pendientes: number = data.conversations.filter((c: any) => c.pendiente).length;
+                onPendientesChange(pendientes);
                 if (selected) {
                     const updated = data.conversations.find((c: any) => c.patientId === selected.patientId);
                     if (updated) setSelected(updated);
@@ -77,23 +121,45 @@ export default function FamilyMessagesPanel({ open, onClose, onUnreadChange }: P
         }
     }, [selected?.patientId, selected?.messages?.length]);
 
+    /**
+     * SELECCIONAR UN HILO YA NO LO MARCA LEÍDO.
+     *
+     * Aquí se mandaba un PATCH al hacer clic en la conversación, antes de que
+     * nadie hubiera bajado a leer nada: eso no medía lectura, medía que algo se
+     * había abierto. Como se abría todo, `isRead` quedó en true en los 105
+     * mensajes de la base. Desde el 16-sep-2026 el PATCH exige
+     * `accion: 'MARCAR_LEIDO'` y este llamador recibiría un 400.
+     * Marcar leído es ahora el botón explícito de abajo.
+     */
     const handleSelectConversation = (conv: any) => {
         setSelected(conv);
         setReply("");
-        // Abrir un hilo = leerlo. Antes solo RESPONDER marcaba los mensajes
-        // leídos, así que el badge del header (familyMsgUnread) quedaba
-        // encendido para siempre en hilos vistos sin respuesta.
-        if (conv.unreadCount > 0) {
-            setConversations(prev => {
-                const next = prev.map(c => c.patientId === conv.patientId ? { ...c, unreadCount: 0 } : c);
-                onUnreadChange(next.reduce((acc: number, c: any) => acc + c.unreadCount, 0));
-                return next;
-            });
-            fetch('/api/corporate/family-messages', {
+        setErrorMarcar(null);
+    };
+
+    /** Acto explícito: alguien leyó este hilo y lo declara. */
+    const handleMarcarLeido = async () => {
+        if (!selected || marcando) return;
+        setMarcando(true);
+        setErrorMarcar(null);
+        try {
+            const res = await fetch('/api/corporate/family-messages', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ patientId: conv.patientId }),
-            }).catch(() => { /* el polling reconcilia si falla */ });
+                body: JSON.stringify({ patientId: selected.patientId, accion: 'MARCAR_LEIDO' }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.success) {
+                // Un botón que se pulsa y no hace nada es peor que uno que no
+                // está: quien lo pulsó se queda creyendo que el hilo se marcó.
+                setErrorMarcar(data.error || 'No se pudo marcar como leído. Inténtalo de nuevo.');
+                return;
+            }
+            await loadConversations(true);
+        } catch {
+            setErrorMarcar('No se pudo marcar como leído: sin conexión con el servidor.');
+        } finally {
+            setMarcando(false);
         }
     };
 
@@ -136,6 +202,9 @@ export default function FamilyMessagesPanel({ open, onClose, onUnreadChange }: P
     };
 
     if (!open) return null;
+
+    const totalPendientes = conversations.filter(c => c.pendiente).length;
+    const diasSeleccionado = selected?.pendiente ? diasEsperando(selected.esperandoDesde) : 0;
 
     return (
         <>
@@ -187,6 +256,16 @@ export default function FamilyMessagesPanel({ open, onClose, onUnreadChange }: P
                 </div>
 
                 {/* ── VISTA: Lista de conversaciones ─────────── */}
+                {!selected && totalPendientes > 0 && (
+                    <div className="flex items-center gap-2 px-4 py-2.5 bg-rose-50 border-b border-rose-100 flex-shrink-0">
+                        <Clock className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                        <p className="text-xs font-black text-rose-800">
+                            {totalPendientes === 1
+                                ? '1 familia espera respuesta'
+                                : `${totalPendientes} familias esperan respuesta`}
+                        </p>
+                    </div>
+                )}
                 {!selected && (
                     <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-slate-50">
                         {loading ? (
@@ -202,24 +281,35 @@ export default function FamilyMessagesPanel({ open, onClose, onUnreadChange }: P
                                 </p>
                             </div>
                         ) : (
-                            conversations.map(conv => (
+                            conversations.map(conv => {
+                                // La ruta ya los devuelve ordenados: primero lo que le
+                                // debemos a una familia, y dentro de eso el que lleva
+                                // más esperando. Aquí solo se pinta.
+                                const dias = conv.pendiente ? diasEsperando(conv.esperandoDesde) : 0;
+                                return (
                                 <button
                                     key={conv.patientId}
                                     onClick={() => handleSelectConversation(conv)}
                                     // Target táctil más grande en móvil
-                                    className="w-full text-left px-4 py-4 md:py-3.5 transition-colors hover:bg-slate-50 active:bg-teal-50/60"
+                                    className={`w-full text-left px-4 py-4 md:py-3.5 transition-colors hover:bg-slate-50 active:bg-teal-50/60 ${
+                                        conv.pendiente ? 'border-l-4 border-rose-500 bg-rose-50/30' : ''
+                                    }`}
                                 >
                                     <div className="flex items-center gap-3">
                                         <div className={`w-12 h-12 md:w-11 md:h-11 rounded-2xl flex items-center justify-center font-black text-sm flex-shrink-0 transition-colors ${
-                                            conv.unreadCount > 0
-                                                ? 'bg-teal-500 text-white shadow-md shadow-teal-200'
-                                                : 'bg-slate-100 text-slate-500'
+                                            conv.pendiente
+                                                ? 'bg-rose-500 text-white shadow-md shadow-rose-200'
+                                                : conv.unreadCount > 0
+                                                    ? 'bg-teal-500 text-white shadow-md shadow-teal-200'
+                                                    : 'bg-slate-100 text-slate-500'
                                         }`}>
-                                            {conv.unreadCount > 0 ? conv.unreadCount : conv.patientName.charAt(0)}
+                                            {conv.pendiente
+                                                ? conv.mensajesSinResponder
+                                                : conv.unreadCount > 0 ? conv.unreadCount : conv.patientName.charAt(0)}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center justify-between mb-0.5">
-                                                <p className={`text-sm truncate ${conv.unreadCount > 0 ? 'font-black text-slate-900' : 'font-bold text-slate-600'}`}>
+                                                <p className={`text-sm truncate ${conv.pendiente || conv.unreadCount > 0 ? 'font-black text-slate-900' : 'font-bold text-slate-600'}`}>
                                                     {conv.patientName}
                                                 </p>
                                                 <span className="text-[10px] text-slate-400 font-bold ml-2 flex-shrink-0">
@@ -229,13 +319,29 @@ export default function FamilyMessagesPanel({ open, onClose, onUnreadChange }: P
                                             {conv.roomNumber && (
                                                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Hab. {conv.roomNumber}</p>
                                             )}
-                                            <p className={`text-xs mt-0.5 truncate ${conv.unreadCount > 0 ? 'font-semibold text-slate-700' : 'font-medium text-slate-400'}`}>
+                                            {/* LO QUE FALTA POR CONTESTAR. El servidor ya lo
+                                                calcula; sin esto el trabajo no se ve. */}
+                                            {conv.pendiente && (
+                                                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                                    <span className={`inline-flex items-center gap-1 text-[10px] font-black tabular-nums px-2 py-0.5 rounded-full ${estiloEspera(dias)}`}>
+                                                        <Clock className="w-3 h-3" />
+                                                        {etiquetaEspera(dias)}
+                                                    </span>
+                                                    {conv.bandejaPendiente && (
+                                                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                                            {NOMBRE_BANDEJA[conv.bandejaPendiente] || conv.bandejaPendiente}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+                                            <p className={`text-xs mt-0.5 truncate ${conv.pendiente || conv.unreadCount > 0 ? 'font-semibold text-slate-700' : 'font-medium text-slate-400'}`}>
                                                 {conv.lastMessage.senderType === 'STAFF' ? '↩ ' : ''}{conv.lastMessage.content}
                                             </p>
                                         </div>
                                     </div>
                                 </button>
-                            ))
+                                );
+                            })
                         )}
                     </div>
                 )}
@@ -244,12 +350,48 @@ export default function FamilyMessagesPanel({ open, onClose, onUnreadChange }: P
                 {selected && (
                     <>
                         {/* Sub-header paciente */}
-                        <div className="px-4 py-2.5 bg-white border-b border-slate-50 flex-shrink-0">
-                            <p className="font-extrabold text-slate-800 text-sm">{selected.patientName}</p>
-                            {selected.roomNumber && (
-                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Habitación {selected.roomNumber}</p>
+                        <div className="px-4 py-2.5 bg-white border-b border-slate-50 flex-shrink-0 flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                                <p className="font-extrabold text-slate-800 text-sm truncate">{selected.patientName}</p>
+                                {selected.roomNumber && (
+                                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Habitación {selected.roomNumber}</p>
+                                )}
+                            </div>
+                            {/* Marcar leído ya no ocurre solo por abrir el hilo: hay
+                                que declararlo. El botón manda la acción explícita
+                                que exige el PATCH y enseña el error si falla. */}
+                            {selected.unreadCount > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={handleMarcarLeido}
+                                    disabled={marcando}
+                                    className="flex items-center gap-1 text-[11px] font-bold text-teal-700 border border-teal-200 hover:bg-teal-50 disabled:opacity-50 px-2 py-1 rounded-lg transition-colors flex-shrink-0"
+                                >
+                                    <Check className="w-3 h-3" />
+                                    {marcando ? 'Marcando…' : 'Marcar leído'}
+                                </button>
                             )}
                         </div>
+
+                        {errorMarcar && (
+                            <div className="px-4 py-2 bg-rose-50 border-b border-rose-100 flex-shrink-0">
+                                <p className="text-[11px] font-bold text-rose-700">{errorMarcar}</p>
+                            </div>
+                        )}
+
+                        {/* Cuánto lleva esperando esta familia, arriba del hilo:
+                            quien entra a responder ve primero la deuda. */}
+                        {selected.pendiente && (
+                            <div className="px-4 py-2 bg-rose-50 border-b border-rose-100 flex-shrink-0 flex items-center gap-2">
+                                <Clock className="w-3.5 h-3.5 text-rose-600 flex-shrink-0" />
+                                <p className="text-[11px] font-bold text-rose-800">
+                                    Sin responder desde el {new Date(selected.esperandoDesde).toLocaleDateString('es-PR', { day: '2-digit', month: 'short' })}
+                                    {' · '}
+                                    <span className="tabular-nums">{etiquetaEspera(diasSeleccionado)}</span>
+                                    {selected.bandejaPendiente && ` · ${NOMBRE_BANDEJA[selected.bandejaPendiente] || selected.bandejaPendiente}`}
+                                </p>
+                            </div>
+                        )}
 
                         {/*
                           flex-1 min-h-0 → permite que el scroll funcione dentro del flex column.

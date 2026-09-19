@@ -53,6 +53,13 @@ export default function StaffChat({ open, onClose, onUnreadChange }: StaffChatPr
     const [content, setContent] = useState('');
     const [recipientId, setRecipientId] = useState<string>('');
     const [broadcastMode, setBroadcastMode] = useState(false);
+    // El 16-sep-2026 el tablón se cerró por rol en la API. El botón de la barra
+    // superior lo sigue viendo todo el que no es FAMILY (AppLayout), así que
+    // INVESTOR, HR_MANAGER y SUPER_ADMIN abren este cajón y reciben un 403.
+    // Sin esto se quedaba mudo: lista vacía, "No tienes mensajes directos", y
+    // un botón de enviar que fallaba en silencio. Se dice lo que pasa.
+    const [sinAcceso, setSinAcceso] = useState(false);
+    const sinAccesoRef = useRef(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const canBroadcast = !!user && BROADCAST_ROLES.includes((user as any).role);
@@ -60,6 +67,12 @@ export default function StaffChat({ open, onClose, onUnreadChange }: StaffChatPr
     const fetchMessages = useCallback(async () => {
         try {
             const res = await fetch('/api/care/staff-messages');
+            if (res.status === 403 || res.status === 401) {
+                sinAccesoRef.current = true;
+                setSinAcceso(true);
+                onUnreadChange?.(0);
+                return;
+            }
             const data = await res.json();
             if (data.success) {
                 setMessages(data.messages);
@@ -86,41 +99,48 @@ export default function StaffChat({ open, onClose, onUnreadChange }: StaffChatPr
     useEffect(() => {
         fetchMessages();
         fetchUsers();
-        const iv = setInterval(fetchMessages, 15000);
+        // Si la API ya contestó 403, no se le vuelve a preguntar cada 15s.
+        const iv = setInterval(() => { if (!sinAccesoRef.current) fetchMessages(); }, 15000);
         return () => clearInterval(iv);
     }, [fetchMessages, fetchUsers]);
 
-    // Abrir el chat = ver los mensajes → limpiar las notificaciones
-    // STAFF_MESSAGE de la campana de este usuario. Incondicional a propósito:
-    // los broadcasts comparten un solo flag isRead, así que si un colega leyó
-    // primero, el efecto de abajo no dispara (unread vacío) y las
-    // notificaciones quedarían vivas para siempre.
-    useEffect(() => {
-        if (!open) return;
-        fetch('/api/notifications', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'STAFF_MESSAGE' }),
-        }).catch(() => {});
-    }, [open]);
+    // Abrir el cajón NO toca las notificaciones de la campana.
+    //
+    // Hasta el 16-sep-2026 aquí salía un PATCH /api/notifications
+    // {type:'STAFF_MESSAGE'} incondicional al abrir, y esa ruta marca leídas
+    // TODAS las de ese tipo, de cualquier fecha. Abrir el chat para escribirle
+    // a una compañera borraba de un golpe el aviso de cada anuncio pendiente,
+    // visto o no. Las 143 notificaciones de anuncio de la sede están en leído,
+    // 0 sin leer; los demás tipos van al 21.4% sin leer en 7 días, que sobre
+    // las 33 de anuncio de esa ventana predecía unas 7 sin leer. No es que la
+    // gente lea: es que se borraban solas.
+    //
+    // Esa fila por persona es el ÚNICO dato que existe sobre quién vio qué
+    // anuncio. Se marca leída al tocar la notificación en la campana, que
+    // manda su id concreto (AppLayout > handleNotifClick) y además abre este
+    // cajón — el acto de verdad, de una persona y de un anuncio.
 
-    // Mark unread as read when opening the panel + switching tabs
+    // Marca leídos los DIRECTOS de los que este usuario es destinatario, y
+    // solo mientras mira la pestaña que se los enseña.
+    // Los anuncios no entran: su isRead es un booleano compartido por los 17
+    // destinatarios, así que marcarlo aquí lo apagaba para los otros 16. El
+    // PATCH de la API ya no los acepta.
     useEffect(() => {
-        if (!open || !user) return;
-        const unread = messages.filter(m => {
-            if (m.isRead) return false;
-            if (m.senderId === (user as any).id) return false;
-            if (tab === 'DIRECT') return m.type === 'DIRECT' && m.recipientId === (user as any).id;
-            return m.type === 'BROADCAST';
-        }).map(m => m.id);
-        if (unread.length === 0) return;
+        if (!open || !user || tab !== 'DIRECT') return;
+        const miId = (user as any).id;
+        const sinLeer = messages
+            .filter(m => m.type === 'DIRECT' && !m.isRead && m.recipientId === miId)
+            .map(m => m.id);
+        if (sinLeer.length === 0) return;
         fetch('/api/care/staff-messages', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ messageIds: unread }),
+            body: JSON.stringify({ messageIds: sinLeer }),
         }).then(() => {
-            setMessages(prev => prev.map(m => unread.includes(m.id) ? { ...m, isRead: true } : m));
-            onUnreadChange?.(messages.filter(m => !m.isRead && !unread.includes(m.id) && m.senderId !== (user as any).id).length);
+            setMessages(prev => prev.map(m => sinLeer.includes(m.id) ? { ...m, isRead: true } : m));
+            onUnreadChange?.(messages.filter(m =>
+                m.type === 'DIRECT' && !m.isRead && m.recipientId === miId && !sinLeer.includes(m.id)
+            ).length);
         }).catch(() => { });
     }, [open, tab, messages, user, onUnreadChange]);
 
@@ -216,17 +236,22 @@ export default function StaffChat({ open, onClose, onUnreadChange }: StaffChatPr
                         className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${tab === 'BROADCAST' ? 'text-teal-600 border-b-2 border-teal-600' : 'text-slate-500 hover:text-slate-700'}`}
                     >
                         <Megaphone className="w-4 h-4" /> Anuncios
-                        {broadcasts.filter(m => !m.isRead && m.senderId !== currentUserId).length > 0 && (
-                            <span className="bg-rose-500 text-white text-[10px] font-black px-1.5 rounded-full min-w-[18px] h-[18px] inline-flex items-center justify-center">
-                                {broadcasts.filter(m => !m.isRead && m.senderId !== currentUserId).length}
-                            </span>
-                        )}
+                        {/* Sin contador de "sin leer": el isRead de un anuncio es un
+                            booleano compartido por sus 17 destinatarios, así que ese
+                            número no era el de quien mira. Ahora que nadie lo apaga,
+                            además habría marcado los 9 anuncios para siempre. Cada
+                            persona ve los suyos pendientes en la campana. */}
                     </button>
                 </div>
 
                 {/* Message List */}
                 <div className="flex-1 overflow-y-auto bg-slate-50 px-3 py-3 space-y-2">
-                    {loading ? (
+                    {sinAcceso ? (
+                        <EmptyState
+                            icon={<MessageSquare className="w-10 h-10 text-slate-300" />}
+                            text="Tu rol no tiene acceso al chat interno del personal. Si necesitas entrar, pídeselo a Dirección."
+                        />
+                    ) : loading ? (
                         <div className="flex justify-center py-10">
                             <Loader2 className="w-6 h-6 text-slate-300 animate-spin" />
                         </div>
@@ -289,8 +314,8 @@ export default function StaffChat({ open, onClose, onUnreadChange }: StaffChatPr
                     )}
                 </div>
 
-                {/* Composer */}
-                <div className="border-t border-slate-200 p-3 bg-white flex-shrink-0 space-y-2">
+                {/* Composer — no se pinta sin acceso: enviar daría 403 igual. */}
+                <div className={`border-t border-slate-200 p-3 bg-white flex-shrink-0 space-y-2 ${sinAcceso ? 'hidden' : ''}`}>
                     {canBroadcast && (
                         <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
                             <input
@@ -323,7 +348,12 @@ export default function StaffChat({ open, onClose, onUnreadChange }: StaffChatPr
                             onKeyDown={e => {
                                 if (e.key === 'Enter' && !e.shiftKey) {
                                     e.preventDefault();
-                                    handleSend();
+                                    // `sending` también aquí: el botón se
+                                    // deshabilita solo, pero el Enter no lo
+                                    // miraba. Tres de los 24 mensajes de la
+                                    // historia son un par idéntico separado por
+                                    // menos de 1.4s.
+                                    if (!sending) handleSend();
                                 }
                             }}
                             rows={2}

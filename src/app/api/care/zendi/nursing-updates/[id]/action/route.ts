@@ -85,7 +85,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                         senderId: authorId,
                         content: selectedOption,
                         recipientType: 'NURSING',
-                        isRead: true
+                        // Sin isRead: nace en false (default del schema). Con isRead:true no habia
+                        // una sola fila STAFF sin leer en toda la base (0, 16-sep-2026): el badge
+                        // del portal familiar no podia encender.
                     }
                 });
             });
