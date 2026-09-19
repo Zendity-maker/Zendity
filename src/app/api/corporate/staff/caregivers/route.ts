@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { ACTIVE_PRESENCE_MAX_HOURS } from '@/lib/shift-coverage';
-import { resolveEffectiveHqId } from '@/lib/hq-resolver';
+import { resolverSedeOResponder } from '@/lib/hq-resolver';
 
 export async function GET(req: Request) {
     const session = await getServerSession(authOptions);
@@ -11,7 +11,8 @@ export async function GET(req: Request) {
 
     // hqId resuelto desde la sesión: roles limitados → su sede (ignora ?hqId);
     // DIRECTOR/ADMIN validados contra DB. Antes: ?hqId del cliente sin validar.
-    const hqId = await resolveEffectiveHqId(session, new URL(req.url).searchParams.get('hqId'));
+    const hqId = await resolverSedeOResponder(session, new URL(req.url).searchParams.get('hqId'));
+    if (hqId instanceof NextResponse) return hqId;
 
     /**
      * QUIÉN ESTÁ EN PISO — cap deslizante de 16h, no la frontera de las 6am.

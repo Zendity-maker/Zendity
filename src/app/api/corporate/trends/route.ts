@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { todayStartAST } from '@/lib/dates';
-import { resolveEffectiveHqIdOrAll } from '@/lib/hq-resolver';
+import { resolveEffectiveHqIdOrAll, sedesVisiblesPara } from '@/lib/hq-resolver';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,13 +64,29 @@ export async function GET(request: NextRequest) {
             buckets.push({ date: formatISODate(start), start, end });
         }
 
-        // Filtro de HQ común
-        const hqFilter = (effectiveHqId === 'ALL') ? {} : { headquartersId: effectiveHqId };
+        /**
+         * ── FILTRO DE SEDE ──
+         *
+         * 'ALL' significaba `{}`: sin filtro, o sea TODAS las sedes del
+         * sistema. Para un DIRECTOR que solo tiene la suya eso son los números
+         * de una sede ajena mezclados con los propios — medido el 19-sep-2026
+         * con la directora clínica de Cupey, que veía las dos.
+         *
+         * Ahora 'ALL' significa "todas LAS TUYAS": la misma regla que el
+         * conmutador de sede y que `resolveEffectiveHqId`. SUPER_ADMIN sigue
+         * sin filtro, que es lo que 'TODAS' devuelve.
+         */
+        const visibles = await sedesVisiblesPara(session);
+        const sedesDelCalculo = visibles === 'TODAS' ? null : visibles;
+
+        const hqFilter = (effectiveHqId === 'ALL')
+            ? (sedesDelCalculo ? { headquartersId: { in: sedesDelCalculo } } : {})
+            : { headquartersId: effectiveHqId };
         const hqFilterViaPatient = (effectiveHqId === 'ALL')
-            ? {}
+            ? (sedesDelCalculo ? { patient: { headquartersId: { in: sedesDelCalculo } } } : {})
             : { patient: { headquartersId: effectiveHqId } };
         const hqFilterViaPatientMed = (effectiveHqId === 'ALL')
-            ? {}
+            ? (sedesDelCalculo ? { patientMedication: { patient: { headquartersId: { in: sedesDelCalculo } } } } : {})
             : { patientMedication: { patient: { headquartersId: effectiveHqId } } };
 
         // ── Fetch paralelo de todos los datos necesarios ──

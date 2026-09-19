@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { resolveEffectiveHqIdOrAll } from '@/lib/hq-resolver';
+import { resolveEffectiveHqIdOrAll, esSedeNoAccesible } from '@/lib/hq-resolver';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +28,17 @@ export async function GET(req: Request) {
     // hqId de la sesión (resolver con ALL): rol limitado → su sede (ignora ?hqId);
     // DIRECTOR/ADMIN → 'ALL' o sede validada. Antes: ?hqId del cliente sin validar.
     const { searchParams } = new URL(req.url);
-    const hqId = await resolveEffectiveHqIdOrAll(session, searchParams.get('hqId'));
+    let hqId: string;
+    try {
+        hqId = await resolveEffectiveHqIdOrAll(session, searchParams.get('hqId'));
+    } catch (e) {
+        // Pedir una sede ajena es 403, no una excepción sin cuerpo: esta ruta
+        // no tenía try/catch y el rechazo salía como error no capturado de Next.
+        if (esSedeNoAccesible(e)) {
+            return NextResponse.json({ success: false, error: e.message }, { status: e.status });
+        }
+        throw e;
+    }
 
     // Vista consolidada "ALL" → no aplica checklist de onboarding
     if (!hqId || hqId === 'ALL') {

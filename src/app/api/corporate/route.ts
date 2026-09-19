@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { resolveEffectiveHqIdOrAll } from '@/lib/hq-resolver';
+import { resolveEffectiveHqIdOrAll, sedesVisiblesPara } from '@/lib/hq-resolver';
 import { calculateFacilityHealthScore } from '@/lib/facility-health';
 import { ENROLLED_PATIENT_STATUSES } from '@/lib/billable-residents';
 import { HrIncidentSeverity } from '@prisma/client';
@@ -60,18 +60,27 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: e.message || 'Sede inválida' }, { status: 400 });
     }
 
-    // ── Query de sedes ──
-    // DIRECTOR/ADMIN → todas las sedes (para popular el selector).
-    // SUPERVISOR → SOLO su propia sede.
-    //
-    // NOTA DE ALCANCE: no existe un modelo de organización/cliente en el schema.
-    // Las sedes viven en un espacio plano, así que "todas las sedes" hoy
-    // significa literalmente todas las del sistema. Con un solo operador no se
-    // nota; con dos clientes distintos en la misma base, cada DIRECTOR vería el
-    // nombre de las sedes ajenas. Eso necesita decisión de producto (tenencia),
-    // no un parche aquí — ver el reporte del 21-ago-2026.
+    /**
+     * ── QUÉ SEDES ENTRAN EN ESTOS NÚMEROS ──
+     *
+     * Antes: `MULTI_HQ_ROLES.includes(role) ? {} : { id: sessionHqId }`. Ese
+     * `{}` es un findMany SIN WHERE: literalmente todas las sedes del sistema
+     * para cualquier DIRECTOR o ADMIN. No es hipotético — el 19-sep-2026 la
+     * directora clínica de Cupey, que no posee ni está vinculada a ninguna
+     * otra sede, veía los KPIs y los nombres de las dos.
+     *
+     * El 16-sep se cerró la ESCRITURA cruzada en `resolveEffectiveHqId`. Esto
+     * es su otra mitad: de nada sirve impedir que escriba en Mayagüez si el
+     * panel se lo sigue enseñando.
+     *
+     * `sedesVisiblesPara` es la misma regla que ya usa el listado del
+     * conmutador (adscripción + ownerId + SedeVinculo), así que el selector y
+     * los números dejan de poder discrepar. SUPER_ADMIN sigue viéndolo todo:
+     * es Zéndity mirando a sus clientes.
+     */
+    const visibles = await sedesVisiblesPara(session);
     const allHqs = await prisma.headquarters.findMany({
-        where: MULTI_HQ_ROLES.includes(role) ? {} : { id: sessionHqId },
+        where: visibles === "TODAS" ? {} : { id: { in: visibles } },
         select: { id: true, name: true, capacity: true },
         orderBy: { name: 'asc' },
     });

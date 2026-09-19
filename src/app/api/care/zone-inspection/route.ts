@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { todayStartAST } from '@/lib/dates';
-import { resolveEffectiveHqId } from '@/lib/hq-resolver';
+import { resolveEffectiveHqId, resolverSedeOResponder } from '@/lib/hq-resolver';
 
 // GET — Obtener rondas de inspección del día actual
 export async function GET(req: Request) {
@@ -12,7 +12,8 @@ export async function GET(req: Request) {
 
     // hqId de la sesión (resolver): rol limitado → su sede (ignora ?hqId).
     const { searchParams } = new URL(req.url);
-    const hqId = await resolveEffectiveHqId(session, searchParams.get('hqId'));
+    const hqId = await resolverSedeOResponder(session, searchParams.get('hqId'));
+    if (hqId instanceof NextResponse) return hqId;
 
     const todayStart = todayStartAST();
 
