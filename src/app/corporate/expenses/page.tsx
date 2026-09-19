@@ -69,7 +69,9 @@ export default function MonthlyClosePage() {
 
     useEffect(() => {
         if (!loading && (!user || !ALLOWED.includes(user.role as string))) {
-            router.push('/unauthorized');
+            // /unauthorized no existe bajo src/app: este rebote acababa en un
+            // 404 crudo. A /corporate, que es donde esta gente trabaja.
+            router.replace('/corporate');
         }
     }, [user, loading, router]);
 

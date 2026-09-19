@@ -8,6 +8,9 @@ import { getProfitabilitySeries, summarizeProfitability, calculateBreakEven, par
 import { getGrowthFunnel } from '@/lib/growth';
 import { logError } from '@/lib/logger';
 import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
+import { puedeVerInversion } from '@/lib/acceso-inversion';
+import { withPhiAccessLog } from '@/lib/phi-audit';
+import { PhiAccessAction } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,8 +33,27 @@ export const dynamic = 'force-dynamic';
  * a dashboards igual que a emails.
  *
  * INVESTOR/ADMIN/SUPER_ADMIN → todas las sedes activas. DIRECTOR → su sede.
+ *
+ * QUIÉN ENTRA (16-sep-2026): la lista de roles de abajo ya NO decide. Es solo
+ * la primera puerta —la que trae `requireRole` y con él el corte por
+ * facturación suspendida—; la segunda es `puedeVerInversion`, que exige
+ * propiedad o vínculo. Hasta hoy bastaba el rol y por ahí pasaba la Directora
+ * de Cupey, que no posee nada: veía margen, punto de equilibrio y proyección.
+ *
+ * ESTA ES LA GUARDA QUE DE VERDAD PROTEGE. El chequeo de la pantalla es
+ * cosmético —evita el destello del panel— y se puede saltar escribiendo la URL.
  */
 
+/**
+ * Primera puerta. Sigue habiendo lista porque `requireRole` es el único sitio
+ * por donde entra `billingBlock` (declarado sin export en api-auth.ts): una
+ * guarda que lo saltara perdería el 402 por facturación suspendida.
+ *
+ * Deja pasar DIRECTOR a propósito: el dueño de Cupey y Mayagüez es DIRECTOR.
+ * Quien no posea nada cae en la segunda puerta. Y `requireRole` acepta también
+ * rol SECUNDARIO (api-auth.ts:126-127) — hoy nadie entra por esa vía, pero el
+ * predicado la cierra sola sin tener que acordarse de ella.
+ */
 const ALLOWED_ROLES = ['INVESTOR', 'ADMIN', 'DIRECTOR', 'SUPER_ADMIN'];
 
 // Piso global de la serie: la facturación sistemática arrancó en julio 2026
@@ -44,10 +66,28 @@ const SERIES_FLOOR = { year: 2026, month: 6 }; // month 0-11 → julio
 
 const LEAD_STAGES = ['PROSPECT', 'TOUR', 'EVALUATION', 'CONTRACT', 'ADMISSION'] as const;
 
-export async function GET(_req: Request) {
+/**
+ * Auditoría: hasta hoy NO SE PODÍA SABER si alguien entró aquí. No es PHI
+ * —el payload es agregado a propósito—, pero `PhiAccessLog` es el único rastro
+ * append-only que existe en el sistema, y de una pantalla con el margen y la
+ * proyección del negocio conviene saber quién la abrió y cuándo.
+ */
+export const GET = withPhiAccessLog(getKpisHandler, {
+    resourceType: 'InvestorKPIs',
+    action: PhiAccessAction.READ,
+});
+
+async function getKpisHandler(_req: Request) {
     try {
         const auth = await requireRole(ALLOWED_ROLES);
         if (auth instanceof NextResponse) return auth;
+
+        // Segunda puerta: posee una sede, está vinculado, o es Zendity.
+        // El 403 es el mismo texto que da requireRole — desde fuera no se
+        // distingue "no tienes el rol" de "no eres dueño", y no hace falta.
+        if (!(await puedeVerInversion(auth))) {
+            return NextResponse.json({ success: false, error: 'Rol no autorizado' }, { status: 403 });
+        }
 
         // ── QUE SEDES ENTRAN EN ESTOS NUMEROS ────────────────────────────
         // Antes: un DIRECTOR veia solo la suya —por eso Andres, dueño de Cupey y

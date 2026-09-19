@@ -48,7 +48,7 @@ import OnboardingChecklist from '@/components/corporate/OnboardingChecklist';
 import { useActiveHq } from "@/contexts/ActiveHqContext";
 import {
     Moon, ListChecks, Users, Clock, ChevronRight, RefreshCw,
-    Stethoscope, ClipboardList, MessageSquare, GraduationCap, Building2, Star, Send,
+    Stethoscope, ClipboardList, MessageSquare, GraduationCap, Building2, Star, Send, TrendingUp,
 } from 'lucide-react';
 
 const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
@@ -71,6 +71,13 @@ interface Pantalla {
         sinContactoFamilia: { id: string; nombre: string }[];
     };
     parado: Parado[];
+    /**
+     * Si esta persona posee una sede o está vinculada a una. Lo decide el
+     * servidor contra la base —ni el rol ni una lista de correos— porque el
+     * día que entre un socio el botón debe aparecer sin desplegar nada.
+     * Ver src/lib/acceso-inversion.ts.
+     */
+    puedeVerInversion: boolean;
 }
 
 /** Los sitios a los que de verdad se va desde aquí. Uno por destino, no cuatro. */
@@ -93,6 +100,14 @@ const IR_A = [
     { href: '/academy', icono: GraduationCap, texto: 'Academy' },
     { href: '/corporate/sedes', icono: Building2, texto: 'Sedes' },
 ];
+
+/**
+ * El octavo destino, que no es de todos: margen, punto de equilibrio y
+ * proyección del negocio. Va aparte de IR_A porque solo se pinta a quien el
+ * servidor reconoce como dueño o socio. Hasta el 16-sep-2026 no había ningún
+ * enlace —se llegaba escribiendo la URL— y a la vez entraba cualquier DIRECTOR.
+ */
+const IR_A_INVERSION = { href: '/corporate/investors', icono: TrendingUp, texto: 'Inversión' };
 
 const hora = (iso: string) =>
     new Date(iso).toLocaleTimeString('es-PR', { timeZone: 'America/Puerto_Rico', hour: 'numeric', minute: '2-digit' });
@@ -269,7 +284,7 @@ export default function PantallaDireccion() {
                         {/* Un destino, un enlace. Antes se llegaba al mismo sitio
                             desde cuatro botones distintos de esta pantalla. */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2">
-                            {IR_A.map(({ href, icono: Icono, texto }) => (
+                            {[...IR_A, ...(d.puedeVerInversion ? [IR_A_INVERSION] : [])].map(({ href, icono: Icono, texto }) => (
                                 <Link
                                     key={href}
                                     href={href}

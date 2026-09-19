@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { construirPantallaDireccion } from '@/lib/pantalla-direccion';
+import { puedeVerInversion } from '@/lib/acceso-inversion';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,7 +51,24 @@ export async function GET(req: Request) {
         }
 
         const pantalla = await construirPantallaDireccion(hqId, sede.name);
-        return NextResponse.json({ success: true, pantalla });
+
+        // El botón del área de inversión se decide aquí, donde la sesión está
+        // en mano: `construirPantallaDireccion` solo recibe id y nombre de sede
+        // y no sabe quién mira. Viaja en el mismo payload que el resto para que
+        // el enlace aparezca en el mismo instante que la pantalla — un botón
+        // que se pinta y se quita es peor que no tenerlo.
+        //
+        // Es solo la puerta visible: quien la fuerce por URL choca igual con la
+        // guarda de /api/corporate/investors/kpis. Ver acceso-inversion.ts.
+        const puedeInversion = await puedeVerInversion({
+            id: (session.user as any).id,
+            role: (session.user as any).role,
+        });
+
+        return NextResponse.json({
+            success: true,
+            pantalla: { ...pantalla, puedeVerInversion: puedeInversion },
+        });
     } catch (error: any) {
         console.error('[corporate/hoy]', error);
         return NextResponse.json({ success: false, error: 'Error cargando la pantalla' }, { status: 500 });

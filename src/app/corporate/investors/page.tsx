@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 import {
     Activity, Users, DollarSign, CheckCircle, Clock, HeartPulse,
     TrendingUp, BedDouble, Landmark, Sparkles, UserCheck, ArrowUpRight, ArrowDownRight, Scale, PiggyBank,
@@ -123,21 +124,55 @@ export default function VividInvestorsDashboard() {
     // con cinco seria interminable. Se muestra una y se cambia con pestañas.
     const [sedeActiva, setSedeActiva] = useState(0);
     const [fetchLoading, setFetchLoading] = useState(true);
+    // Solo para el INVESTOR al que el servidor le dice que no: ver el 403 de
+    // abajo. A los demás se los lleva el rebote y nunca se pinta.
+    const [sinAcceso, setSinAcceso] = useState(false);
 
+    // El rol solo abre la puerta de la calle. Quien de verdad decide es el
+    // servidor, que mira si esta persona POSEE una sede o tiene vínculo — ver
+    // src/lib/acceso-inversion.ts. Aquí se deja DIRECTOR porque el dueño de
+    // Cupey y Mayagüez lo es; un DIRECTOR sin sedes propias llega hasta la
+    // llamada y se lo lleva el 403.
     const INVESTOR_ROLES = ['INVESTOR', 'ADMIN', 'DIRECTOR', 'SUPER_ADMIN'];
 
     useEffect(() => {
-        if (!loading) {
-            if (!user || !INVESTOR_ROLES.includes(user.role as string)) {
-                router.push('/unauthorized');
-            } else {
-                fetch('/api/corporate/investors/kpis')
-                    .then(res => res.json())
-                    .then(data => { if (data.success) setKpis(data.targets); })
-                    .catch(console.error)
-                    .finally(() => setFetchLoading(false));
-            }
+        if (loading) return;
+        if (!user || !INVESTOR_ROLES.includes(user.role as string)) {
+            // A /corporate, donde sí trabaja. Antes esto rebotaba a
+            // /unauthorized, una ruta que NO EXISTE bajo src/app: el rebote
+            // terminaba en un 404 crudo, sin barra lateral ni vuelta atrás.
+            router.replace('/corporate');
+            return;
         }
+        fetch('/api/corporate/investors/kpis')
+            .then(async res => {
+                if (res.status === 401 || res.status === 403) {
+                    // A un INVESTOR NO se le puede rebotar a /corporate:
+                    // AuthContext.tsx:151 devuelve a esa gente a esta misma
+                    // página, así que las dos redirecciones se persiguen sin
+                    // fin y el spinner no para nunca. Se le dice en pantalla.
+                    //
+                    // Hoy no hay ninguna cuenta así —el único inversionista
+                    // real entra por su SedeVinculo— pero ningún código del
+                    // repo crea vínculos: la próxima cuenta INVESTOR nace sin
+                    // uno y caería justo aquí.
+                    if (user.role === 'INVESTOR') {
+                        setSinAcceso(true);
+                        setFetchLoading(false);
+                        return;
+                    }
+                    // El resto sí trabaja en /corporate. Sin
+                    // `setFetchLoading(false)` a propósito: la pantalla se
+                    // queda en el spinner mientras navega. Ni un destello del
+                    // panel para quien no puede verlo.
+                    router.replace('/corporate');
+                    return;
+                }
+                const data = await res.json();
+                if (data.success) setKpis(data.targets);
+                setFetchLoading(false);
+            })
+            .catch(err => { console.error(err); setFetchLoading(false); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, loading, router]);
 
@@ -146,6 +181,29 @@ export default function VividInvestorsDashboard() {
             <div className="min-h-screen bg-[#101B33] flex flex-col items-center justify-center">
                 <div className="w-16 h-16 border-4 border-[#8CBBE8]/20 border-t-amber-500 rounded-full animate-spin"></div>
                 <p className="mt-4 text-[#8CBBE8]/55 font-bold tracking-widest uppercase text-sm">Preparando Métricas del Grupo...</p>
+            </div>
+        );
+    }
+
+    // La cuenta tiene el rol pero no la participación. Esta pantalla es la
+    // única a la que un INVESTOR puede entrar, así que la salida tiene que ser
+    // cerrar sesión: un enlace a /corporate o a /login lo traería de vuelta.
+    if (sinAcceso) {
+        return (
+            <div className="min-h-screen bg-[#101B33] flex flex-col items-center justify-center px-6 text-center">
+                <h1 className="text-xl font-serif text-[#FAF6EE] tracking-tight uppercase">
+                    Sin acceso a los números del grupo
+                </h1>
+                <p className="mt-3 max-w-md text-sm text-[#8CBBE8]/70 font-medium leading-relaxed">
+                    Esta cuenta todavía no está vinculada a ninguna sede. Escríbele a
+                    Zéndity para que registren la participación y vuelve a entrar.
+                </p>
+                <button
+                    onClick={() => signOut({ callbackUrl: '/login' })}
+                    className="mt-8 text-xs font-bold text-[#FAF6EE]/50 hover:text-[#FAF6EE] transition-colors px-3 py-2"
+                >
+                    Cerrar sesión
+                </button>
             </div>
         );
     }
