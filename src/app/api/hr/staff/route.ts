@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { formacionDe } from '@/lib/formacion';
-import { datosBaja } from '@/lib/staff-status';
+import { datosAlta, datosBaja, estaDeBaja } from '@/lib/staff-status';
 import { asignarRutaIngreso, asignarRutaCertificacion, requiereCertificacion } from '@/lib/academy-assign';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
@@ -10,6 +10,9 @@ import sgMail from '@sendgrid/mail';
 import bcrypt from 'bcryptjs';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { logAudit } from '@/lib/audit';
+import { requireRole, type SessionUser } from '@/lib/api-auth';
+import { ROLES_DE_PISO, ROLES_DE_MANDO, rolesOtorgablesPor, esDireccion } from '@/lib/roles-otorgables';
+import type { Role } from '@prisma/client';
 
 // Inicializar SendGrid
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
@@ -17,12 +20,73 @@ if (SENDGRID_API_KEY) {
     sgMail.setApiKey(SENDGRID_API_KEY);
 }
 
+/** Quién entra a gestionar personal. El corte fino —qué rol puede OTORGAR
+ *  cada uno— lo hace `rolesOtorgablesPor` más abajo. */
+const PUEDEN_GESTIONAR_PERSONAL = ['DIRECTOR', 'ADMIN', 'HR_MANAGER'];
+
+/**
+ * QUÉ ROL PUEDE OTORGAR QUIÉN — la lista vive en src/lib/roles-otorgables.ts.
+ *
+ * Una sola copia para esta ruta, que VALIDA, y para las tres pantallas que
+ * OFRECEN el desplegable. Estuvo escrita dos veces durante unas horas y ya se
+ * veía el problema: un rol añadido en una y no en la otra hace que la pantalla
+ * ofrezca lo que el servidor rechaza — que es el bug que se estaba arreglando.
+ *
+ * Por qué existe la lista, en corto: hasta el 16-sep-2026 esta ruta escribía
+ * `role` tal cual venía del body, y el desplegable ofrecía DIRECTOR, ADMIN e
+ * INVESTOR. Como el correo y el PIN los escoge quien da el alta, la persona de
+ * RRHH podía crearse una cuenta DIRECTOR a su nombre —o editarse la suya con un
+ * PATCH sobre su propio id— y entrar. HR_MANAGER es precisamente el rol que
+ * existe para NO ver PHI.
+ */
+
+
+/**
+ * Devuelve el 403 si se pide algún rol fuera de la lista blanca, o null.
+ *
+ * Los secundarios se validan igual que el principal a propósito: requireRole
+ * mira los dos (src/lib/api-auth.ts:126-127), así que un
+ * `secondaryRoles: ['DIRECTOR']` abre exactamente las mismas puertas que un
+ * `role: 'DIRECTOR'`.
+ */
+function rolesNoOtorgables(
+    auth: SessionUser,
+    role: unknown,
+    secondaryRoles: unknown,
+): NextResponse | null {
+    if (secondaryRoles !== undefined && secondaryRoles !== null && !Array.isArray(secondaryRoles)) {
+        // Sin esto, mandar secondaryRoles como string se saltaba la validación
+        // entera y llegaba crudo a Prisma.
+        return NextResponse.json({
+            success: false,
+            error: 'Los roles secundarios deben venir como lista.',
+        }, { status: 400 });
+    }
+
+    const otorgables = rolesOtorgablesPor(auth);
+    const pedidos: unknown[] = [];
+    if (role !== undefined && role !== null) pedidos.push(role);
+    if (Array.isArray(secondaryRoles)) pedidos.push(...secondaryRoles);
+
+    const rechazados = [...new Set(
+        pedidos
+            .filter(r => typeof r !== 'string' || !(otorgables as readonly string[]).includes(r))
+            .map(r => String(r)),
+    )];
+    if (rechazados.length === 0) return null;
+
+    return NextResponse.json({
+        success: false,
+        error: `No puedes otorgar este rol: ${rechazados.join(', ')}. Desde aquí puedes asignar ${otorgables.join(', ')}. Dirección y los accesos corporativos se crean fuera de la app.`,
+    }, { status: 403 });
+}
+
 export async function GET(request: Request) {
     try {
+        const auth = await requireRole(PUEDEN_GESTIONAR_PERSONAL);
+        if (auth instanceof NextResponse) return auth;
+        // La sesión completa la pide resolveEffectiveHqId (switcher de sede).
         const session = await getServerSession(authOptions);
-        if (!session || !['DIRECTOR', 'ADMIN', 'HR_MANAGER'].includes(session.user.role)) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
 
         const url = new URL(request.url);
         const requestedHqId = url.searchParams.get('hqId');
@@ -30,7 +94,7 @@ export async function GET(request: Request) {
         // Con incluirBajas=1 aparecen, que es la única forma de llegar al perfil
         // de alguien inactivo para reactivarlo.
         const incluirBajas = url.searchParams.get('incluirBajas') === '1';
-        const hqId = await resolveEffectiveHqId(session, requestedHqId);
+        const hqId = await resolveEffectiveHqId(session!, requestedHqId);
 
         const staff = await prisma.user.findMany({
             // Fix junio-2026: filtrar AMBOS flags. Antes solo isActive=true →
@@ -121,28 +185,72 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
+        const auth = await requireRole(PUEDEN_GESTIONAR_PERSONAL);
+        if (auth instanceof NextResponse) return auth;
         const session = await getServerSession(authOptions);
-        if (!session || !['DIRECTOR', 'ADMIN', 'HR_MANAGER'].includes(session.user.role)) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
 
         const body = await request.json();
         const { name, email, role, secondaryRoles, pinCode } = body;
-        // hqId del body (cliente multi-sede) o fallback al JWT
-        const hqId = await resolveEffectiveHqId(session, body.hqId || null);
+        // hqId del body (cliente multi-sede) o fallback al JWT. resolveEffectiveHqId
+        // ignora el hqId pedido para todo rol que no sea DIRECTOR/ADMIN: RRHH da de
+        // alta SIEMPRE en su propia sede, escriba lo que escriba en el body.
+        const hqId = await resolveEffectiveHqId(session!, body.hqId || null);
 
         if (!name || !email || !role) {
-            return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+            return NextResponse.json({ error: 'Faltan campos obligatorios: nombre, correo y rol.' }, { status: 400 });
         }
+
+        const rechazo = rolesNoOtorgables(auth, role, secondaryRoles);
+        if (rechazo) return rechazo;
 
         const cleanEmail = email.toLowerCase().trim();
 
-        const existing = await prisma.user.findUnique({
-            where: { email: cleanEmail }
+        // GUARDA CONTRA DOBLE ENVÍO — antipatrón nº1 del proyecto (ya costó dos
+        // residentes duplicados). Aquí el correo es único en User, así que el
+        // segundo toque no llegaba a crear nada: lo que hacía era devolver
+        // "Email is already in use" en rojo, que es justo lo que empuja a
+        // intentarlo otra vez. El reintento devuelve ÉXITO con la cuenta que ya
+        // existe y no reenvía el correo de bienvenida ni reasigna cursos.
+        //
+        // La VENTANA no es adorno: separa dos casos opuestos que el correo
+        // repetido no distingue. Dentro de ella es el mismo acto —el alta ya se
+        // hizo, se dice que sí—; fuera es un choque con la cuenta real de
+        // alguien que entró hace meses, y ahí el alta NO se hizo y el PIN recién
+        // escrito NO se guardó. Decirle "listo" a eso es prometer un acceso que
+        // no existe: `/corporate/hr/staff` (page.tsx:89 mira `res.ok`) abría su
+        // modal de "copia este PIN" para una cuenta que nadie tocó, y el
+        // AddStaffModal se cerraba en silencio. 10 minutos, la misma ventana que
+        // el proyecto da a un alta.
+        const VENTANA_DOBLE_ENVIO_MS = 10 * 60 * 1000;
+
+        const yaExiste = await prisma.user.findUnique({
+            where: { email: cleanEmail },
+            select: { id: true, name: true, email: true, role: true, headquartersId: true, isActive: true, isDeleted: true, createdAt: true },
         });
 
-        if (existing) {
-            return NextResponse.json({ error: 'Email is already in use' }, { status: 400 });
+        if (yaExiste) {
+            if (yaExiste.headquartersId !== hqId) {
+                // Mismo mensaje seco para no confirmar de quién es el correo ni
+                // en qué sede trabaja esa persona.
+                return NextResponse.json({ error: 'Ese correo ya está en uso.' }, { status: 400 });
+            }
+
+            const reciente = Date.now() - yaExiste.createdAt.getTime() < VENTANA_DOBLE_ENVIO_MS;
+            if (reciente && !estaDeBaja(yaExiste)) {
+                return NextResponse.json({
+                    success: true,
+                    yaExistia: true,
+                    user: yaExiste,
+                    mensaje: `${yaExiste.name} ya quedó registrado con ese correo. No se creó una segunda cuenta.`,
+                }, { status: 200 });
+            }
+
+            return NextResponse.json({
+                success: false,
+                error: estaDeBaja(yaExiste)
+                    ? `${yaExiste.name} ya tuvo cuenta con ese correo y está de baja. No se creó otra ni se guardó el PIN: reactívala desde su perfil.`
+                    : `${yaExiste.name} ya tiene cuenta con ese correo. No se creó otra ni se cambió su PIN; eso se hace desde su perfil.`,
+            }, { status: 409 });
         }
 
         // FIX 11-jun-2026: hashear pinCode en creación también. Antes este
@@ -171,7 +279,7 @@ export async function POST(request: Request) {
             hqId,
             userId: newUser.id,
             role: String(role),
-            assignedByUserId: (session.user as any).id,
+            assignedByUserId: auth.id,
         });
 
         // Certificación geriátrica: quien va a tocar a un residente la recibe
@@ -181,7 +289,7 @@ export async function POST(request: Request) {
             await asignarRutaCertificacion({
                 hqId,
                 userId: newUser.id,
-                assignedByUserId: (session.user as any).id,
+                assignedByUserId: auth.id,
             });
         }
 
@@ -258,7 +366,7 @@ export async function POST(request: Request) {
         }
 
         // Audit trail — non-fatal
-        const invokerId = (session.user as any).id;
+        const invokerId = auth.id;
         await logAudit({
             headquartersId: hqId,
             performedById: invokerId,
@@ -270,7 +378,9 @@ export async function POST(request: Request) {
             request,
         });
 
-        return NextResponse.json({ success: true, user: newUser }, { status: 201 });
+        // El hash del PIN no sale al cliente — mismo invariante que el GET.
+        const { pinCode: _hash, ...usuarioPublico } = newUser;
+        return NextResponse.json({ success: true, user: usuarioPublico }, { status: 201 });
 
     } catch (error) {
         console.error('API Error:', error);
@@ -280,21 +390,65 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !['DIRECTOR', 'ADMIN', 'HR_MANAGER'].includes(session.user.role)) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const auth = await requireRole(PUEDEN_GESTIONAR_PERSONAL);
+        if (auth instanceof NextResponse) return auth;
 
         const body = await request.json();
         const { id, role, secondaryRoles, pinCode, isShiftBlocked, isDeleted, name, email } = body;
 
         if (!id) {
-            return NextResponse.json({ error: 'Missing ID' }, { status: 400 });
+            return NextResponse.json({ error: 'Falta el ID del empleado' }, { status: 400 });
         }
 
-        // Bloqueo de seguridad corporativa B2B
-        if (id === session.user.id && isShiftBlocked === true) {
-            return NextResponse.json({ error: 'No te puedes bloquear a ti mismo.' }, { status: 403 });
+        // NADIE SE CAMBIA EL ROL A SÍ MISMO por aquí. Ni para subir —era un
+        // PATCH sobre el propio id con role:'ADMIN' y ya estaba— ni para bajar.
+        // El cambio de rol de quien gestiona personal lo hace otra persona.
+        if (id === auth.id && (role !== undefined || secondaryRoles !== undefined)) {
+            return NextResponse.json({
+                success: false,
+                error: 'No puedes cambiarte el rol a ti mismo. Que lo haga otra persona de Dirección.',
+            }, { status: 403 });
+        }
+
+        // Bloqueo de seguridad corporativa B2B: tampoco te quedas fuera solo.
+        // Misma razón por la que el DELETE no deja darse de baja a uno mismo.
+        if (id === auth.id && (isShiftBlocked === true || isDeleted === true)) {
+            return NextResponse.json({
+                success: false,
+                error: 'No te puedes bloquear ni dar de baja a ti mismo.',
+            }, { status: 403 });
+        }
+
+        const rechazo = rolesNoOtorgables(auth, role, secondaryRoles);
+        if (rechazo) return rechazo;
+
+        // FILTRO DE SEDE — mismo patrón que el DELETE de abajo. Sin esto bastaba
+        // el id de alguien de Mayagüez para cambiarle rol, correo, PIN o marcarlo
+        // de baja desde Cupey: `user.update({ where: { id } })` no mira la sede.
+        // El 403 es el mismo para "no existe" y para "es de otra sede", para no
+        // confirmar uuids ajenos a quien los esté probando.
+        const objetivo = await prisma.user.findUnique({
+            where: { id },
+            select: { id: true, headquartersId: true, role: true, secondaryRoles: true },
+        });
+        if (!objetivo || objetivo.headquartersId !== auth.headquartersId) {
+            return NextResponse.json({
+                success: false,
+                error: 'Empleado no encontrado en tu sede.',
+            }, { status: 403 });
+        }
+
+        // La otra puerta a la misma escalada: no hace falta cambiar un rol si
+        // puedes cambiarle el correo y el PIN a quien ya lo tiene. RRHH no
+        // edita cuentas de un rol que no podría otorgar (Dirección, socios);
+        // Dirección sigue editando a cualquiera de su sede, como hasta hoy.
+        const otorgablesPorMi = rolesOtorgablesPor(auth);
+        const rolesDelObjetivo = [objetivo.role, ...(objetivo.secondaryRoles || [])];
+        if (!esDireccion(auth) && rolesDelObjetivo.some(r => !(otorgablesPorMi as readonly string[]).includes(r))) {
+            return NextResponse.json({
+                success: false,
+                error: 'Esa cuenta tiene un rol que no gestionas desde aquí. Pídeselo a Dirección.',
+            }, { status: 403 });
         }
 
         const updateData: any = {};
@@ -316,7 +470,13 @@ export async function PATCH(request: Request) {
         if (pinCode !== undefined && pinCode !== '') {
             updateData.pinCode = await bcrypt.hash(pinCode, 10);
         }
-        if (isDeleted !== undefined) updateData.isDeleted = isDeleted;
+        // La baja no es una bandera sola: el invariante del repo es
+        // isDeleted === !isActive (staff-status.ts:33-38), y el login mira LAS
+        // DOS. Escribiendo solo isDeleted, el botón "Restaurar" de
+        // /hr/staff (page.tsx:87) dejaba a la persona con isActive:false —
+        // seguía sin poder entrar y seguía contando como baja, aunque la fila
+        // ya se hubiera movido de pestaña.
+        if (isDeleted !== undefined) Object.assign(updateData, isDeleted ? datosBaja() : datosAlta());
         if (isShiftBlocked !== undefined) {
             updateData.isShiftBlocked = isShiftBlocked;
             if (isShiftBlocked) updateData.blockReason = "Management suspension";
@@ -329,13 +489,13 @@ export async function PATCH(request: Request) {
         });
 
         // Audit trail — non-fatal
-        const patchHqId = updatedUser.headquartersId || (session.user as any).headquartersId;
+        const patchHqId = updatedUser.headquartersId || auth.headquartersId;
         const auditAction = isShiftBlocked === true ? 'USER_BLOCKED'
             : isDeleted === true ? 'USER_DELETED'
             : 'USER_UPDATED';
         await logAudit({
             headquartersId: patchHqId,
-            performedById: (session.user as any).id,
+            performedById: auth.id,
             action: auditAction,
             entityName: 'User',
             entityId: id,
@@ -344,7 +504,8 @@ export async function PATCH(request: Request) {
             request,
         });
 
-        return NextResponse.json({ success: true, user: updatedUser }, { status: 200 });
+        const { pinCode: _hashPin, ...usuarioActualizado } = updatedUser;
+        return NextResponse.json({ success: true, user: usuarioActualizado }, { status: 200 });
 
     } catch (error) {
         console.error('API Error:', error);
@@ -354,10 +515,8 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !['DIRECTOR', 'ADMIN', 'HR_MANAGER'].includes(session.user.role)) {
-            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-        }
+        const auth = await requireRole(PUEDEN_GESTIONAR_PERSONAL);
+        if (auth instanceof NextResponse) return auth;
 
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
@@ -367,12 +526,12 @@ export async function DELETE(request: Request) {
         }
 
         // Bloqueo de seguridad: No puede eliminarse a sí mismo
-        if (id === session.user.id) {
+        if (id === auth.id) {
             return NextResponse.json({ error: 'No te puedes eliminar a ti mismo.' }, { status: 403 });
         }
 
         const userToDelete = await prisma.user.findUnique({ where: { id } });
-        if (!userToDelete || userToDelete.headquartersId !== session.user.headquartersId) {
+        if (!userToDelete || userToDelete.headquartersId !== auth.headquartersId) {
             return NextResponse.json({ error: 'Empleado no encontrado o de otra sede.' }, { status: 404 });
         }
 

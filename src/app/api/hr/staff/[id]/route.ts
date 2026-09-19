@@ -32,10 +32,30 @@ export async function GET(
             return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 403 });
         }
 
+        // Select explícito, no `include`. Con `isSelf` cualquiera de las 24
+        // cuentas activas abre su propia ficha, así que lo que salga de aquí
+        // sale para todo el personal. `include: { headquarters: true }` traía
+        // la fila entera de la sede —ownerName, ownerEmail y ownerPhone están
+        // poblados en las dos sedes, y subscriptionPlan las distingue
+        // (ENTERPRISE vs PRO)— y la pantalla solo dibuja el nombre
+        // (src/app/hr/staff/[id]/page.tsx:443). Mismo patrón que el expediente
+        // completo del residente anidado en /api/care/messages (14-sep-2026).
         const employee = await prisma.user.findUnique({
             where: { id: employeeId },
-            include: {
-                headquarters: true,
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                secondaryRoles: true,
+                isActive: true,
+                photoUrl: true,
+                image: true,
+                complianceScore: true,
+                headquartersId: true,
+                // pinCode no viaja: solo se deriva `hasPinCode` más abajo.
+                pinCode: true,
+                headquarters: { select: { id: true, name: true } },
                 _count: {
                     select: {
                         administeredMeds: true,
@@ -62,7 +82,6 @@ export async function GET(
             select: {
                 score: true,
                 createdAt: true,
-                evaluatorId: true,
             },
         });
 
@@ -83,7 +102,7 @@ export async function GET(
         });
 
         // Nunca enviar el hash al cliente — solo un booleano
-        const { pinCode, ...safeEmployee } = employee as any;
+        const { pinCode, ...safeEmployee } = employee;
 
         return NextResponse.json({
             success: true,

@@ -46,13 +46,29 @@ export default function ZendityStaffDirectoryPage() {
         if (!confirm(`¿${action} de turno a este empleado?\n\n${detalle}`)) return;
 
         try {
+            // Esto llamaba a `PUT` con `{ userId, isBlocked, blockReason }`, y
+            // /api/hr/staff NO EXPORTA PUT — solo GET, POST, PATCH y DELETE.
+            // Next devolvía 405 con `{}`: `data.success` salía undefined, el
+            // catch no saltaba porque la petición sí se completó, y la pantalla
+            // se quedaba igual sin decir una palabra. O sea: el botón de
+            // suspender/reactivar turno del listado llevaba tiempo sin hacer
+            // NADA y nadie se enteró. Ahora va al PATCH, que es el que existe,
+            // con los nombres que ese PATCH lee: `id` e `isShiftBlocked`
+            // (route.ts:416). El `blockReason` no se manda: lo escribe el
+            // servidor él mismo al ver isShiftBlocked (route.ts:499-503).
             const res = await fetch("/api/hr/staff", {
-                method: "PUT", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ userId: empId, isBlocked: !currentState, blockReason: !currentState ? "Suspensión Adtva." : null })
+                method: "PATCH", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: empId, isShiftBlocked: !currentState })
             });
-            const data = await res.json();
+            let data: any = {};
+            try { data = await res.json(); } catch { /* 405/500 sin cuerpo JSON */ }
             if (data.success) {
                 setStaff(prev => prev.map(emp => emp.id === empId ? { ...emp, isShiftBlocked: !currentState } : emp));
+            } else {
+                // Que el fallo se VEA. El servidor manda el motivo —"No te
+                // puedes bloquear ni dar de baja a ti mismo", "Empleado no
+                // encontrado en tu sede"— y hasta hoy se tiraba a la basura.
+                alert(data.error || `No se pudo ${action.toLowerCase()} de turno (${res.status}).`);
             }
         } catch (e) {
             console.error(e);

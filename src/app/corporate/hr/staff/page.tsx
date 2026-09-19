@@ -9,6 +9,8 @@ import {
     MoreVertical, Ban, CheckCircle2, UserCog, Building2, Trash2, Copy
 } from "lucide-react";
 import { useActiveHq } from "@/contexts/ActiveHqContext";
+import { useAuth } from "@/context/AuthContext";
+import { rolesOtorgablesPor, ETIQUETA_ROL } from "@/lib/roles-otorgables";
 
 type StaffMember = {
     id: string;
@@ -28,6 +30,17 @@ import { Z_SCORE_VISIBLE, Z_SCORE_OCULTO_MOTIVO } from '@/lib/z-score-visible';
 
 export default function StaffManagementPage() {
     const { activeHqId } = useActiveHq();
+    const { user } = useAuth();
+    /**
+     * El desplegable ofrece lo que ESTA persona puede otorgar, ni uno más.
+     *
+     * Ofrecía DIRECTOR y ADMIN escritos a mano, y desde el 16-sep-2026 la ruta
+     * los rechaza con 403: quien los escogiera llenaba el formulario entero
+     * —nombre, correo, PIN— para comerse el error al final. La lista sale de
+     * src/lib/roles-otorgables.ts, la misma que valida el servidor, para que
+     * pantalla y ruta no puedan volver a discrepar.
+     */
+    const otorgables = rolesOtorgablesPor(user);
     const [staff, setStaff] = useState<StaffMember[]>([]);
     const [loading, setLoading] = useState(true);
     // Las bajas se traen siempre y se filtran aquí: sin esto no hay forma de
@@ -87,8 +100,19 @@ export default function StaffManagementPage() {
             });
 
             if (res.ok) {
+                const data = await res.json().catch(() => ({}));
                 await fetchStaff();
                 setIsCreateModalOpen(false);
+                // La guarda contra doble envío de la ruta devuelve 200 con
+                // `yaExistia: true` cuando el segundo toque llega dentro de la
+                // ventana: nadie creó nada y NO hay PIN nuevo que enseñar.
+                // Sin este corte, el modal entregaba un PIN que nunca se
+                // guardó y quien lo copiara no podría entrar con él.
+                if (data?.yaExistia) {
+                    alert(data.mensaje || "Esa cuenta ya estaba creada. No se creó una segunda.");
+                    setFormData({ name: "", email: "", role: "CAREGIVER", pinCode: "1234" });
+                    return;
+                }
                 // Guardar el PIN para mostrarlo UNA SOLA VEZ en el modal de confirmación
                 // El PIN NO se envía en el correo de bienvenida por seguridad
                 const pinToShow = formData.pinCode || "No asignado";
@@ -367,16 +391,15 @@ export default function StaffManagementPage() {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Rol Clínico</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
                                     <select
                                         className="w-full border border-gray-200 rounded-xl px-4 py-3 bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                                         value={formData.role}
                                         onChange={e => setFormData({ ...formData, role: e.target.value })}
                                     >
-                                        <option value="CAREGIVER">Cuidador/a</option>
-                                        <option value="NURSE">Enfermera(o)</option>
-                                        <option value="ADMIN">Administración</option>
-                                        <option value="DIRECTOR">Director</option>
+                                        {otorgables.map(r => (
+                                            <option key={r} value={r}>{ETIQUETA_ROL[r]}</option>
+                                        ))}
                                     </select>
                                 </div>
                                 <div>
