@@ -112,6 +112,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // Cast a string — el tipo literal de AuthUser.role todavía no
                 // lista COORDINATOR (legacy del codebase, no bloquea runtime).
                 else if ((user.role as string) === "COORDINATOR") router.replace("/coordinator");
+                // RRHH (16-sep-2026): sin este caso caía al else → "/", que es
+                // el tablero CLÍNICO. Ahí el menú que se dibuja no tiene un solo
+                // enlace a /hr, y el conmutador de entorno solo lo ven ADMIN/
+                // DIRECTOR/SUPERVISOR: la única salida era "Mi Perfil" del pie.
+                else if (user.role === "HR_MANAGER") router.replace("/hr");
                 else router.replace("/"); // NURSE, SUPERVISOR, DIRECTOR
             } else {
                 // Protección de Rutas (Básico)
@@ -199,6 +204,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     !pathname.startsWith("/academy")
                 ) {
                     router.replace("/coordinator");
+                }
+                // HR_MANAGER — confinado a personal. El rol existe en el enum
+                // desde el 24-ago-2026 con lo que NO tiene escrito al lado:
+                // "acceso clínico: residentes, eMAR, expedientes, piso". Hasta
+                // hoy no tenía cláusula ninguna aquí: entraba a cualquier ruta.
+                //
+                // Allowlist (startsWith, sin slash final → cubre lista Y detalle):
+                //   - /hr/*            (señales, observaciones, evaluaciones, staff)
+                //   - /corporate/hr/*  (comunicados al personal, y el "Mi Perfil"
+                //                       del pie, que en entorno corporativo
+                //                       apunta a /corporate/hr/staff/[id])
+                //   - /academy         (se le asigna formación)
+                //   - /mi-desempeno    (lo suyo propio)
+                //
+                // La Bitácora de Turnos se RESTA a mano: vive bajo
+                // /corporate/hr, y el dueño decidió que RRHH no necesita ver los
+                // relevos de turno. Sin esta resta, la lista blanca se la daría
+                // de regalo por vecindad de ruta.
+                //
+                // Solo el rol PRIMARIO: una directora con HR_MANAGER secundario
+                // no se confina, igual que en la cláusula de SOCIAL_WORKER.
+                //
+                // ⚠️ ESTO ES UX / DEFENSA-EN-PROFUNDIDAD — la puerta real es el
+                // role-list de cada endpoint. Esto solo evita que se tope con
+                // pantallas que le van a decir que no.
+                else if (user.role === "HR_MANAGER" &&
+                    !pathname.startsWith("/hr") &&
+                    (!pathname.startsWith("/corporate/hr") || pathname.startsWith("/corporate/hr/shift-log")) &&
+                    !pathname.startsWith("/academy") &&
+                    !pathname.startsWith("/mi-desempeno")) {
+                    router.replace("/hr");
                 }
             }
         }

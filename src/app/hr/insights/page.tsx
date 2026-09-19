@@ -6,7 +6,9 @@ import { useRouter } from "next/navigation";
 import { ShieldAlert, AlertTriangle, AlertOctagon, BrainCircuit, FileText, CheckCircle2 } from 'lucide-react';
 import WriteIncidentModal from "@/components/hr/WriteIncidentModal";
 
-const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
+// Mismo set que /api/hr/insights. Faltaba HR_MANAGER solo aquí: el endpoint
+// ya le abría y esta pantalla lo echaba a "/", el tablero clínico.
+const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'HR_MANAGER'];
 
 interface RedFlag {
     id: string;
@@ -36,7 +38,7 @@ export default function ZendiInsightsPage() {
     // Disciplinary Reports
     const [incidents, setIncidents] = useState<any[]>([]);
 
-    // ── Guard de rol: redirigir si no es DIRECTOR/ADMIN/SUPERVISOR ──
+    // ── Guard de rol: redirigir si no está en ALLOWED_ROLES ──
     useEffect(() => {
         if (authLoading) return;
         if (!user) return; // AuthContext maneja el redirect a /login

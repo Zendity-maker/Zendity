@@ -34,6 +34,9 @@ export default function HandoversPage() {
     const [handovers, setHandovers] = useState<Handover[]>([]);
     const [totalVentana, setTotalVentana] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
+    // Por que hay que decirlo: una lista vacia por un 403 y una lista vacia
+    // porque no hubo relevos se ven EXACTAMENTE igual, y son cosas opuestas.
+    const [errorCarga, setErrorCarga] = useState<string | null>(null);
 
     // -- ESTADO DEL MODAL --
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -63,6 +66,7 @@ export default function HandoversPage() {
         }
 
         setIsLoading(true);
+        setErrorCarga(null);
         try {
             const [handoverRes, incidentRes] = await Promise.all([
                 fetch(`/api/medical/handovers?hqId=${activeHqId}`),
@@ -77,6 +81,14 @@ export default function HandoversPage() {
                 // corte caia en el dia 22 y 73 reportes eran invisibles.
                 const t = parseInt(handoverRes.headers.get('X-Total-Ventana') ?? '0', 10);
                 setTotalVentana(Number.isFinite(t) ? t : 0);
+            } else {
+                setHandovers([]);
+                setTotalVentana(0);
+                setErrorCarga(
+                    handoverRes.status === 401 || handoverRes.status === 403
+                        ? 'Tu cuenta no tiene acceso a los relevos de esta sede. Si crees que deberia tenerlo, habla con Dirección.'
+                        : `No se pudieron cargar los relevos (el servidor respondió ${handoverRes.status}). No es que no haya relevos: es que no se pudieron leer.`
+                );
             }
 
             // Caídas reales de las últimas 8 horas — alimentan el FALL RISK LOCK
@@ -96,6 +108,9 @@ export default function HandoversPage() {
             }
         } catch (error) {
             console.error(error);
+            setHandovers([]);
+            setTotalVentana(0);
+            setErrorCarga('No se pudo conectar con el servidor para leer los relevos. Revisa la conexión y vuelve a intentarlo.');
         } finally {
             setIsLoading(false);
         }
@@ -249,7 +264,35 @@ export default function HandoversPage() {
         }
     };
 
-    const isAuthorized = user?.role && ['NURSE', 'ADMIN', 'CAREGIVER', 'DIRECTOR', 'HR', 'SUPERADMIN'].includes(user.role);
+    /**
+     * LA MISMA LISTA QUE LA API, LITERALMENTE.
+     *
+     * Copiada de ALLOWED_ROLES en src/app/api/medical/handovers/route.ts:25. La
+     * pantalla no puede dejar entrar a quien el servidor rechaza: cuando lo
+     * hacia, los 12 CAREGIVER pasaban esta puerta, la API les devolvia 403 y el
+     * fetch se lo tragaba en silencio — pantalla en blanco, sin decir por que.
+     *
+     * Lo que habia antes eran dos roles que NO EXISTEN en el enum Role:
+     *  - "SUPERADMIN" sin guion bajo (el enum dice SUPER_ADMIN), asi que la
+     *    unica cuenta SUPER_ADMIN del sistema veia el cartel rojo.
+     *  - "HR", que no es un rol. Y no se traduce a HR_MANAGER a proposito: el
+     *    relevo es un documento clinico y RRHH no tiene acceso clinico.
+     *
+     * SUPERVISOR entra —son las supervisoras quienes cierran los turnos— y no
+     * estaba.
+     *
+     * Y SUPER_ADMIN tambien: arreglar el string sin añadirlo aqui solo le
+     * habria cambiado el cartel rojo por una pantalla vacia, porque la API
+     * tampoco lo admitia. Las dos listas se abrieron a la vez.
+     *
+     * Se miran TAMBIEN los roles secundarios, porque desde el 16-sep-2026 la
+     * API pasa por requireRole, que los mira (src/lib/api-auth.ts:126-127).
+     * Si la pantalla mirara solo el primario seria mas estricta que el servidor
+     * y volveria a esconder a alguien que si tiene permiso.
+     */
+    const ROLES_CON_ACCESO = ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN'];
+    const rolesDeQuienMira = [user?.role, ...(user?.secondaryRoles ?? [])].filter(Boolean) as string[];
+    const isAuthorized = rolesDeQuienMira.some(r => ROLES_CON_ACCESO.includes(r));
 
     if (!isAuthorized) {
         return <div className="p-8 text-center text-red-500 font-bold">No tienes permiso para acceder al registro de Relevos de Guardia.</div>;
@@ -392,6 +435,21 @@ export default function HandoversPage() {
                         </div>
                         <p className="font-bold text-slate-500 tracking-wider text-sm uppercase">Recuperando Bitácoras...</p>
                     </div>
+                </div>
+            ) : errorCarga ? (
+                /* La pantalla muda era lo peor de esta ruta: quien no tenia
+                   acceso veia el mismo vacio que quien si lo tenia en un dia
+                   sin relevos, y no habia forma de distinguirlo. */
+                <div className="bg-rose-50 border border-rose-200 rounded-3xl p-8 text-center">
+                    <AlertOctagon className="w-8 h-8 text-rose-500 mx-auto mb-3" />
+                    <h3 className="text-rose-800 font-bold mb-2">No se pudieron cargar los relevos</h3>
+                    <p className="text-rose-700 text-sm max-w-xl mx-auto">{errorCarga}</p>
+                    <button
+                        onClick={fetchHandovers}
+                        className="mt-5 bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-colors"
+                    >
+                        Reintentar
+                    </button>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 gap-6">

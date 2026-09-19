@@ -34,7 +34,11 @@ const CATEGORY_LABELS: Record<string, string> = {
     OTHER: 'Otro',
 };
 
-const HR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+// Mismo set que /api/hr/incidents. Faltaba HR_MANAGER solo aquí: el endpoint le
+// servía los datos y la pantalla lo echaba a "/", y el sidebar le pintaba encima
+// el contador de observaciones que esperan decisión — un badge sobre un enlace
+// que no podía abrir.
+const HR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'HR_MANAGER'];
 
 export default function HrIncidentsPage() {
     const router = useRouter();

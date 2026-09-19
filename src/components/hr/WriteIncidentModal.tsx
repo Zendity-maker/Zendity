@@ -11,6 +11,8 @@ interface WriteIncidentModalProps {
     isOpen: boolean;
     onClose: () => void;
     hqId: string;
+    /** Ya no decide la autoría: la escribe el servidor desde la sesión. Se
+     *  conserva porque los call sites lo pasan. */
     supervisorId: string;
     employees: any[];
     onSuccess?: () => void;
@@ -39,9 +41,8 @@ const CATEGORY_LABELS: Record<Category, string> = {
 const severityToLegacyType = (s: Severity): string =>
     s === 'OBSERVATION' ? 'WARNING' : s; // legacy enum no tiene OBSERVATION
 
-export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId, employees, onSuccess }: WriteIncidentModalProps) {
+export default function WriteIncidentModal({ isOpen, onClose, hqId, employees, onSuccess }: WriteIncidentModalProps) {
     const [employeeId, setEmployeeId] = useState('');
-    const [selectedSupervisorId, setSelectedSupervisorId] = useState(supervisorId);
     const [severity, setSeverity] = useState<Severity>('OBSERVATION');
     const [category, setCategory] = useState<Category>('OTHER');
     const [description, setDescription] = useState('');
@@ -78,7 +79,6 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
     }, [isOpen, hqId]);
 
     const isDirectorView = user?.role === 'DIRECTOR';
-    const administrativeStaff = fullRoster.filter(e => e.role === 'DIRECTOR' || e.role === 'ADMIN' || e.role === 'HR' || e.role === 'SUPERVISOR');
     const availableEmployees = isDirectorView
         ? fullRoster
         : fullRoster.filter(e => ['NURSE', 'CAREGIVER', 'MAINTENANCE', 'CLEANING', 'KITCHEN', 'SOCIAL_WORKER'].includes(e.role));
@@ -86,7 +86,6 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
     useEffect(() => {
         if (isOpen) {
             if (employees.length === 1 && !employeeId) setEmployeeId(employees[0].id);
-            if (!selectedSupervisorId && user?.id) setSelectedSupervisorId(user.id);
         }
     }, [isOpen, employees, user]);
 
@@ -113,7 +112,10 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
     };
 
     const handleSubmit = async () => {
-        if (!employeeId || !description || !selectedSupervisorId) return alert("Faltan datos por llenar.");
+        // El emisor ya no se pide: lo pone el servidor desde la sesión. Exigirlo
+        // aquí era un candado sin llave — si la sesión no traía id, el botón
+        // decía "faltan datos" sobre un campo que nadie podía llenar.
+        if (!employeeId || !description) return alert("Faltan datos por llenar.");
 
         setSubmitting(true);
         try {
@@ -185,18 +187,27 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
 
                     <div className="p-6 overflow-y-auto flex-1 space-y-5">
                         <div className="grid grid-cols-2 gap-4">
-                            <Field label="Supervisor Emisor" htmlFor="supervisorEmisor">
-                                <Select
-                                    id="supervisorEmisor"
-                                    value={selectedSupervisorId}
-                                    onChange={(e) => setSelectedSupervisorId(e.target.value)}
-                                    className="uppercase text-sm bg-gray-50"
-                                >
-                                    <option value="">Seleccione el emisor...</option>
-                                    {administrativeStaff.map(sup => (
-                                        <option key={sup.id} value={sup.id}>{sup.name} ({sup.role})</option>
-                                    ))}
-                                </Select>
+                            {/**
+                              * DEJA DE SER UN DESPLEGABLE.
+                              *
+                              * Era una lista donde se podia elegir a otra persona como
+                              * emisora, y no servia para nada: el modal nunca mandaba ese
+                              * campo, y el servidor escribe supervisorId = quien esta en
+                              * sesion (api/hr/incidents/route.ts). O sea que un director
+                              * podia poner ahi el nombre de una supervisora, ver que lo
+                              * habia puesto, y la observacion quedaba firmada a su propio
+                              * nombre. En un documento disciplinario que el empleado firma
+                              * y puede apelar, la autoria no es un detalle cosmetico.
+                              *
+                              * Se queda de solo lectura, diciendo lo que va a pasar de
+                              * verdad. Si algun dia hace falta emitir en nombre de otro,
+                              * es un cambio de servidor —con su registro de quien lo hizo
+                              * por quien—, no un <select> en el formulario.
+                              */}
+                            <Field label="Supervisor Emisor" helper="La observación queda firmada a nombre de quien la escribe.">
+                                <div className="flex items-center h-[42px] px-3 rounded-lg border border-gray-200 bg-gray-100 text-sm font-semibold text-gray-700 uppercase truncate">
+                                    {user?.name ?? 'Tu cuenta'}{user?.role ? ` (${user.role})` : ''}
+                                </div>
                             </Field>
                             <Field label="Empleado Involucrado" htmlFor="empleadoInvolucrado">
                                 <Select

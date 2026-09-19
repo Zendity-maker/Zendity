@@ -1,14 +1,37 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { Role } from '@prisma/client';
-import { requireRole } from '@/lib/api-auth';
+import { requireRole, type SessionUser } from '@/lib/api-auth';
 import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
+
+/**
+ * QUIÉN ENTRA POR LA PUERTA DE RRHH Y NADA MÁS.
+ *
+ * Misma prueba que en ../route.ts: `requireRole` acepta también los roles
+ * secundarios, así que a un DIRECTOR con HR_MANAGER de segundo no se le quita
+ * nada — el recorte es para quien no tiene ninguna otra puerta. Hoy en
+ * producción eso es una sola cuenta.
+ *
+ * (Está copiado en los tres endpoints a propósito: consolidarlo en
+ * src/lib/rrhh-sin-phi.ts toca ficheros fuera de este cambio.)
+ */
+const ROLES_CON_ACCESO_AL_PISO = [
+    'DIRECTOR', 'ADMIN', 'SUPER_ADMIN', 'HQ_OWNER',
+    'SUPERVISOR', 'NURSE', 'CLINICAL_DIRECTOR', 'CAREGIVER',
+];
+
+function entraSoloPorRRHH(auth: SessionUser): boolean {
+    const todos = [auth.role, ...auth.secondaryRoles];
+    return !todos.some(r => ROLES_CON_ACCESO_AL_PISO.includes(r));
+}
 
 export async function GET(req: Request, { params }: any) {
     try {
         // RRHH — KPIs de staff: supervisión/gerencia + tenant check.
         const auth = await requireRole(['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'HR_MANAGER']);
         if (auth instanceof NextResponse) return auth;
+
+        const sinPiso = entraSoloPorRRHH(auth);
 
         const { userId } = await params;
         const user = await prisma.user.findUnique({
@@ -143,7 +166,21 @@ export async function GET(req: Request, { params }: any) {
                 roundCoverage,           // % residentes del grupo atendidos
                 groupSize,               // total residentes en su grupo
                 uniqueAttended,          // residentes únicos con atención registrada
-                colorGroup: myColor,     // su grupo (RED/YELLOW/BLUE)
+                /**
+                 * EL ÚNICO CAMPO DE TODA ESTA RUTA QUE NOMBRA UN GRUPO DE
+                 * RESIDENTES EN VEZ DE CONTAR ALGO.
+                 *
+                 * `colorGroup` es la zonificación del piso (FASE 7): hoy RED
+                 * son 11 residentes concretos, YELLOW 9 y BLUE 11. Saber que
+                 * alguien cubre el rojo es saber a qué once personas atiende —
+                 * es el mapa del piso, y RRHH no lo necesita para evaluar a
+                 * nadie. Todo lo demás de aquí es un conteo o un porcentaje, y
+                 * un conteo no identifica a nadie: esos sí salen.
+                 *
+                 * Para dirección y supervisión no cambia nada: el color es
+                 * justo lo que usan para leer la ronda.
+                 */
+                ...(sinPiso ? {} : { colorGroup: myColor }),
                 // Profundidad
                 attentionDensity,        // interacciones promedio por residente
                 totalInteractions,       // total de toques registrados en 7d
@@ -263,7 +300,10 @@ export async function GET(req: Request, { params }: any) {
                 complianceScore: Z_SCORE_VISIBLE ? user.complianceScore : null,
             },
             kpis,
-            period: "Últimos 7 Días"
+            period: "Últimos 7 Días",
+            // Para que la pantalla pueda decir "esta vista va sin detalle
+            // clínico" en vez de dejar un hueco sin explicación.
+            sinDetalleClinico: sinPiso,
         });
 
     } catch (error) {

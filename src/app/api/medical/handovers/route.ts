@@ -1,26 +1,41 @@
 import { NextResponse } from "next/server";
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { logAudit } from '@/lib/audit';
 
-const ALLOWED_ROLES = ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+/**
+ * Quien puede ver y firmar relevos de turno.
+ *
+ * SUPER_ADMIN se anade el 16-sep-2026. La pagina /corporate/medical/handovers
+ * pedia "SUPERADMIN" (sin guion bajo, rol que no existe en el enum Role) y esta
+ * API tampoco lo admitia: la unica cuenta SUPER_ADMIN de produccion
+ * (admin@zendity.com) no podia abrir los relevos por ninguno de los dos lados.
+ * Arreglar solo la pagina la habria dejado viendo una pantalla vacia en vez de
+ * un 403 — peor, porque un vacio se lee como "no hay relevos" y hoy hay 291 en
+ * los ultimos 30 dias entre las dos sedes.
+ *
+ * SUPERVISOR se queda: las dos supervisoras de Cupey son quienes cierran los
+ * turnos. NURSE tambien, aunque hoy no haya nadie con NURSE primario (Celia lo
+ * tiene como rol secundario y entra por DIRECTOR).
+ *
+ * HR_MANAGER NO entra — decision del dueno, 16-sep-2026: "no necesita ver
+ * relevos de turno". Los relevos son clinicos.
+ */
+const ALLOWED_ROLES = ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN'];
 
 // Obtener los Relevos de Guardia (filtrados por la sede activa del invocador)
 export async function GET(request: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-        }
-        const invokerRole = (session.user as any).role;
-        if (!ALLOWED_ROLES.includes(invokerRole)) {
-            return NextResponse.json({ error: 'Rol no autorizado' }, { status: 403 });
-        }
+        // requireRole en vez de getServerSession + includes: mira TAMBIEN los
+        // roles secundarios y pasa por el corte de facturacion suspendida, que
+        // el chequeo a mano se saltaba.
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+
         // Respeta el switcher de sede para DIRECTOR/ADMIN multi-HQ
         const requestedHqId = new URL(request.url).searchParams.get('hqId');
-        const hqId = await resolveEffectiveHqId(session, requestedHqId);
+        const hqId = await resolveEffectiveHqId({ user: auth } as any, requestedHqId);
 
         // Auto-cierre: si el cuidador firmó (signedOutAt) el relevo debería ser ACCEPTED.
         // Nueva política: firma del cuidador = suficiente. Migra todos los PENDING con firma.
@@ -87,16 +102,13 @@ export async function GET(request: Request) {
 // Crear un Relevo o Aceptar uno Existente
 export async function POST(request: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-        }
-        const invokerId = (session.user as any).id;
-        const invokerRole = (session.user as any).role;
-        const hqId = (session.user as any).headquartersId;
-        if (!ALLOWED_ROLES.includes(invokerRole)) {
-            return NextResponse.json({ error: 'Rol no autorizado' }, { status: 403 });
-        }
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+
+        const invokerId = auth.id;
+        const invokerRole = auth.role;
+        // hqId SIEMPRE de la sesion, nunca del body
+        const hqId = auth.headquartersId;
 
         const body = await request.json();
         const { action, handoverId, shiftType, outgoingNurseId, incomingNurseId, notes } = body;

@@ -28,16 +28,34 @@ const clinicalNavigation = [
     // AuthContext (NURSE, SUPERVISOR, DIRECTOR y los que caen al else).
     // Sin esto, la cuidadora veia "Insights" en su menu y al tocarlo la
     // rebotaba a /care/hub. Un enlace visible no puede terminar en un muro.
-    { name: 'Insights', href: '/', icon: LineChart, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'HR_MANAGER', 'SUPER_ADMIN'] },
+    // HR_MANAGER sale de esta lista: el guard de AuthContext lo confina a /hr,
+    // /corporate/hr, /academy y /mi-desempeno, asi que "/" lo devolvia a /hr.
+    // Era el mismo enlace-a-muro que el comentario de arriba describe, solo
+    // que en silencio.
+    { name: 'Insights', href: '/', icon: LineChart, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN'] },
+    // ...y a cambio, la puerta de vuelta. En /academy y /mi-desempeno la ruta
+    // no es corporativa, asi que RRHH recibe ESTE menu; sin este enlace se
+    // quedaba con dos opciones y ninguna forma de volver a su trabajo (el
+    // conmutador de entorno de la barra superior solo lo ven ADMIN, DIRECTOR y
+    // SUPERVISOR).
+    { name: 'Recursos Humanos', href: '/hr', icon: UserCog, onlyRoles: ['HR_MANAGER'] },
     // Sprint P.4 — /intake deprecado. Redirige a /corporate/patients/intake.
     // El item del sidebar se retiró para evitar confusión con "Admisión de
     // Residentes" (wizard maestro) en la sección Área Clínica / Médica.
     // Igual que arriba: /med no esta en la lista de rutas que el guard le
     // permite a CAREGIVER, asi que el enlace la rebotaba.
     { name: 'Med & Zoning', href: '/med', icon: Pill, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN'] },
-    { name: 'Zendity Care (Tablets)', href: '/care', icon: Smartphone },
+    // La tableta del piso. Mismos roles que /api/care/rounds, que es lo primero
+    // que carga. Sin onlyRoles la veían cocina, mantenimiento e inversión —y
+    // hasta RRHH, que cae en este menú mientras está en "/"—, y a todos ellos el
+    // guard de AuthContext los devuelve a su propia pantalla al tocarla.
+    { name: 'Zendity Care (Tablets)', href: '/care', icon: Smartphone, onlyRoles: ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'] },
     { name: 'Vitales', href: '/care/vitals', icon: Activity },
-    { name: 'Triage & Supervisión', href: '/care/supervisor', icon: ShieldAlert },
+    // Mismos roles que el guard de la propia página y que /api/care/supervisor.
+    // La regla de abajo que esconde el enlace a CAREGIVER se queda: ese guard
+    // mira SOLO el rol primario, así que una cuidadora con SUPERVISOR
+    // secundario pasaría este onlyRoles y la página la devolvería a /care.
+    { name: 'Triage & Supervisión', href: '/care/supervisor', icon: ShieldAlert, onlyRoles: ['SUPERVISOR', 'DIRECTOR', 'ADMIN'] },
     // Sprint nursing-upp-dashboard — vista agregada de rotación postural/UPP.
     // Match exacto del role gate del endpoint /api/care/nursing/rotation
     // (NURSE/SUPERVISOR/DIRECTOR/ADMIN). CAREGIVER no ve el link y URL directa
@@ -80,7 +98,15 @@ const clinicalNavigation = [
     { name: 'Expedientes', href: '/corporate/medical/patients', icon: Users, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SOCIAL_WORKER'] },
     { name: 'Auditoría eMAR', href: '/corporate/medical/emar', icon: Pill, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SOCIAL_WORKER'] },
     { name: 'Catálogo Farmacia', href: '/corporate/medical/catalog', icon: Package, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'] },
-    { name: 'Cocina y Nutrición', href: '/kitchen', icon: Utensils },
+    // Match exacto de PUEDEN_VER_EL_CENSO_DE_COCINA en
+    // /api/kitchen/dashboard: el tablero devuelve la dieta prescrita de los 47
+    // residentes, que es dato clínico. CAREGIVER no está en esa lista, así que
+    // este enlace le abría una pantalla vacía; el menú del día que sí necesita
+    // lo lee dentro de /care, en el momento de servir.
+    { name: 'Cocina y Nutrición', href: '/kitchen', icon: Utensils, onlyRoles: ['KITCHEN', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'NURSE', 'SUPER_ADMIN'] },
+    // Academy se queda SIN onlyRoles a propósito: a todo el mundo se le asigna
+    // formación —cocina, mantenimiento, limpieza, trabajo social— y el guard de
+    // AuthContext le abre /academy a cada uno de esos roles por su nombre.
     { name: 'Academy', href: '/academy', icon: GraduationCap },
     // Mis Observaciones — solo visible para CAREGIVER, NURSE, SUPERVISOR (con badge)
     { name: 'Mis Observaciones', href: '/my-observations', icon: FileWarning, onlyRoles: ['CAREGIVER', 'NURSE', 'SUPERVISOR'] },
@@ -99,6 +125,22 @@ const clinicalNavigation = [
 const HUB_FAMILIA_ROLES = ['COORDINATOR', 'ADMIN', 'DIRECTOR', 'NURSE'];
 
 /**
+ * Quién ve el botón y el contador de mensajes familiares en el header.
+ *
+ * LITERAL, la misma lista que ALLOWED_ROLES de /api/corporate/family-messages:
+ * si la puerta del botón es más estrecha que la de la ruta, alguien ve el
+ * enlace del menú y no ve el contador. Es lo que le pasaba a COORDINATOR —
+ * está en HUB_FAMILIA_ROLES, la ruta la admite, y el badge la dejaba fuera: la
+ * coordinadora, que es justo quien contesta a las familias, era la única que
+ * no veía cuántas están esperando.
+ *
+ * SUPERVISOR no está en HUB_FAMILIA_ROLES (no ve la sección del menú) pero sí
+ * en la ruta y siempre tuvo el botón del header. Se queda: quitárselo sería
+ * cerrarle una puerta que hoy usa, y no es lo que se vino a arreglar.
+ */
+const ROLES_MENSAJES_FAMILIA = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE', 'COORDINATOR'];
+
+/**
  * Lo único que ve HR_MANAGER en el menú corporativo.
  *
  * El resto de secciones —dashboard global, residentes, clínico, facturación—
@@ -114,6 +156,12 @@ const RRHH_RUTAS_EXCLUIDAS = [
     // Construir y publicar horarios sigue siendo de la directora y las
     // supervisoras. RRHH marca ausencias desde el perfil del empleado.
     '/hr/schedule',
+    // La bitácora trae el contenido de los relevos —lo clínico del turno— y su
+    // endpoint solo admite DIRECTOR, ADMIN y SUPERVISOR
+    // (api/corporate/hr/shift-log/route.ts:8). A RRHH le salía un enlace que
+    // termina en muro, y un enlace visible que no se puede abrir es peor que no
+    // tenerlo. Decisión del dueño: RRHH no necesita ver los relevos de turno.
+    '/corporate/hr/shift-log',
 ];
 
 function seccionesParaRol(secciones: any[], role?: string | null) {
@@ -274,7 +322,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const [staffChatOpen, setStaffChatOpen] = useState(false);
     const [staffChatUnread, setStaffChatUnread] = useState(0);
     const [familyMsgOpen, setFamilyMsgOpen] = useState(false);
-    const [familyMsgUnread, setFamilyMsgUnread] = useState(0);
+    // Hilos PENDIENTES (la familia escribió y nadie contestó), no "sin leer":
+    // el "sin leer" nacía en cero y no podía moverse. Ver el GET de
+    // /api/corporate/family-messages.
+    const [familyMsgPendientes, setFamilyMsgPendientes] = useState(0);
     const [intakePendingCount, setIntakePendingCount] = useState(0);
     const [apptPendingCount, setApptPendingCount] = useState(0);
     const [myObsPendingCount, setMyObsPendingCount] = useState(0);
@@ -355,22 +406,30 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         }
     }, [user?.id, fetchNotifications]);
 
-    // Polling badge mensajes familiares (solo roles staff, 1 vez/minuto cuando el panel está cerrado)
-    const isFamilyMsgRole = user?.role && ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE'].includes(user.role);
+    // Polling badge mensajes familiares (1 vez/minuto).
+    //
+    // Cuenta roles secundarios como el resto del menú: aquí se miraba solo
+    // `user.role`, así que a la enfermera que es COORDINATOR de segundas —o al
+    // revés— el enlace se le enseñaba y el contador no.
+    const isFamilyMsgRole = [user?.role ?? '', ...((user as any)?.secondaryRoles ?? [])]
+        .some((r: string) => ROLES_MENSAJES_FAMILIA.includes(r));
     useEffect(() => {
         if (!isFamilyMsgRole) return;
-        const fetchFamilyUnread = async () => {
+        const fetchFamilyPendientes = async () => {
             try {
                 const res = await fetch('/api/corporate/family-messages');
                 const data = await res.json();
                 if (data.success) {
-                    const total = data.conversations.reduce((acc: number, c: any) => acc + c.unreadCount, 0);
-                    setFamilyMsgUnread(total);
+                    // Hilos cuyo último mensaje es de la familia: lo que falta
+                    // por contestar. El `unreadCount` que se sumaba aquí daba
+                    // 0 en las 23 conversaciones; esto da 3.
+                    const pendientes = data.conversations.filter((c: any) => c.pendiente).length;
+                    setFamilyMsgPendientes(pendientes);
                 }
             } catch {}
         };
-        fetchFamilyUnread();
-        const interval = setInterval(fetchFamilyUnread, 60000);
+        fetchFamilyPendientes();
+        const interval = setInterval(fetchFamilyPendientes, 60000);
         return () => clearInterval(interval);
     }, [isFamilyMsgRole]);
 
@@ -897,7 +956,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <FamilyMessagesPanel
                     open={familyMsgOpen}
                     onClose={() => setFamilyMsgOpen(false)}
-                    onUnreadChange={setFamilyMsgUnread}
+                    onPendientesChange={setFamilyMsgPendientes}
                 />
             )}
 
@@ -1360,17 +1419,24 @@ if ((item as any).onlyRoles) {
                         )}
                     </div>
 
-                    {/* Mensajes familiares — botón con badge (solo roles staff) */}
+                    {/* Mensajes familiares — botón con badge.
+                        El badge es ROJO, no teal: no anuncia actividad, avisa de
+                        una respuesta que debemos. Mismo criterio que el panel de
+                        dirección, donde el rojo es lo que pide decisión. */}
                     {isFamilyMsgRole && (
                         <button
                             onClick={() => setFamilyMsgOpen(v => !v)}
                             className="relative p-2 text-slate-400 hover:text-teal-600 hover:bg-soft-mist rounded-full transition-all focus:outline-none"
-                            title="Mensajes familiares"
+                            title={familyMsgPendientes > 0
+                                ? (familyMsgPendientes === 1
+                                    ? '1 familia espera respuesta'
+                                    : `${familyMsgPendientes} familias esperan respuesta`)
+                                : 'Mensajes familiares'}
                         >
                             <UsersIcon className="w-5 h-5" />
-                            {familyMsgUnread > 0 && (
-                                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-teal-500 rounded-full border-2 border-white text-[10px] font-bold text-white leading-none px-1">
-                                    {familyMsgUnread > 9 ? '9+' : familyMsgUnread}
+                            {familyMsgPendientes > 0 && (
+                                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-rose-500 rounded-full border-2 border-white text-[10px] font-bold text-white leading-none px-1">
+                                    {familyMsgPendientes > 9 ? '9+' : familyMsgPendientes}
                                 </span>
                             )}
                         </button>

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { requireRole } from '@/lib/api-auth';
 import { emailLogoSrc } from '@/lib/email-logo';
 import sgMail from '@sendgrid/mail';
 import { remitenteDe, asuntoDe } from '@/lib/remitente-correo';
@@ -13,14 +12,20 @@ if (process.env.SENDGRID_API_KEY) {
 
 export async function POST(request: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !['DIRECTOR', 'ADMIN', 'HR'].includes(session.user.role)) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        // "HR" NO es un valor del enum Role — el valor es HR_MANAGER — así que
+        // esta lista funcionaba de hecho como [DIRECTOR, ADMIN] y la tercera
+        // opción no alcanzó nunca a nadie: despachar correo al personal, que es
+        // la definición del puesto de RRHH, daba 401.
+        //
+        // Y no basta con corregir el string: includes(session.user.role) ignora
+        // los roles secundarios, devuelve 401 donde toca 403, y se salta el
+        // corte por facturación suspendida, que vive dentro de requireRole.
+        const auth = await requireRole(['DIRECTOR', 'ADMIN', 'HR_MANAGER']);
+        if (auth instanceof NextResponse) return auth;
 
         const body = await request.json();
         const { employeeId, subject, html } = body;
-        const hqId = session.user.headquartersId || (session.user as any).hqId;
+        const hqId = auth.headquartersId;
 
         // Validaciones básicas
         if (!employeeId || !subject || !html) {
