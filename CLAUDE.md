@@ -140,6 +140,14 @@ que se fue, o señala a un empleado que ya no trabaja aquí.
 | Señales de personal | Medelyn García, inactiva y borrada |
 | Leaderboard del wall | Eiby Caraballo, inactiva, en el "Top 5" de la pared |
 | Digest de relevo, horarios, concierge | corregidos el 09-sep-2026 |
+| Ausencias sin motivo (`pantalla-direccion`) | pedía completar **4** motivos; 3 eran de Zuleyka Valcárcel y Joaneliz Rosario, borradas hacía meses. Trabajo imposible en la lista del director — *21-sep* |
+| Ausencias de hoy (`estado-operativo`) | **17 de 24** eran de gente que ya no trabaja aquí — *21-sep* |
+
+**Y en `ScheduledShift` va acompañado de un segundo filtro: `schedule.status:
+'PUBLISHED'`.** Un horario en BORRADOR es un ensayo del constructor; sus
+ausencias no son hechos. `shift-coverage`, `cuidadora-a-cargo` y
+`uncovered-colors` ya lo filtran — si escribes una consulta nueva contra
+`ScheduledShift` y no lo lleva, eres la divergencia.
 
 **Pero no es un filtro que se ponga en todas partes.** Una búsqueda de UN
 expediente por id NO debe filtrar: hay que poder abrir el de alguien que
@@ -160,13 +168,20 @@ que piden revisión una por una. No se tocan en bloque.
 Dos campos de `MedicationAdministration` parecen buenos para acotar "lo de hoy"
 y los dos mienten:
 
-| campo | cuándo es null |
-|---|---|
-| `administeredAt` | **siempre que el estado NO sea `ADMINISTERED`** — `meds/bulk` lo escribe así a propósito |
-| `scheduledTime` | **siempre**. Nulo en las 7.018 filas de los últimos 30 días: el campo se diseñó y nunca se llenó |
+| campo | cuándo es null | *remedido el 21-sep-2026, 7.567 filas de 30 días* |
+|---|---|---|
+| `administeredAt` | **siempre que el estado NO sea `ADMINISTERED`** — `meds/bulk` lo escribe así a propósito | sigue exacto: 7.071 con valor, y los 496 sin él son justo los MISSED, PENDING y OMITTED |
+| `scheduledTime` | ~~siempre~~ **ya no.** El cron lo llena desde el **15-sep-2026** | 1.981 de 7.567 (26%). Por estado: **MISSED 232/232, PENDING 262/262**, ADMINISTERED 1.487/7.071, OMITTED 0/2 |
 
 Filtrar por cualquiera de los dos **excluye en silencio las omisiones**, que son
 justo lo que se quiere contar. Y no da error: da un número tranquilizador.
+
+**`scheduledTime` cambió de trampa, no dejó de tenerla — y la nueva es peor.**
+Antes estaba vacío y cualquier consulta daba cero, que al menos se nota. Ahora
+está lleno **justo en las filas de hoy**: si lo compruebas contra la base, lo ves
+al 100% en lo que te importa y te fías. Pero es null en todo lo anterior al
+15-sep, así que acotar por él **tira la historia entera sin decirlo**. La regla
+de abajo no cambió; el motivo sí.
 
 | dónde | qué decía |
 |---|---|
@@ -175,10 +190,17 @@ justo lo que se quiere contar. Y no da error: da un número tranquilizador.
 | `corporate/director-briefing` | cumplimiento eMAR **100% por construcción** |
 | `corporate/trends` | la tendencia, igual |
 | `family/dashboard` y `cron/family-digest` | la familia nunca ve el estado de los medicamentos |
+| `emar/patient/[id]` y la evaluación de TS | adherencia **100% las ocho semanas** desde el 27-jul. La del 14-sep es 89% de verdad (1.795/2.027, 232 omisiones) — *arreglado 21-sep, commit `61db430c`* |
 
 **La regla:** para acotar "lo de hoy" en una tabla de eventos, usa `createdAt`,
 que siempre tiene valor. `administeredAt` y `scheduledTime` sirven para mostrar
 la hora, no para filtrar el día.
+
+**Y el denominador tampoco es libre.** Por `createdAt` a secas entran las dosis
+`PENDING` y la adherencia se hunde al 3% — el error contrario y igual de falso:
+una PENDING no está fallada. El denominador son las dosis **resueltas**:
+`ADMINISTERED, MISSED, OMITTED, REFUSED, HELD`. Sin ninguna resuelta, el valor es
+**null**, nunca un 100% de relleno dentro de un expediente clínico.
 
 **Y el olor a detectar:** una métrica que sale redonda siempre —100%, 0%,
 "ninguno"— no es una métrica buena, es una métrica que no puede moverse.
@@ -186,6 +208,60 @@ Compruébalo simulándola: ¿bajo qué dato daría otra cosa? Si no hay ninguno,
 rota. El mismo día, la cobertura de comidas del panel del director era el espejo:
 una alarma que **no podía dejar de sonar** porque dividía entre las tres comidas
 del día a las 8:38 de la mañana.
+
+**Y un cero tiene dos significados que la pantalla no distingue sola.** «No hubo
+nada que señalar» y «no sabemos» se pintan idénticos: 0 en verde con un ✅. La
+auditoría de turno felicitaba por **69 de 793 sesiones** de las que no se pudo
+resolver a quién cuidaba la persona —y en 67 de esas 69 no existe *ninguna* pauta
+que cubra la hora del ponche—: «Brechas 0 ✅, Sin actividad 0 ✅, Detalle por
+residente (0)», igual que un turno impecable. Si tu cálculo puede no saber la
+respuesta, **devuelve por qué** (ahí, `colorSource: 'unresolved'`) y que la
+pantalla lo diga. Un cero sin procedencia es una afirmación que nadie hizo.
+
+### Tres anclas del mismo día, y NO son intercambiables
+
+*21-sep-2026.* No todo campo de fecha se compara con el mismo cero. En este repo
+hay tres, todas a propósito, y usar la que no toca **no da error**:
+
+| ancla | qué vale | para qué campo |
+|---|---|---|
+| `todayStartAST()` | 10:00 UTC = 6 AM AST, el día **clínico** | timestamps reales: `createdAt`, `timeLogged`, `administeredAt` |
+| `clinicalDayCalendarUTCRange()` | 00:00 UTC del día natural | **`ScheduledShift.date`**, que se persiste a medianoche UTC |
+| `fechaCalendarioAST()` | medianoche natural de PR | el menú y lo que se cuenta por día de calendario |
+
+El fallo: `estado-operativo` filtraba `ScheduledShift.date >= todayStartAST()`.
+Una fecha de **00:00 UTC nunca es >= 10:00 UTC del mismo día**, así que la
+consulta excluía *estructuralmente* el día en curso. Y sin cota superior no
+devolvía cero —que se habría notado— sino las ausencias **futuras**: nombres
+reales de gente que falta la semana que viene, bajo el rótulo «ausencias de hoy».
+Medido día a día sobre 120 días: **19 líneas en total y ninguna era del día que
+decía el rótulo.**
+
+**Cómo detectarlo:** si comparas un campo `Date` contra un ancla, comprueba a qué
+hora se GUARDA ese campo. Si se guarda a 00:00 UTC y tu ancla son las 10:00 UTC,
+la condición es constante, no es un filtro. Un rango con `gte` **y** `lt` habría
+convertido el fallo en un cero visible.
+
+### La frase que sustituye a una mentira tampoco puede ser una
+
+*21-sep-2026, aprendido a media corrección.*
+
+Al arreglar la adherencia hubo que escribir el texto que ve la trabajadora social
+cuando no hay porcentaje. La primera redacción decía:
+
+> «Las N dosis de esta semana todavía no toca darlas.»
+
+Suena bien, explica, tranquiliza. Y es **una inferencia**, no el dato. Medido a
+las 9:02 AST de ese mismo día: de las 262 dosis `PENDING`, **154 estaban pautadas
+a las 8:00** y llevaban una hora sin firmar. La frase habría tranquilizado sobre
+una omisión sin anotar — exactamente la mentira que el arreglo venía a quitar,
+reinstalada en la frase que la sustituía. Quedó en «todavía sin resolver».
+
+**La regla:** cuando quites un número falso, el texto que pongas en su lugar solo
+puede decir lo que de verdad sabes. `sinResolver` es un conteo; **por qué** están
+sin resolver, no lo sabe quien lo cuenta. Redactar la causa es tan fácil y tan
+tentador como escribir el 100% de relleno, y se detecta igual: pregúntate qué
+dato tendrías que mirar para que la frase fuera falsa, y míralo.
 
 ---
 
