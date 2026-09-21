@@ -1474,9 +1474,18 @@ export default function ScheduleBuilderPage() {
                  * ellos de trabajo real, invisibles en la unica pantalla desde
                  * la que se pueden reasignar.
                  *
-                 * Su fila va al final, marcada, y sus celdas siguen siendo
-                 * clicables — que es el punto: hay que poder mover ese turno a
-                 * otra persona. Esconderlo no lo cubre.
+                 * Su fila va ARRIBA DEL TODO, marcada, y sus celdas siguen
+                 * siendo clicables — que es el punto: hay que poder mover ese
+                 * turno a otra persona. Esconderlo no lo cubre.
+                 *
+                 * Arriba y no al final, que fue la primera versión: al final
+                 * cae justo detrás de la barra de acciones (`sticky bottom-0`,
+                 * más abajo en este fichero) y hay que bajar a buscarla. La
+                 * única fila de la tabla que pide una acción no puede ser la
+                 * que menos se ve. Y publicar está bloqueado hasta resolverla
+                 * (REGLA 5 de api/hr/schedule/publish), así que enterrarla es
+                 * dejar a quien arma el horario delante de un botón que no
+                 * funciona sin decirle por qué.
                  */
                 const idsActivos = new Set(activos.map(s => s.id));
                 const huerfanos = Array.from(
@@ -1490,7 +1499,7 @@ export default function ScheduleBuilderPage() {
                     ).values(),
                 ).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
-                const listaOrdenada = [...activos, ...(huerfanos as any[])];
+                const listaOrdenada = [...(huerfanos as any[]), ...activos];
 
                 /**
                  * HORAS DE LA SEMANA, POR PERSONA.
@@ -1745,15 +1754,44 @@ export default function ScheduleBuilderPage() {
                     <Clock className="w-5 h-5 text-teal-500" />
                     Resumen de la semana
                 </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {['MORNING', 'EVENING', 'NIGHT', 'SUPERVISOR_DAY'].map(type => {
+                {/*
+                  * LOS SEIS TIPOS QUE SE TRABAJAN, no cuatro.
+                  *
+                  * La lista estaba escrita a mano sin FULL_DAY ni FULL_NIGHT, así
+                  * que este resumen dejaba fuera los turnos de doce horas y no lo
+                  * decía. En la semana del 21-sep sumaba 47 de los 57 turnos de
+                  * trabajo: los diez que faltaban eran los largos, y son
+                  * justamente los que hay que mirar dos veces.
+                  *
+                  * Los tipos con cero se pintan igual —"SUPERVISOR 0" dice algo:
+                  * que esta semana nadie supervisa— así que no se filtran.
+                  */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {['MORNING', 'EVENING', 'NIGHT', 'FULL_DAY', 'FULL_NIGHT', 'SUPERVISOR_DAY'].map(type => {
                         const count = shifts.filter(s => s.shiftType === type).length;
+                        const esLargo = type === 'FULL_DAY' || type === 'FULL_NIGHT';
                         const isSupervisor = type === 'SUPERVISOR_DAY';
+                        // Los mismos tonos que las celdas de la matriz, para que
+                        // la tarjeta y el turno se reconozcan como lo mismo.
+                        const caja = isSupervisor ? 'bg-purple-50 border-purple-200'
+                            : type === 'FULL_DAY' ? 'bg-emerald-50 border-emerald-200'
+                            : type === 'FULL_NIGHT' ? 'bg-violet-50 border-violet-200'
+                            : 'bg-slate-50 border-slate-100';
+                        const rotulo = isSupervisor ? 'text-purple-700'
+                            : type === 'FULL_DAY' ? 'text-emerald-700'
+                            : type === 'FULL_NIGHT' ? 'text-violet-700'
+                            : 'text-slate-500';
+                        const cifra = isSupervisor ? 'text-purple-800'
+                            : type === 'FULL_DAY' ? 'text-emerald-800'
+                            : type === 'FULL_NIGHT' ? 'text-violet-800'
+                            : 'text-slate-800';
                         return (
-                            <div key={type} className={`rounded-xl p-4 border ${isSupervisor ? 'bg-purple-50 border-purple-200' : 'bg-slate-50 border-slate-100'}`}>
-                                <p className={`text-xs font-black uppercase tracking-widest mb-1 ${isSupervisor ? 'text-purple-700' : 'text-slate-500'}`}>{SHIFT_LABELS[type]}</p>
-                                <p className={`text-2xl font-black ${isSupervisor ? 'text-purple-800' : 'text-slate-800'}`}>{count}</p>
-                                <p className={`text-xs ${isSupervisor ? 'text-purple-600' : 'text-slate-500'}`}>turnos programados</p>
+                            <div key={type} className={`rounded-xl p-4 border ${caja}`}>
+                                <p className={`text-xs font-black uppercase tracking-widest mb-1 ${rotulo}`}>{SHIFT_LABELS[type]}</p>
+                                <p className={`text-2xl font-black ${cifra}`}>{count}</p>
+                                <p className={`text-xs ${rotulo} opacity-80`}>
+                                    turnos programados{esLargo && count > 0 ? ` · ${count * 12} h` : ''}
+                                </p>
                             </div>
                         );
                     })}
