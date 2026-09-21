@@ -20,19 +20,33 @@
 
 export const FUNCIONES_DORMIDAS = {
     /**
-     * Rondas de inspección por zona — supervisión.
+     * Rondas de inspección por zona — supervisión. DESPIERTA.
      *
      * El supervisor recorre por piso y zona en tres momentos del turno con una
      * lista de limpieza, seguridad, residentes y equipo.
      *
-     * Dormida el 24-ago-2026 por decisión de Andrés: "se probó, pero no se han
-     * impuesto hacerlo". 75 registros en total, ninguno desde el 24 de julio.
-     * No está rota — nunca se volvió costumbre.
+     * Durmió del 24-ago al 21-sep-2026. El motivo de entonces, en palabras de
+     * Andrés: "se probó, pero no se han impuesto hacerlo" — 75 registros en
+     * total y ninguno desde el 24 de julio. Nunca estuvo rota: no se volvió
+     * costumbre.
      *
-     * Para despertarla: poner `rondasDeInspeccion: true`. La pantalla, el
-     * endpoint y los 75 registros siguen donde estaban.
+     * DESPIERTA el 21-sep-2026, también por decisión suya, y la razón es la que
+     * hacía falta: **empiezan supervisores nuevos**. Hay dos cuidadoras
+     * formándose para supervisar, y una rutina se impone cuando alguien entra
+     * al puesto, no cuando se le pide a quien ya lleva años con sus costumbres
+     * hechas. "Debe haber espacio para ellas."
+     *
+     * Y ahora además se enseña: el curso "Dirigir el turno", sembrado el mismo
+     * día, dedica una sección a esta pantalla y lleva su captura. Un curso que
+     * enseñe una pantalla a la que no se puede llegar es peor que no tener el
+     * curso.
+     *
+     * Se conserva la entrada en este registro —en vez de borrarla— porque lo
+     * que cuenta es el ciclo entero: se probó, no cuajó, se apagó sin perder
+     * nada, y se vuelve a encender cuando cambia la condición que la hacía
+     * fracasar. Eso es lo que este fichero existe para poder decir.
      */
-    rondasDeInspeccion: false,
+    rondasDeInspeccion: true,
 
     /**
      * CRM y Ventas — captación y seguimiento de prospectos.
@@ -80,6 +94,14 @@ export const FUNCIONES_DORMIDAS = {
     incidentesEnCorporate: false,
 } as const;
 
+/**
+ * `false` = dormida (apagada), `true` = despierta.
+ *
+ * El mapa se llama FUNCIONES_DORMIDAS y puede contener entradas en `true`: eso
+ * es deliberado. Una función que se apagó y se volvió a encender conserva aquí
+ * su historia, que es justo lo que hace útil este fichero — saber que algo ya
+ * se probó una vez y por qué no cuajó vale más que un flag limpio.
+ */
 export function estaDormida(f: keyof typeof FUNCIONES_DORMIDAS): boolean {
     return FUNCIONES_DORMIDAS[f] === false;
 }
@@ -145,7 +167,12 @@ export function estaEsperando(f: string): boolean {
  * vale la pena mirarlo.
  */
 export function porQueSinDatos(f: string): { estado: 'dormida' | 'esperando'; motivo: string } | null {
-    if (f in FUNCIONES_DORMIDAS) {
+    // Se mira el VALOR, no solo que la clave exista: desde que una función puede
+    // volver a encenderse, estar en el mapa ya no significa estar apagada. Sin
+    // esto, `rondasDeInspeccion` —despierta desde el 21-sep— seguiría
+    // contestando "apagada a propósito" a quien preguntara por qué no tiene
+    // datos, que es justo la respuesta que este fichero existe para no dar mal.
+    if (f in FUNCIONES_DORMIDAS && estaDormida(f as keyof typeof FUNCIONES_DORMIDAS)) {
         return { estado: 'dormida', motivo: 'Apagada a propósito. Ver FUNCIONES_DORMIDAS.' };
     }
     if (f in FUNCIONES_ESPERANDO) {
