@@ -186,7 +186,19 @@ export async function computeShiftCoverage(params: {
         prisma.shiftPatientOverride.findMany({
             where: {
                 headquartersId: hqId,
-                shiftType,
+                // LA OTRA MITAD DE ESTA MISMA FUNCION.
+                //
+                // La consulta de ScheduledWShift de 50 lineas mas abajo se
+                // arreglo primero y esta se quedo con la igualdad exacta — o
+                // sea, la funcion se contradecia consigo misma. Un override
+                // nacido de una ausencia de turno largo es inalcanzable:
+                // `hr/schedule/absent` lo escribe con `shift.shiftType`, que si
+                // puede ser FULL_*, y aqui nunca se leeria.
+                // Hoy no hay ninguno roto —0 de 4.067 overrides llevan FULL_*,
+                // porque ninguna de las 38 pautas largas se marco ausente
+                // jamas— asi que esto cierra la puerta antes de que pase, no
+                // repara nada.
+                shiftType: { in: tiposQueCubren(shiftType as FranjaT) as any },
                 shiftDate: { gte: todayStart, lt: tomorrow },
                 isActive: true,
             },

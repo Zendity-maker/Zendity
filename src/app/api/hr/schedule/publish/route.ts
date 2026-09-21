@@ -4,7 +4,7 @@ import { asignarPorPrimerTurnoDeNoche } from '@/lib/academy-assign';
 import sgMail from '@sendgrid/mail';
 import { emailLogoSrc } from '@/lib/email-logo';
 import { requireRole } from '@/lib/api-auth';
-import { VENTANA_AST, type ShiftT } from '@/lib/ventanas-de-turno';
+import { seSolapan } from '@/lib/ventanas-de-turno';
 
 // Publicar horarios (y notificar al equipo por email) es operación de gestión.
 const MANAGE_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
@@ -78,22 +78,7 @@ const CARE_ROLES        = ['CAREGIVER', 'NURSE'];
 const SUPERVISOR_ROLES  = ['SUPERVISOR'];
 const NO_COLOR_ROLES    = ['CLEANING', 'ADMIN', 'DIRECTOR', 'INVESTOR'];
 
-/** ¿Estas dos pautas se pisan alguna hora? Ventanas de src/lib/ventanas-de-turno.ts. */
-function seSolapan(a: string, b: string): boolean {
-    const va = VENTANA_AST[a as ShiftT], vb = VENTANA_AST[b as ShiftT];
-    if (!va || !vb) return false;                       // OFF / SUPERVISOR_DAY: no aplica
-    const horas = (v: readonly [number, number]) => {
-        const out = new Set<number>();
-        for (let h = 0; h < 24; h++) {
-            const dentro = v[0] < v[1] ? (h >= v[0] && h < v[1]) : (h >= v[0] || h < v[1]);
-            if (dentro) out.add(h);
-        }
-        return out;
-    };
-    const ha = horas(va);
-    for (const h of horas(vb)) if (ha.has(h)) return true;
-    return false;
-}
+
 
 function formatDate(dateStr: string) {
     const d = new Date(dateStr);

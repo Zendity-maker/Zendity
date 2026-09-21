@@ -17,6 +17,7 @@ import {
     hasFloorsConfigured,
 } from '@/lib/floor-map';
 import { logError } from '@/lib/logger';
+import { compatibleShiftTypesAt } from '@/lib/ventanas-de-turno';
 
 const SUPERVISOR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
@@ -202,7 +203,10 @@ export async function GET(req: Request) {
                 caregiverId: { in: caregiverIds },
                 isActive: true,
                 shiftDate: { gte: scheduledDayRange.start, lt: scheduledDayRange.end },
-                shiftType: currentShiftType,
+                // Este fichero ya arreglo su consulta de ScheduledShift por la
+                // regla D2 (ver el comentario de arriba) y dejo esta de
+                // overrides con igualdad exacta. Mismo motivo, mismo arreglo.
+                shiftType: { in: compatibleShiftTypesAt() as any },
             },
             include: {
                 patient: { select: { id: true, name: true, roomNumber: true } },

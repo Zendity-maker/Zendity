@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/api-auth';
 import { logError } from '@/lib/logger';
 import { clinicalDayCalendarUTCRange } from '@/lib/dates';
 import { inferShiftTypeFromAST } from '@/lib/shift-coverage';
+import { compatibleShiftTypesAt } from '@/lib/ventanas-de-turno';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -31,7 +32,18 @@ export async function GET() {
         const schedules = await prisma.scheduledShift.findMany({
             where: {
                 date: { gte: scheduledDayRange.start, lt: scheduledDayRange.end },
-                shiftType: activeShiftType,
+                /**
+                 * "Personal No Presentado" no podía ver un turno de doce horas.
+                 *
+                 * Comparaba contra la franja del reloj, y FULL_DAY/FULL_NIGHT
+                 * no son una franja: las 38 pautas largas publicadas desde el
+                 * 31-may eran invisibles en este panel. Diez son de esta semana
+                 * (22, 24, 25 y 26-sep, todas ROJO) — y esos cuatro días son
+                 * justamente los únicos en que ROJO lo cubre SOLO un turno
+                 * largo. O sea: los cuatro días en que la ausencia de quien
+                 * lleva ROJO era imposible de detectar aquí.
+                 */
+                shiftType: { in: compatibleShiftTypesAt() as any },
                 isAbsent: false,
                 // Multi-tenant strict — schedule debe pertenecer al hqId del
                 // invocador. Sin este filtro, el wall del SUP de una sede

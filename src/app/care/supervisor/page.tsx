@@ -40,6 +40,7 @@ import WriteIncidentModal from "@/components/hr/WriteIncidentModal";
 import ForceCloseShiftButton from "@/components/ForceCloseShiftButton";
 import StaffChat from "@/components/StaffChat";
 import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
+import { tiposQueSolapan } from '@/lib/ventanas-de-turno';
 
 // --- SUB-COMPONENT: Zendi Morning Briefing ---
 const ZendiMorningBriefing = ({ text }: { text: string }) => {
@@ -2064,10 +2065,26 @@ export default function SupervisorMissionControlPage() {
                         const dias = Math.round((soloElDia(ahoraAST) - soloElDia(inicio)) / 86400000);
 
                         const suyos = handoversFeed.filter((h: HandoverFeedItem) => {
-                            const encaja = h.shiftType === v.tipo
-                                || (v.tipo === 'MORNING' && h.shiftType === 'FULL_DAY')
-                                || (v.tipo === 'EVENING' && h.shiftType === 'FULL_NIGHT');
-                            if (!encaja) return false;
+                            /**
+                             * EL CUARTO MAPA A MANO, y le faltaban dos casos:
+                             * EVENING no aceptaba FULL_DAY y NIGHT no aceptaba
+                             * FULL_NIGHT. Una entrega de turno largo no caía en
+                             * ninguna de las tres ventanas y desaparecía del
+                             * parte.
+                             *
+                             * Hoy no ha roto nada porque ningún relevo llevaba
+                             * FULL_* —0 de 1.034— pero eso era consecuencia del
+                             * etiquetado viejo, que se arregló HOY: desde el
+                             * commit 5d10a3b5 `resolverTurnoTrabajado` ya
+                             * devuelve FULL_DAY y FULL_NIGHT, así que el primer
+                             * relevo largo que se cierre estrena el fallo.
+                             *
+                             * No hay doble conteo: el filtro de HORA de abajo es
+                             * el que decide, y una entrega tiene un solo
+                             * `createdAt`, así que cae en una ventana y solo una.
+                             * Aquí solo se deja de excluir de más.
+                             */
+                            if (!tiposQueSolapan(v.tipo).includes(h.shiftType as any)) return false;
                             // El mismo tipo de turno cabe dos veces en la ventana de 26h:
                             // la entrega tiene que pertenecer a ESTE, no al de ayer.
                             const cuando = new Date(h.createdAt);

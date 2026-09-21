@@ -24,6 +24,7 @@
 import { prisma } from '@/lib/prisma';
 import { computeShiftCoverage, inferShiftTypeFromAST } from '@/lib/shift-coverage';
 import { clinicalDayCalendarUTCRange } from '@/lib/dates';
+import { compatibleShiftTypesAt } from '@/lib/ventanas-de-turno';
 
 export interface CuidadoraACargo {
     userId: string;
@@ -85,7 +86,20 @@ export async function cuidadorasDeResidente(
     const programadas = await prisma.scheduledShift.findMany({
         where: {
             date: { gte: start, lt: end },
-            shiftType: shiftType as never,
+            /**
+             * Por VENTANA, no por igualdad. Una pauta FULL_DAY o FULL_NIGHT no
+             * entraba nunca: esta consulta compara contra la franja del reloj y
+             * los turnos de doce horas no son una franja. Medido el 21-sep: 12
+             * de las 63 combinaciones (día × franja × color) de esta semana
+             * están cubiertas ÚNICAMENTE por una pauta de doce, las 12 de ROJO.
+             * En esas ventanas esto devolvía lista vacía.
+             *
+             * `compatibleShiftTypesAt()` y no `tiposQueCubren(franja)` porque
+             * esta función deriva la franja del reloj: la pregunta que se hace
+             * es "quién está EN PISO ahora mismo", y esa la contesta el
+             * instante, no el solape de franjas.
+             */
+            shiftType: { in: compatibleShiftTypesAt() as never[] },
             colorGroup: color,
             isAbsent: false,
             user: { isActive: true, isDeleted: false },

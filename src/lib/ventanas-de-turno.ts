@@ -156,6 +156,70 @@ export function tiposQueCubren(franja: FranjaT): ShiftT[] {
     });
 }
 
+/**
+ * SUPERVISOR_DAY no cubre color, pero sí ocupa horas. Va aparte de
+ * `VENTANA_AST` para que `tiposQueCubren` no lo devuelva nunca como cobertura.
+ */
+const VENTANA_SUPERVISOR: readonly [number, number] = [9, 18];
+
+function ventanaDe(tipo: string): readonly [number, number] | null {
+    if (tipo === 'SUPERVISOR_DAY') return VENTANA_SUPERVISOR;
+    return (VENTANA_AST as Record<string, readonly [number, number]>)[tipo] ?? null;
+}
+
+function horasDeTipo(tipo: string): Set<number> {
+    const v = ventanaDe(tipo);
+    const out = new Set<number>();
+    if (!v) return out;                                 // OFF: no ocupa nada
+    for (let h = 0; h < 24; h++) {
+        const dentro = v[0] < v[1] ? (h >= v[0] && h < v[1]) : (h >= v[0] || h < v[1]);
+        if (dentro) out.add(h);
+    }
+    return out;
+}
+
+/**
+ * Los tipos de turno que PISAN alguna hora de este otro.
+ *
+ * Esta es la pregunta de "¿quién puede cubrir a quien falta?", y NO se puede
+ * contestar con `tiposQueCubren`, que recibe una FRANJA. El turno de quien
+ * falta puede ser un FULL_DAY, y FULL_DAY no es una franja. Peor: pasarle
+ * 'FULL_NIGHT' como si lo fuera daría FULL_DAY, que comparte CERO horas con él.
+ *
+ * Resultado, para tenerlo a la vista:
+ *
+ *     MORNING    → MORNING, FULL_DAY
+ *     EVENING    → EVENING, FULL_DAY, FULL_NIGHT
+ *     NIGHT      → NIGHT, FULL_NIGHT
+ *     FULL_DAY   → MORNING, EVENING, FULL_DAY
+ *     FULL_NIGHT → EVENING, NIGHT, FULL_NIGHT
+ *
+ * Fíjate en las dos últimas filas: un FULL_DAY que falta lo puede cubrir gente
+ * de mañana Y de tarde, porque su jornada pisa las dos. Con igualdad exacta el
+ * sistema buscaba "otro FULL_DAY" y casi nunca hay dos el mismo día — por eso
+ * el pool de sustitución salía vacío y se le decía al supervisor que no había
+ * nadie a quien pasarle los residentes.
+ *
+ * Devuelve solo tipos que CUBREN COLOR: un SUPERVISOR_DAY no es candidato a
+ * llevarse un grupo, aunque sus horas pisen.
+ */
+export function tiposQueSolapan(tipo: string): ShiftT[] {
+    const suyas = horasDeTipo(tipo);
+    if (suyas.size === 0) return [];
+    return TIPOS_QUE_CUBREN.filter(t => {
+        for (const h of horasDe(t)) if (suyas.has(h)) return true;
+        return false;
+    });
+}
+
+/** ¿Se pisan estos dos turnos alguna hora? Para detectar un solape imposible. */
+export function seSolapan(a: string, b: string): boolean {
+    const ha = horasDeTipo(a);
+    if (ha.size === 0) return false;
+    for (const h of horasDeTipo(b)) if (ha.has(h)) return true;
+    return false;
+}
+
 /** ¿Esta pauta cuenta para esta franja? Azúcar sobre `tiposQueCubren`. */
 export function cubreLaFranja(shiftType: string, franja: FranjaT): boolean {
     return (tiposQueCubren(franja) as string[]).includes(shiftType);

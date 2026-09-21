@@ -5,6 +5,7 @@ import { logError } from '@/lib/logger';
 import { logAudit } from '@/lib/audit';
 import { notifyUser, notifyRoles } from '@/lib/notifications';
 import { HORAS_PARA_RESPONDER, puntosPorSeveridad } from '@/lib/incidente-politica';
+import { tiposQueSolapan } from '@/lib/ventanas-de-turno';
 
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN', 'HR_MANAGER'];
 
@@ -195,7 +196,26 @@ export async function POST(req: Request) {
                 where: {
                     scheduleId: shift.scheduleId,
                     date: shift.date,
-                    shiftType: shift.shiftType,
+                    /**
+                     * QUIEN PUEDE CUBRIR NO ES "QUIEN TIENE EL MISMO TIPO DE TURNO".
+                     *
+                     * Esto era `shiftType: shift.shiftType` —igualdad exacta— y
+                     * con turnos de doce horas deja el pool VACÍO. Medido el
+                     * 21-sep-2026 sobre la semana publicada: los cuatro días con
+                     * FULL_NIGHT (22, 24, 25 y 26-sep) tienen EXACTAMENTE UNA
+                     * pauta NIGHT elegible cada uno. Marcar ausente a quien
+                     * lleva el turno largo dejaba pool = 0, y la ruta le decía
+                     * al supervisor "Sin cuidadores activos para redistribuir"
+                     * mientras la persona de FULL_NIGHT estaba en el piso de las
+                     * 18 a las 6 cubriendo la ventana NIGHT entera. Son los 11
+                     * residentes de ROJO.
+                     *
+                     * `tiposQueSolapan` y no `tiposQueCubren`: aquí el turno del
+                     * ausente puede ser un FULL_DAY, que NO es una franja.
+                     * Pasárselo como si lo fuera daría FULL_DAY para FULL_NIGHT,
+                     * y esos dos no comparten ni una hora.
+                     */
+                    shiftType: { in: tiposQueSolapan(shift.shiftType) as any },
                     isAbsent: false,
                     id: { not: scheduledShiftId },
                     // Quien ya no trabaja aquí no puede cubrir a nadie.
@@ -231,7 +251,8 @@ export async function POST(req: Request) {
             where: {
                 scheduleId: shift.scheduleId,
                 date: shift.date,
-                shiftType: shift.shiftType,
+                // Mismo solape real que arriba. Ver el porqué en el otro pool.
+                shiftType: { in: tiposQueSolapan(shift.shiftType) as any },
                 isAbsent: false,
                 id: { not: scheduledShiftId },
                 // Quien ya no trabaja aquí no puede cubrir a nadie.

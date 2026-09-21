@@ -18,6 +18,27 @@ const SHIFT_LABELS: Record<string, string> = {
     OFF:            "Día libre"
 };
 
+/**
+ * EL RÓTULO CORTO DE CADA TURNO, para las celdas donde no cabe la etiqueta.
+ *
+ * Antes se sacaba con `SHIFT_LABELS[t].split(' ')[0]`, la primera palabra. Y la
+ * primera palabra de "Turno Largo 6AM–6PM" y de "Turno Largo 6PM–6AM" es la
+ * misma: **Turno**. O sea que los dos turnos de doce horas, el de día y el de
+ * noche, se dibujaban idénticos en la matriz. Diez celdas de las 84 de esta
+ * semana, en cuatro días distintos.
+ *
+ * Aquí se escriben a mano y se dice la hora, que es lo que de verdad distingue.
+ */
+const SHIFT_CORTO: Record<string, string> = {
+    MORNING:        'Diurno',
+    EVENING:        'Vespertino',
+    NIGHT:          'Nocturno',
+    FULL_DAY:       '12h día',
+    FULL_NIGHT:     '12h noche',
+    SUPERVISOR_DAY: 'Supervisor',
+    OFF:            'Libre',
+};
+
 const SHIFT_STYLES: Record<string, string> = {
     MORNING:        "bg-amber-50 text-amber-700 border-amber-200",
     EVENING:        "bg-indigo-50 text-indigo-700 border-indigo-200",
@@ -59,8 +80,13 @@ const COLOR_STYLES: Record<string, string> = {
  * En Excel eso es teclear una letra y bajar. Aquí también, ahora.
  *
  * Las letras cubren el 98% de los turnos reales (medido sobre 1 387): diurno,
- * vespertino, nocturno y libre. Los turnos largos y la supervisión son 49 de
- * 1 387 y van por el menú — no vale la pena una tecla para el 3%.
+ * vespertino, nocturno y libre. La supervisión va por el menú: es rara de
+ * verdad y nunca se teclea en tanda.
+ *
+ * Los turnos LARGOS sí tienen tecla desde el 21-sep-2026 —⇧D y ⇧N, abajo—.
+ * Antes no, y la razón escrita era que eran el 3% del histórico. Cierto de
+ * media y engañoso en la práctica: las semanas que los usan los usan de diez en
+ * diez (la del 21-sep, 10 de 84).
  */
 const TECLA_TURNO: Record<string, string> = {
     d: 'MORNING',      // Diurno
@@ -113,6 +139,7 @@ const NOMBRE_COLOR: Record<string, string> = {
 /** Lo que se enseña debajo de la tabla. Una lista corta que se aprende mirando. */
 const AYUDA_TECLAS = [
     { k: 'D', q: 'Diurno' }, { k: 'T', q: 'Tarde' }, { k: 'N', q: 'Noche' }, { k: 'L', q: 'Libre' },
+    { k: '⇧D', q: '12h día' }, { k: '⇧N', q: '12h noche' },
     { k: '1', q: 'Rojo' }, { k: '2', q: 'Amarillo' }, { k: '3', q: 'Verde' }, { k: '4', q: 'Azul' },
     { k: '0', q: 'Sin color' }, { k: '⌫', q: 'Borrar' }, { k: '↵', q: 'Más opciones' },
 ];
@@ -439,7 +466,7 @@ export default function ScheduleBuilderPage() {
                     huecos.push({
                         fecha,
                         dia: d.toLocaleDateString('es-PR', { weekday: 'short' }),
-                        turno: SHIFT_LABELS[turno]?.split(' ')[0] ?? turno,
+                        turno: SHIFT_CORTO[turno] ?? turno,
                         faltan,
                     });
                 }
@@ -533,6 +560,24 @@ export default function ScheduleBuilderPage() {
         }
 
         const letra = k.toLowerCase();
+
+        /**
+         * ⇧D y ⇧N — los turnos de doce horas, con la misma letra y la tecla de
+         * mayúsculas: el mismo turno, pero largo.
+         *
+         * No los tenían, y el comentario de TECLA_TURNO explicaba por qué: eran
+         * 49 de 1.387, el 3%, y no valía una tecla. Pero ese 3% es una media que
+         * esconde la forma real — las semanas que usan turnos largos los usan de
+         * diez en diez. En la semana publicada del 21-sep son 10 de 84, el 12%,
+         * y las diez del mismo grupo. Sin tecla había que poner un turno de ocho
+         * y corregirlo a mano diez veces.
+         */
+        if (e.shiftKey && (letra === 'd' || letra === 'n')) {
+            e.preventDefault();
+            ponerTurno(celdaFoco.userId, celdaFoco.fecha, letra === 'd' ? 'FULL_DAY' : 'FULL_NIGHT');
+            return mover(1, 0);
+        }
+
         if (TECLA_TURNO[letra]) {
             e.preventDefault();
             ponerTurno(celdaFoco.userId, celdaFoco.fecha, TECLA_TURNO[letra]);
@@ -1213,7 +1258,7 @@ export default function ScheduleBuilderPage() {
                                                     {!isCleaning && !shift.isManual && (
                                                         <>
                                                             <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${SHIFT_STYLES[shift.shiftType] || SHIFT_STYLES.MORNING}`}>
-                                                                {SHIFT_LABELS[shift.shiftType]?.split(' ')[0] || shift.shiftType}
+                                                                {SHIFT_CORTO[shift.shiftType] || shift.shiftType}
                                                             </span>
                                                             <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${COLOR_STYLES[shift.isFloorSupervision ? 'SUPERVISION' : (shift.colorGroup || 'NONE')]}`}>
                                                                 {shift.isFloorSupervision ? '👁 Supervisión' : (shift.colorGroup || 'Sin color')}
@@ -1607,7 +1652,7 @@ export default function ScheduleBuilderPage() {
                                                                 plano: ya está decidido, lo que se está haciendo
                                                                 es repartir grupos. */}
                                                             <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full border leading-none ${modoColor ? 'bg-slate-50 text-slate-400 border-slate-200' : (SHIFT_STYLES[sh.shiftType] || SHIFT_STYLES.MORNING)}`}>
-                                                                {SHIFT_LABELS[sh.shiftType]?.split(' ')[0] || sh.shiftType}
+                                                                {SHIFT_CORTO[sh.shiftType] || sh.shiftType}
                                                             </span>
                                                             {sh.isFloorSupervision ? (
                                                                 <span className="text-[9px] font-black px-1.5 rounded-full border leading-none bg-indigo-100 text-indigo-700 border-indigo-300">👁</span>

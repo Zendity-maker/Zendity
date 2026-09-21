@@ -46,11 +46,31 @@ const ROLE_LABELS: Record<string, string> = {
     MAINTENANCE: 'Mantenimiento',
 };
 
+/**
+ * LA HOJA QUE SE CUELGA EN LA PARED.
+ *
+ * Faltaban TRES tipos: FULL_DAY, FULL_NIGHT y OFF. Un tipo que no está en esta
+ * tabla cae al `if (!cfg)` de abajo y se imprime como el código crudo en
+ * inglés —"FULL_DAY"— en gris pálido, y de paso PIERDE el grupo de color y la
+ * nota, que sí se pintan para los demás. Medido el 21-sep sobre la semana
+ * publicada: 33 de las 77 celdas impresas salían así, el 43% de la hoja, y las
+ * diez pautas largas llevaban todas grupo ROJO y lo perdían entero.
+ *
+ * Los rótulos dicen la hora de entrada y de salida, que en papel es lo único
+ * que hace falta leer: 6A-6P son doce horas y se ve sin explicarlo. Los colores
+ * se eligen distintos de los cuatro que ya había para que se distingan también
+ * en una fotocopia en blanco y negro, donde lo que separa es el tono.
+ */
 const SHIFT_COLORS: Record<string, { bg: string; text: string; label: string }> = {
     MORNING: { bg: '#DBEAFE', text: '#1E40AF', label: '6A-2P' },
     EVENING: { bg: '#FED7AA', text: '#9A3412', label: '2P-10P' },
     NIGHT: { bg: '#DDD6FE', text: '#5B21B6', label: '10P-6A' },
     SUPERVISOR_DAY: { bg: '#F3E8FF', text: '#7E22CE', label: '9A-6P' },
+    FULL_DAY: { bg: '#D1FAE5', text: '#065F46', label: '6A-6P' },
+    FULL_NIGHT: { bg: '#FCE7F3', text: '#9D174D', label: '6P-6A' },
+    // El día libre se pinta apagado a propósito: no es un turno, y en la hoja
+    // tiene que distinguirse de un hueco sin decidir de un solo vistazo.
+    OFF: { bg: '#F1F5F9', text: '#64748B', label: 'Libre' },
 };
 
 const formatTime = (iso: string | null | undefined): string => {
