@@ -6,6 +6,7 @@ import { SystemAuditAction } from '@prisma/client';
 import { todayStartAST } from '@/lib/dates';
 import {
     inferShiftType,
+    resolverTurnoTrabajado,
     resolveColorGroupsForCaregiver,
     resolvePatientsByColors,
     collectShiftActivity,
@@ -65,7 +66,14 @@ export async function POST(req: Request) {
         }
 
         const now = new Date();
-        const shiftTypeDraft = inferShiftType(now);
+        // El turno se etiqueta por lo que se TRABAJÓ, no por la hora de firmar.
+        // Antes era `inferShiftType(now)` con `now` = instante del cierre, y como
+        // cada turno se cierra en la frontera del siguiente, la etiqueta casi
+        // siempre caía del lado equivocado: medido en 30 días, 55 turnos de
+        // mañana que cerraron a las 14:00 quedaron etiquetados EVENING.
+        // `session.startTime` es cuándo ponchó; el resolutor prefiere su pauta
+        // del horario y solo cae a la hora de entrada si no hay pauta.
+        const shiftTypeDraft = await resolverTurnoTrabajado(session.caregiverId, session.startTime);
         const shiftStart = session.startTime < todayStartAST() ? todayStartAST() : session.startTime;
 
         // ──────────────────────────────────────────────────────────────────

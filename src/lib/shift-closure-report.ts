@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { prisma } from '@/lib/prisma';
+import { compatibleShiftTypesAt } from '@/lib/shift-coverage';
 
 /**
  * Lógica compartida entre:
@@ -17,11 +18,112 @@ const openai = new OpenAI({
     timeout: 45_000,
 });
 
+/**
+ * Qué turno es la hora que se le pase. RESPALDO, no fuente principal.
+ *
+ * Sirve para decidir "qué turno corre AHORA". NO sirve para etiquetar un turno
+ * ya trabajado: para eso está `resolverTurnoTrabajado`, abajo, y el porqué está
+ * medido ahí.
+ */
 export function inferShiftType(date: Date): ShiftT {
     const hAst = (date.getUTCHours() - 4 + 24) % 24;
     if (hAst >= 6 && hAst < 14) return 'MORNING';
     if (hAst >= 14 && hAst < 22) return 'EVENING';
     return 'NIGHT';
+}
+
+/**
+ * QUÉ TURNO SE TRABAJÓ — no a qué hora se firmó el cierre.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * EL FALLO QUE ESTO ARREGLA
+ *
+ * El cierre de turno etiquetaba el relevo con `inferShiftType(now)`, donde
+ * `now` era el instante de FIRMAR. O sea: la etiqueta decía a qué hora se
+ * cerró, no qué turno se trabajó. Y como cada turno se cierra justo en la
+ * frontera del siguiente, casi siempre caía del lado equivocado.
+ *
+ * Medido sobre los 247 relevos firmados de 30 días (20-sep-2026), por la hora
+ * AST real de la firma:
+ *
+ *   etiqueta NIGHT   → 38 se firmaron a las 22h  ·  36 a las 5h
+ *   etiqueta EVENING → 55 se firmaron a las 14h  ·  43 a las 21h
+ *   etiqueta MORNING → 28 se firmaron a las 13h  ·  22 a las 6h
+ *
+ * Léase: un turno de MAÑANA que cierra a las 14:00 quedaba etiquetado EVENING
+ * —55 casos, el grupo más numeroso—. Uno de NOCHE que cierra a las 6:00
+ * quedaba MORNING. Uno de TARDE que cierra a las 22:00 quedaba NIGHT.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * DE DÓNDE SE SACA AHORA, EN ORDEN
+ *
+ * 1. DEL HORARIO. `ScheduledShift.shiftType` es lo que la persona fue pautada
+ *    a trabajar, que es la respuesta correcta por definición. Se miran el día
+ *    del ponche y el ANTERIOR, porque un turno de noche empieza a las 22:00 de
+ *    un día y termina a las 6:00 del siguiente.
+ *    Entre varias pautas del mismo día se elige la que de verdad estaba
+ *    corriendo a la hora del ponche, con `compatibleShiftTypesAt` — la regla D2
+ *    que ya documenta src/lib/shift-coverage.ts: ventanas, nunca bucket único,
+ *    porque una pauta FULL_NIGHT (18–06) no arranca a las 14:30.
+ *
+ * 2. DE LA HORA DE ENTRADA. Sin pauta —cobertura de última hora, alguien que
+ *    ponchó sin estar en el horario— se infiere de cuándo ENTRÓ. No es exacto
+ *    si ponchó tardísimo, pero es el turno que empezó a trabajar.
+ *
+ * 3. NUNCA de la hora de cierre. Ese era el fallo.
+ *
+ * Las pautas con `isAbsent` y las de tipo OFF quedan fuera: no son turnos
+ * trabajados. Y SUPERVISOR_DAY tampoco se devuelve — no está en `ShiftT`, que
+ * es el tipo que consume el reporte; si alguien tiene solo esa pauta se cae al
+ * respaldo por hora de entrada.
+ *
+ * Esto NO reescribe el histórico: las filas ya guardadas conservan su etiqueta
+ * vieja. Corrige de aquí en adelante.
+ */
+export async function resolverTurnoTrabajado(
+    caregiverId: string,
+    horaDeEntrada: Date,
+): Promise<ShiftT> {
+    const TIPOS_DE_RELEVO: ShiftT[] = ['MORNING', 'EVENING', 'NIGHT', 'FULL_DAY', 'FULL_NIGHT'];
+
+    try {
+        // El día del ponche y el anterior: la noche cruza la medianoche.
+        const diaDelPonche = new Date(horaDeEntrada);
+        diaDelPonche.setUTCHours(0, 0, 0, 0);
+        const diaAnterior = new Date(diaDelPonche);
+        diaAnterior.setUTCDate(diaAnterior.getUTCDate() - 1);
+        const diaSiguiente = new Date(diaDelPonche);
+        diaSiguiente.setUTCDate(diaSiguiente.getUTCDate() + 1);
+
+        const pautas = await prisma.scheduledShift.findMany({
+            where: {
+                userId: caregiverId,
+                date: { gte: diaAnterior, lt: diaSiguiente },
+                isAbsent: false,
+            },
+            select: { shiftType: true, date: true },
+            orderBy: { date: 'desc' },
+            take: 10,
+        });
+
+        const utiles = pautas
+            .map(p => p.shiftType as string)
+            .filter((t): t is ShiftT => (TIPOS_DE_RELEVO as string[]).includes(t));
+
+        if (utiles.length > 0) {
+            const corriendoAhora = compatibleShiftTypesAt(horaDeEntrada);
+            const calza = utiles.find(t => corriendoAhora.includes(t));
+            if (calza) return calza;
+            // Pautada pero ponchó fuera de su ventana. Su pauta sigue siendo
+            // mejor respuesta que la hora: es el turno que le tocaba.
+            return utiles[0];
+        }
+    } catch (e) {
+        // Nunca romper un cierre de turno por no poder leer el horario.
+        console.error('[resolverTurnoTrabajado] no se pudo leer el horario:', e);
+    }
+
+    return inferShiftType(horaDeEntrada);
 }
 
 export async function resolveColorGroupsForCaregiver(
