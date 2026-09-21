@@ -52,7 +52,10 @@ export async function GET(req: Request) {
             },
             include: {
                 employee: {
-                    select: { id: true, name: true, complianceScore: true }
+                    // isActive/isDeleted: hacen falta para no aplicarle el
+                    // descuento a quien ya no puede entrar a contestar. Ver la
+                    // guarda CUENTA_CERRADA abajo.
+                    select: { id: true, name: true, complianceScore: true, isActive: true, isDeleted: true }
                 },
                 hq: { select: { name: true } }
             }
@@ -63,6 +66,36 @@ export async function GET(req: Request) {
             const desde = avisadoEn(i);
             if (!desde) {
                 saltadas.push({ id: i.id, employee: i.employee?.name ?? i.employeeId, motivo: 'SIN_AVISAR' });
+                return false;
+            }
+
+            /**
+             * CUENTA CERRADA — el plazo no corre contra quien no tiene puerta.
+             *
+             * Es el mismo argumento que SIN_AVISAR dos líneas más arriba, con
+             * otra causa: allí el plazo corría contra alguien que no sabía que
+             * existía; aquí corre contra alguien que lo sabe y NO PUEDE
+             * responder, porque `src/lib/auth.ts` le contesta "Acceso Denegado.
+             * Cuenta inactiva." al intentar entrar.
+             *
+             * Medido el 21-sep-2026: de las DIEZ observaciones sin respuesta
+             * que hay en toda la producción, CINCO son de cuentas cerradas
+             * —Joaneliz Rosario ×3, Paola M. Maldonado y Dieudilta Macier—,
+             * avisadas el 19-sep, con el plazo de 72 h venciendo el 22. Sin
+             * esta guarda, mañana por la noche el cron le restaba 5 puntos a
+             * cada una. Joaneliz está en 55 y se llevaba tres descuentos.
+             *
+             * Un expediente disciplinario contra alguien que ya se fue no
+             * corrige nada ni lo sabe nadie: solo deja el historial mintiendo.
+             * "Veracidad, no puntuación".
+             *
+             * Va a `saltadas` y no al `where` A PROPÓSITO: filtrarlas en la
+             * consulta las haría desaparecer del informe del cron, y entonces
+             * nadie sabría que hay cinco observaciones abiertas que ya no se
+             * pueden cerrar por la vía normal. Se saltan diciéndolo.
+             */
+            if (i.employee && (i.employee.isActive === false || i.employee.isDeleted === true)) {
+                saltadas.push({ id: i.id, employee: i.employee.name ?? i.employeeId, motivo: 'CUENTA_CERRADA' });
                 return false;
             }
             const horas = (now.getTime() - desde.getTime()) / 3600000;

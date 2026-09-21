@@ -32,7 +32,15 @@ export async function GET(req: Request) {
             include: {
                 shifts: {
                     include: {
-                        user: { select: { id: true, name: true, role: true } },
+                        // isActive/isDeleted viajan para que la pantalla pueda
+                        // MARCAR el turno de quien ya no está. Aquí NO se
+                        // filtra a propósito: esto es cargar un horario que ya
+                        // existe, y esconder la fila dejaría el turno invisible
+                        // y sin forma de reasignarlo — que es justo lo que
+                        // pasaba. Medido el 21-sep: 7 de los 84 turnos de la
+                        // semana publicada son de una cuenta cerrada y el
+                        // cliente no recibía ni un bit que lo dijera.
+                        user: { select: { id: true, name: true, role: true, isActive: true, isDeleted: true } },
                         colorAssignments: true
                     },
                     orderBy: [{ date: 'asc' }, { shiftType: 'asc' }]

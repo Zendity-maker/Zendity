@@ -197,7 +197,14 @@ export async function POST(req: Request) {
                     date: shift.date,
                     shiftType: shift.shiftType,
                     isAbsent: false,
-                    id: { not: scheduledShiftId }
+                    id: { not: scheduledShiftId },
+                    // Quien ya no trabaja aquí no puede cubrir a nadie.
+                    // Sin esto, Joaneliz Rosario salía como candidata en los
+                    // cuatro turnos que le quedaban pautados tras darla de baja
+                    // —y el 22 y el 26-sep era la MITAD del pool de sustitución
+                    // que se le ofrece al supervisor—. Es una lista para
+                    // trabajo pendiente: filtra (CLAUDE.md, anti-patrón nº2).
+                    user: { isActive: true, isDeleted: false },
                 },
                 include: { user: { select: { id: true, name: true } } }
             });
@@ -226,7 +233,14 @@ export async function POST(req: Request) {
                 date: shift.date,
                 shiftType: shift.shiftType,
                 isAbsent: false,
-                id: { not: scheduledShiftId }
+                id: { not: scheduledShiftId },
+                // Quien ya no trabaja aquí no puede cubrir a nadie.
+                // Sin esto, Joaneliz Rosario salía como candidata en los
+                // cuatro turnos que le quedaban pautados tras darla de baja
+                // —y el 22 y el 26-sep era la MITAD del pool de sustitución
+                // que se le ofrece al supervisor—. Es una lista para
+                // trabajo pendiente: filtra (CLAUDE.md, anti-patrón nº2).
+                user: { isActive: true, isDeleted: false },
             },
             include: {
                 user: { select: { id: true, name: true } },

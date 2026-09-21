@@ -154,8 +154,31 @@ export const authOptions: NextAuthOptions = {
         async session({ session, token }) {
             const dbUser = await prisma.user.findUnique({
                 where: { id: token.uid as string },
-                select: { id: true, name: true, email: true, role: true, headquartersId: true, photoUrl: true, secondaryRoles: true, complianceScore: true }
+                select: { id: true, name: true, email: true, role: true, headquartersId: true, photoUrl: true, secondaryRoles: true, complianceScore: true, isActive: true, isDeleted: true }
             });
+            /**
+             * LA MISMA DEFENSA QUE LA FAMILIA TIENE ABAJO, QUE AL PERSONAL LE
+             * FALTABA.
+             *
+             * `authorize` bloquea el LOGIN de una cuenta cerrada, pero la
+             * estrategia es JWT con maxAge de 8 h: quien ya tenía el token en
+             * el navegador seguía navegando hasta que caducara. Cerrar la
+             * cuenta a las nueve de la mañana no la cerraba hasta las cinco.
+             *
+             * Y no había ningún corte real detrás: `hr/staff/[id]` hacía
+             * `tx.session.deleteMany` creyendo que cortaba el acceso, pero con
+             * estrategia JWT y sin adapter NextAuth no escribe ni una fila en
+             * `Session` — medido: 0 filas en toda la producción. Esa línea
+             * borraba 0 de 0, y los otros dos caminos de baja ni lo intentaban.
+             *
+             * Sin poblar `session.user.*` la sesión vuelve sin `role`, que es
+             * exactamente lo que ya se hace catorce líneas más abajo cuando el
+             * residente de un familiar pasa a DECEASED o DISCHARGED. La defensa
+             * estaba escrita, solo que para el otro lado de la casa.
+             */
+            if (dbUser && (dbUser.isActive === false || dbUser.isDeleted === true)) {
+                return session;
+            }
             if (dbUser) {
                 session.user.id = dbUser.id;
                 session.user.name = dbUser.name;

@@ -138,6 +138,8 @@ type ShiftEntry = {
     customStartTime?: string | null; // ISO string
     customEndTime?: string | null;
     customDescription?: string | null;
+    /** La persona de este turno ya no trabaja aquí. Se MARCA, no se esconde. */
+    deBaja?: boolean;
 };
 
 function formatTimeLabel(iso: string | null | undefined) {
@@ -296,6 +298,7 @@ export default function ScheduleBuilderPage() {
                     tempId: sh.id,
                     userId: sh.userId,
                     userName: sh.user?.name || '',
+                    deBaja: sh.user?.isActive === false || sh.user?.isDeleted === true,
                     date: sh.date.split('T')[0],
                     shiftType: sh.shiftType,
                     colorGroup: sh.colorGroup,
@@ -1016,7 +1019,22 @@ export default function ScheduleBuilderPage() {
                 return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
             };
 
-            const copied: ShiftEntry[] = prevShifts.map((sh: any) => {
+            /**
+             * NO SE COPIA EL TURNO DE QUIEN YA NO TRABAJA AQUI.
+             *
+             * Copiar la semana anterior hacia adelante arrastraba los turnos de
+             * las cuentas cerradas y creaba huerfanos NUEVOS cada vez que se
+             * armaba una semana: una persona que se fue seguia apareciendo
+             * pautada indefinidamente, y el horario se publicaba creyendo que
+             * ese color estaba cubierto.
+             *
+             * Se descartan aqui y no se esconden en ningun otro sitio: los
+             * turnos que YA existen siguen viendose y reasignandose desde la
+             * vista por empleado. Lo que no se hace es fabricar mas.
+             */
+            const copied: ShiftEntry[] = prevShifts
+                .filter((sh: any) => !(sh.user?.isActive === false || sh.user?.isDeleted === true))
+                .map((sh: any) => {
                 const origDate = new Date(sh.date);
                 const newDate = addDays(origDate, 7);
                 const dateStr = newDate.toISOString().split('T')[0];
@@ -1342,7 +1360,7 @@ export default function ScheduleBuilderPage() {
                 que se veía era la ausencia de algo, que puede ser descanso o
                 puede ser que falte decidirlo. */}
             {viewMode === 'employee' && (() => {
-                const listaOrdenada = staff
+                const activos = staff
                     // FASE 51: incluir empleados CLEANING con rol clínico SECUNDARIO
                     // (caso Yaileen: CLEANING + secondary CAREGIVER).
                     .filter(s => {
@@ -1351,6 +1369,35 @@ export default function ScheduleBuilderPage() {
                         return sec.some(r => ['CAREGIVER', 'NURSE', 'SUPERVISOR'].includes(r));
                     })
                     .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+                /**
+                 * QUIEN TIENE TURNOS PERO YA NO ESTA EN LA PLANTILLA.
+                 *
+                 * Esta vista es la que abre por defecto y dibuja una fila por
+                 * persona de `staff`, que solo trae activos. El turno de quien
+                 * se dio de baja no tenia FILA DONDE APARECER: no es que se
+                 * viera mal, es que no se veia. Medido el 21-sep: los siete
+                 * turnos de Joaneliz Rosario en la semana publicada, cuatro de
+                 * ellos de trabajo real, invisibles en la unica pantalla desde
+                 * la que se pueden reasignar.
+                 *
+                 * Su fila va al final, marcada, y sus celdas siguen siendo
+                 * clicables — que es el punto: hay que poder mover ese turno a
+                 * otra persona. Esconderlo no lo cubre.
+                 */
+                const idsActivos = new Set(activos.map(s => s.id));
+                const huerfanos = Array.from(
+                    new Map(
+                        shifts
+                            .filter(sh => !idsActivos.has(sh.userId))
+                            .map(sh => [sh.userId, {
+                                id: sh.userId, name: sh.userName,
+                                role: 'CAREGIVER', secondaryRoles: [] as string[], deBaja: true,
+                            }]),
+                    ).values(),
+                ).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+                const listaOrdenada = [...activos, ...(huerfanos as any[])];
 
                 const sinDecidir = listaOrdenada.length * weekDays.length
                     - shifts.filter(sh => listaOrdenada.some(p => p.id === sh.userId)).length;
@@ -1433,9 +1480,11 @@ export default function ScheduleBuilderPage() {
                             {listaOrdenada.map(emp => (
                                 <tr key={emp.id} className="border-b border-slate-100">
                                     <td className="px-3 py-2 font-bold text-slate-700 text-xs sticky left-0 bg-white z-10 whitespace-nowrap">
-                                        <div>{emp.name}</div>
+                                        <div className={(emp as any).deBaja ? 'text-rose-700' : ''}>{emp.name}</div>
                                         <div className="text-[10px] text-slate-500 font-medium">
-                                            {emp.role === 'SUPERVISOR' ? 'Supervisor' : emp.role === 'NURSE' ? 'Enfermero/a' : emp.role === 'CLEANING' ? 'Limpieza' : 'Cuidador/a'}
+                                            {(emp as any).deBaja
+                                                ? <span className="text-rose-600 font-bold">De baja — reasignar</span>
+                                                : emp.role === 'SUPERVISOR' ? 'Supervisor' : emp.role === 'NURSE' ? 'Enfermero/a' : emp.role === 'CLEANING' ? 'Limpieza' : 'Cuidador/a'}
                                         </div>
                                     </td>
                                     {weekDays.map(d => {

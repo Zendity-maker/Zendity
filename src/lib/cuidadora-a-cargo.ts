@@ -59,14 +59,36 @@ export async function cuidadorasDeResidente(
         return enPiso.map(c => ({ userId: c.userId, name: c.name, via: 'SESION_ACTIVA' as const }));
     }
 
-    // 3. Nadie ha iniciado turno todavía: el horario publicado de hoy.
+    /**
+     * 3. Nadie ha iniciado turno todavía: el horario publicado de HOY.
+     *
+     * Dos arreglos del 21-sep-2026, y los dos importan más de lo que parece
+     * porque esta lista APAGA UNA RED DE SEGURIDAD: en
+     * `src/lib/family/appointment-effects.ts:380`, si sale NO vacía se avisa
+     * solo a esas personas y se SALTA el escalado a SUPERVISOR/NURSE. Una lista
+     * con la gente equivocada es peor que una lista vacía.
+     *
+     *   · `lt: end`, no `lte: end`. `end` es la medianoche UTC del día
+     *     SIGUIENTE, que es exactamente la llave con que se guarda
+     *     `ScheduledShift.date`. Con `lte` entraban las pautas de mañana:
+     *     medido hoy, 2 de los 3 colores devolvían a alguien de mañana — BLUE
+     *     daba a Herminia Mojica, que hoy está OFF, y YELLOW a Joselyn, que hoy
+     *     lleva BLUE. Avisar a quien hoy no está es no avisar a nadie.
+     *
+     *   · `user: activo y no borrado`. Hoy no cambia nada, pero en los próximos
+     *     siete días hay dos turnos (25 y 27-sep, MORNING YELLOW) donde sale
+     *     Joaneliz Rosario, con la cuenta ya cerrada. Si la lista se compone
+     *     SOLO de cuentas cerradas, el aviso no le llega a nadie y además se
+     *     apaga el escalado — el peor de los dos mundos.
+     */
     const { start, end } = clinicalDayCalendarUTCRange();
     const programadas = await prisma.scheduledShift.findMany({
         where: {
-            date: { gte: start, lte: end },
+            date: { gte: start, lt: end },
             shiftType: shiftType as never,
             colorGroup: color,
             isAbsent: false,
+            user: { isActive: true, isDeleted: false },
             schedule: { headquartersId: hqId, status: 'PUBLISHED' },
         },
         select: { userId: true, user: { select: { name: true } } },

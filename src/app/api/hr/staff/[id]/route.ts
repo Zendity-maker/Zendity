@@ -195,8 +195,21 @@ export async function PATCH(
                 });
                 huerfanos = r.turnosFuturosHuerfanos;
             }
-            // Al dar de baja, la sesión abierta se cae en el acto. Sin esto
-            // alguien ya autenticado sigue navegando hasta que expire.
+            // ESTA LÍNEA NO CORTABA NADA, Y AQUÍ DECÍA QUE SÍ.
+            //
+            // El comentario anterior prometía que "la sesión abierta se cae en
+            // el acto". No se caía: la estrategia de NextAuth es "jwt" y
+            // `authOptions` no declara `adapter`, así que NextAuth no escribe
+            // NUNCA una fila en `Session`. Medido el 21-sep-2026: 0 filas en
+            // `Session` y 0 en `Account` en toda la producción. El borrado
+            // quitaba 0 de 0, hoy y siempre — y como los otros dos caminos de
+            // baja ni lo intentaban, parecía que este era el bueno.
+            //
+            // El corte de verdad está donde tenía que estar: en el callback
+            // `session()` de src/lib/auth.ts, que ahora devuelve sesión sin
+            // `role` en cuanto la cuenta está cerrada. Se deja el borrado
+            // porque no cuesta nada y sería lo correcto si algún día se monta
+            // el adapter, pero ya no se le atribuye un efecto que no tiene.
             if (!activar) {
                 await tx.session.deleteMany({ where: { userId: employeeId } });
             }
