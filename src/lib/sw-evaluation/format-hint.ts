@@ -39,14 +39,46 @@ function isPrimitiveEmpty(v: unknown): boolean {
 
 interface AdherenceShape {
     adherenceRate: number | null;
+    /** Dosis de la semana YA resueltas: el denominador del porcentaje. */
     weeklyLogsCount: number;
+    /** Dosis de la semana todavia PENDING. */
+    sinResolver: number;
 }
 
+/**
+ * Este hint acaba a la vista de la TS mientras redacta D-3, "Cumplimiento PEA".
+ * Lo que diga aqui se copia a un documento clinico, asi que no puede decir algo
+ * que no sea cierto — y decia dos cosas que no lo eran:
+ *
+ *   · Un 100% de relleno cuando no habia nada que medir. Eso se arreglo en
+ *     load-prefill-source: ahora `adherenceRate` llega null.
+ *
+ *   · "Sin registros de eMAR esta semana" cuando SI los hay, solo que sin
+ *     resolver. Se lee como abandono del eMAR. Medido hoy, 21-sep-2026: de los
+ *     31 expedientes activos, 21 daban esa frase teniendo dosis programadas.
+ *
+ * SE DICE "SIN RESOLVER" Y NO "TODAVIA NO TOCA DARLAS". La segunda fue la
+ * primera redaccion y es una INFERENCIA, no el dato. Medida a las 9:02 AST de
+ * hoy: de las 262 dosis PENDING de la semana, 154 estaban pautadas a las 8:00 y
+ * llevaban una hora vencidas. Llamarlas "todavia no toca" habria sido tranquilizar
+ * sobre una omision sin anotar — la misma clase de mentira que este arreglo viene
+ * a quitar, puesta en la frase que la sustituye. Lo que este formatter SABE es
+ * cuantas hay sin resolver; por que lo estan, no.
+ */
 function formatAdherence(v: AdherenceShape): string | null {
-    if (v.weeklyLogsCount === 0) return 'Sin registros de eMAR esta semana';
+    const pendientes = v.sinResolver ?? 0;
+    if (v.weeklyLogsCount === 0) {
+        if (pendientes > 0) {
+            return pendientes === 1
+                ? 'Una dosis programada esta semana, todavía sin resolver'
+                : `${pendientes} dosis programadas esta semana, todavía sin resolver`;
+        }
+        return 'Sin registros de eMAR esta semana';
+    }
     if (v.adherenceRate === null) return null;
-    const records = `${v.weeklyLogsCount} ${v.weeklyLogsCount === 1 ? 'registro' : 'registros'}`;
-    return `${v.adherenceRate}% de adherencia esta semana (${records})`;
+    const records = `${v.weeklyLogsCount} ${v.weeklyLogsCount === 1 ? 'dosis resuelta' : 'dosis resueltas'}`;
+    const cola = pendientes > 0 ? `, ${pendientes} sin resolver` : '';
+    return `${v.adherenceRate}% de adherencia esta semana (${records}${cola})`;
 }
 
 interface BenefitShape {

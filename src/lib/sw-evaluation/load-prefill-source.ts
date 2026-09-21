@@ -55,24 +55,78 @@ export async function loadPrefillSource(
     });
     if (!patient) return null;
 
-    // eMAR adherence (semana actual)
+    // eMAR adherence (semana actual) — sobre las dosis YA RESUELTAS.
+    //
+    // Este número acaba dentro de un documento clínico (D-3 "Cumplimiento PEA"
+    // de la evaluación de TS), así que mentía donde más caro sale. Acotaba por
+    // `administeredAt`, que está NULL en todo lo que no se administró —meds/bulk
+    // lo escribe así a propósito, care/meds/bulk/route.ts:274—, de modo que
+    // MISSED, OMITTED, REFUSED y PENDING quedaban fuera: numerador y denominador
+    // eran la misma fila y salía 100% POR CONSTRUCCIÓN.
+    //
+    // Medido contra producción (Cupey, solo lectura, 21-sep-2026): las ocho
+    // semanas desde el 27-jul daban 100%; la del 14-sep es 89% de verdad —1.795
+    // de 2.027, con 232 MISSED, de las que 77 son de residentes que ya no estaban
+    // y que el cron dejó de programar el 17-sep—. `createdAt` siempre tiene valor
+    // y aquí nunca se aleja del evento: sobre 13.866 filas, el registro
+    // retroactivo más atrasado va 2,0 h por detrás y ninguno cruza un día.
+    //
+    // Y no basta con cambiar el campo: por `createdAt` a secas entran las PENDING
+    // al denominador y sale 3% (9 de 271 esta semana), el error contrario. Una
+    // dosis PENDING no está fallada, todavía no toca. El denominador es el de
+    // corporate/director-briefing:121 y corporate/trends:200, más HELD, que
+    // cuenta como dosis no dada igual que en shift-closure-report.ts:340.
+    //
+    // Sin arreglar, igual que en /api/emar/patient/[id]: la semana se corta con
+    // date-fns sobre el reloj del servidor —UTC en Vercel—, o sea que empieza el
+    // domingo a las 8 PM AST. El 3,9% de las filas nace en esa franja; en reloj
+    // AST la misma semana del 14-sep da 88% (1.742/1.974).
+    const DOSIS_RESUELTAS = ['ADMINISTERED', 'MISSED', 'OMITTED', 'REFUSED', 'HELD'] as const;
+
     const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
     const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
-    const weeklyLogs = await prisma.medicationAdministration.findMany({
+    // groupBy y no findMany: aquí solo hacen falta los conteos, y así la consulta
+    // no crece con el volumen. Misma forma que corporate/exec-report:137.
+    // Sin el filtro de estado A PROPÓSITO: hacen falta las dos cifras, y así son
+    // una sola consulta y salen del mismo recuento. Las resueltas dan el
+    // porcentaje; las que quedan dicen POR QUÉ no hay porcentaje.
+    const porEstado = await prisma.medicationAdministration.groupBy({
+        by: ['status'],
         where: {
             patientMedication: { patientId: patient.id },
-            administeredAt: { gte: weekStart, lte: weekEnd },
+            createdAt: { gte: weekStart, lte: weekEnd },
         },
-        select: { status: true },
+        _count: { _all: true },
     });
-    const totalExpected = weeklyLogs.length;
-    const totalAdministered = weeklyLogs.filter(l => l.status === 'ADMINISTERED').length;
-    const emarAdherence = totalExpected > 0
-        ? {
-            adherenceRate: Math.round((totalAdministered / totalExpected) * 100),
-            weeklyLogsCount: totalExpected,
-        }
-        : null;
+    const cuenta = (estados: readonly string[]) =>
+        porEstado.filter(r => estados.includes(r.status)).reduce((n, r) => n + r._count._all, 0);
+    const totalResueltas = cuenta(DOSIS_RESUELTAS);
+    const totalAdministered = porEstado.find(r => r.status === 'ADMINISTERED')?._count._all ?? 0;
+    const sinResolver = porEstado.reduce((n, r) => n + r._count._all, 0) - totalResueltas;
+
+    /**
+     * Sin dosis resueltas, `adherenceRate` es null: nunca un 100% de relleno
+     * dentro de un expediente.
+     *
+     * Pero "no hay porcentaje" tiene DOS causas distintas y el hint las decía
+     * igual —"Sin registros de eMAR esta semana"—, que es falso en la segunda:
+     *
+     *   · no hay ninguna fila de eMAR esta semana                    → es cierto
+     *   · sí las hay, todas PENDING: la semana acaba de empezar y
+     *     esas dosis todavía no toca darlas                          → NO es cierto
+     *
+     * Hoy lunes, esta sede tiene 262 dosis PENDING y 9 resueltas: casi todos los
+     * expedientes caen en el segundo caso, y a la TS le decíamos que el eMAR
+     * está vacío. Por eso viaja `sinResolver`, y por eso el objeto ya no es null
+     * —el hint necesita el dato para distinguirlas—.
+     */
+    const emarAdherence = {
+        adherenceRate: totalResueltas > 0
+            ? Math.round((totalAdministered / totalResueltas) * 100)
+            : null,
+        weeklyLogsCount: totalResueltas,
+        sinResolver,
+    };
 
     const externalServicesActiveCount = await prisma.externalServiceVisitPatient.count({
         where: {

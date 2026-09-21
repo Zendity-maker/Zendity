@@ -19,7 +19,7 @@
  * ahora estaba partido entre dos pantallas.
  */
 import { prisma } from '@/lib/prisma';
-import { todayStartAST } from '@/lib/dates';
+import { todayStartAST, clinicalDayCalendarUTCRange } from '@/lib/dates';
 
 export interface EnTurno {
     caregiverId: string;
@@ -70,7 +70,13 @@ export interface EstadoOperativo {
 }
 
 export async function estadoOperativo(hqId: string): Promise<EstadoOperativo> {
+    // Las DOS anclas del mismo dia clinico, que NO son intercambiables:
+    //   inicioDia    = 10:00 UTC (6 AM AST). Para timestamps REALES —timeLogged,
+    //                  createdAt—. Tres consultas de abajo lo usan asi, y bien.
+    //   diaCalendario = 00:00 UTC del dia calendario. Para `ScheduledShift.date`,
+    //                  que se persiste a medianoche UTC. Ver las ausencias.
     const inicioDia = todayStartAST();
+    const diaCalendario = clinicalDayCalendarUTCRange();
     const hace14h = new Date(Date.now() - 14 * 3600 * 1000);
     const hace24h = new Date(Date.now() - 24 * 3600 * 1000);
 
@@ -158,12 +164,64 @@ export async function estadoOperativo(hqId: string): Promise<EstadoOperativo> {
 
     // Ausencias del dia. El dato existia y no aparecia en ninguna pantalla del
     // director: habia que ir al constructor de horarios a buscarlo.
+    //
+    // Y SEGUIA sin aparecer, por el ancla. Esto filtraba `date: { gte: inicioDia }`,
+    // y `inicioDia` son las 10:00 UTC mientras `ScheduledShift.date` se guarda a
+    // las 00:00 UTC. Una fecha de 00:00 UTC no puede ser >= 10:00 UTC del mismo
+    // dia: la consulta excluia ESTRUCTURALMENTE el dia en curso. Sin cota
+    // superior, lo que devolvia eran las ausencias FUTURAS — no un cero, que se
+    // habria notado, sino nombres de gente que falta la semana que viene bajo el
+    // rotulo "ausencias de hoy".
+    //
+    // Medido en Cupey el 21-sep-2026, dia a dia sobre 120 dias. Los seis dias
+    // con ausencia sin limpiar desde el 18-ago, y lo que el panel enseñaba:
+    //
+    //   dia      ancla vieja                 ancla correcta
+    //   18-ago   6 lineas, ninguna del dia   1
+    //   19-ago   5 lineas, ninguna del dia   1
+    //   07-sep   4 lineas, ninguna del dia   1
+    //   12-sep   3 lineas, ninguna del dia   1
+    //   13-sep   1 linea,  no era del dia    2
+    //   21-sep   0 lineas                    1
+    //
+    // Diecinueve lineas en total y NINGUNA era del dia que decia el rotulo:
+    // eran las ausencias FUTURAS, gente que falta la semana siguiente. Un cero
+    // se nota; una lista con nombres reales bajo "ausencias de hoy" no.
+    //
+    // El ancla que casa con este campo es `clinicalDayCalendarUTCRange()`, la
+    // misma que usan shift-coverage, cuidadora-a-cargo y uncovered-colors contra
+    // `ScheduledShift.date`. `inicioDia` se queda para timeLogged y createdAt.
+    //
+    // Y arreglar el ancla sola NO bastaba, porque destapaba dos filtros que
+    // faltaban. Medido en Cupey el 21-sep-2026 sobre las 24 ausencias sin
+    // limpiar que hay en toda la historia de la sede:
+    //
+    //   · `status: 'PUBLISHED'` — 1 de las 24 cuelga de un horario en BORRADOR
+    //     (Yaileen Soto, 21-jul-2026). Un borrador es un ensayo del
+    //     constructor de horarios; sus ausencias no son hechos. Los tres sitios
+    //     que consultan `ScheduledShift.date` —shift-coverage,
+    //     cuidadora-a-cargo, uncovered-colors— ya lo filtran; este no, y era la
+    //     unica divergencia que quedaba con ellos.
+    //
+    //   · `user: activo y no borrado` — 17 de las 24 son de gente que ya no
+    //     trabaja aqui (Joaneliz Rosario, Zuleyka Valcarcel, Medelyn Garcia,
+    //     Eiby Caraballo...). Solo 7 son de personal vigente. Sin este filtro,
+    //     arreglar el ancla cambiaba nombres futuros por nombres fantasma: HOY
+    //     mismo, 21-sep, la unica linea bajo "ausencias de hoy" habria sido
+    //     Joaneliz Rosario, borrada desde hace meses. Es el anti-patron que ya
+    //     mordio en ulceras, riesgo de caidas, señales de personal y el
+    //     leaderboard del wall.
+    //
+    // Que el numero puede moverse: el 07-sep da 1 (Mariangelie Rivera, activa)
+    // y el 06-jul y el 03-jul dan 1 (Neylianne Torres). Hoy da 0 porque de
+    // verdad no se ausento nadie de la plantilla vigente, no por construccion.
     const ausenciasHoy = await prisma.scheduledShift.findMany({
         where: {
-            schedule: { headquartersId: hqId },
-            date: { gte: inicioDia },
+            schedule: { headquartersId: hqId, status: 'PUBLISHED' },
+            date: { gte: diaCalendario.start, lt: diaCalendario.end },
             isAbsent: true,
             absentClearedAt: null,
+            user: { isActive: true, isDeleted: false },
         },
         select: {
             absenceReason: true, absenceNotified: true,

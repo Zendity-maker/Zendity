@@ -8,21 +8,18 @@ import {
     TriageTicket,
     FastActionAssignment,
     LiveDataPayload,
-    MissingHandover,
     VitalsFeedItem,
     VitalsByCaregiver,
     TeamScore,
     HandoverFeedItem,
-    ObservationFeedItem,
-    IncidentAppealItem,
     InboxHistoryItem,
 } from "@/types/care";
 import { useAuth } from "@/context/AuthContext";
 import {
     Brain, Users, Loader2, Sparkles, Send, CheckCircle2, Activity, Droplets, Coffee,
     Siren, Play, Square, AlertTriangle, ShieldAlert, FileText, Clock, XCircle, ChevronDown,
-    Heart, Pill, ClipboardSignature, MessageSquareWarning, MessageSquare, Utensils, CalendarClock, ArrowRight,
-    Gavel, AlertCircle, FileWarning, RefreshCw, CheckCheck, Timer, UserCheck, PenTool,
+    Heart, Pill, ClipboardSignature, MessageSquare, Utensils, CalendarClock, ArrowRight,
+    AlertCircle, FileWarning, RefreshCw, CheckCheck, Timer, UserCheck, PenTool,
 } from "lucide-react";
 import TaskAssignmentButton from "@/components/TaskAssignmentButton";
 import ReactMarkdown from 'react-markdown';
@@ -197,12 +194,17 @@ export default function SupervisorMissionControlPage() {
     // el historial del día.
     const [showSignedHandovers, setShowSignedHandovers] = useState(false);
 
-    // Filtro por TIPO del Inbox Operativo. El backend ya etiqueta cada ticket
-    // con una `category` (CLINICO_CRITICO / UPP_PIEL / FAMILY / MANTENIMIENTO /
-    // INCIDENTE). Antes la lista era plana y Celia tenía que escanear todo
-    // el feed para encontrar lo clínico crítico cuando había ruido de
-    // mantenimiento o quejas. Estos tabs filtran sin tocar el sort por urgencia.
-    type TriageTab = 'TODOS' | 'CLINICO' | 'UPP' | 'FAMILIA' | 'MANTENIMIENTO';
+    // Filtro por TIPO del Inbox Operativo. El backend etiqueta cada ticket con
+    // una `category` y estos tabs filtran sin tocar el sort por urgencia.
+    //
+    // ERAN CINCO Y SON TRES desde el 21-sep-2026. "Familia" y "Mantenimiento"
+    // no podían llenarse: la palabra FAMILY no aparece ni una vez en
+    // live/route.ts —los señalamientos se sacaron de este panel a propósito,
+    // porque no se resuelven en un turno, y la prueba está medida: 8
+    // completados frente a 22 vencidos sin atender— y MANTENIMIENTO solo se
+    // alimentaba del grupo que el propio backend creaba. Dos pestañas con un
+    // 0 permanente enseñan a no mirar los contadores de las otras tres.
+    type TriageTab = 'TODOS' | 'CLINICO' | 'UPP';
     const [activeTriageTab, setActiveTriageTab] = useState<TriageTab>('TODOS');
 
     // Sprint R — acciones adicionales del Inbox Operativo
@@ -795,7 +797,6 @@ export default function SupervisorMissionControlPage() {
 
     const nowTime = new Date().getTime();
     const activeSessions = liveData?.activeSessions || [];
-    const missingHandovers = liveData?.missingHandovers || [];
     const activeEmployeeIds = activeSessions.map((s: CaregiverSession) => s.caregiverId);
     const enPiso = activeSessions.filter((s: CaregiverSession) => (nowTime - new Date(s.startTime).getTime()) / 3600000 < 12);
     // Zombies vienen del backend (query separada, hasta 7 días atrás) para que los
@@ -816,12 +817,24 @@ export default function SupervisorMissionControlPage() {
     const vitalsFeed = liveData?.vitalsFeed || [];
     const vitalsByCaregiver = liveData?.vitalsByCaregiver || [];
     const vitalsTotals = liveData?.vitalsTotals || { total: 0, pending: 0, completed: 0, expired: 0 };
-    const medsProgress = liveData?.medsProgress;
+    /**
+     * Dosis del día clínico por estado. Sustituye a `medsProgress` (el
+     * porcentaje del turno) desde el 21-sep-2026 — ver la tarjeta más abajo.
+     *
+     * Van leídos desde un tipo local y no desde `LiveDataPayload` porque
+     * src/types/care.ts no se toca en este cambio; cuando se actualice, estos
+     * dos campos se mueven allí y el cast desaparece.
+     */
+    const nuevoEnElPayload = liveData as unknown as {
+        dosisSinDar?: { sinDar: number; pendientes: number; dadas: number; totalDelDia: number };
+        alertasFueraDeVentana?: number;
+    } | null;
+    const dosisSinDar = nuevoEnElPayload?.dosisSinDar;
     const teamScores = liveData?.teamScores || [];
     const handoversFeed = liveData?.handoversFeed || [];
-    const observationsFeed = liveData?.observationsFeed || [];
-    const incidentAppeals = liveData?.incidentAppeals || [];
-    const roundsSummary = liveData?.roundsSummary;
+    // Alertas clínicas abiertas que quedan FUERA de la ventana que se está
+    // mirando. Es el número del botón "Ver N alertas anteriores".
+    const fueraDeVentana = nuevoEnElPayload?.alertasFueraDeVentana ?? 0;
 
     const pendingActions: FastActionAssignment[] = (liveData?.activeFastActions || []).filter(
         (fa: FastActionAssignment) => fa.status === 'PENDING'
@@ -908,9 +921,13 @@ export default function SupervisorMissionControlPage() {
                         </div>
                     </HeroCard>
 
-                    {/* KPIs — 4 StatTiles. Incidentes pasa a tone="danger" cuando hay > 0,
-                        manteniendo el comportamiento original (pulse + tinte rose). */}
-                    <div className="lg:col-span-7 grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {/* KPIs — 3 StatTiles.
+                        Eran cuatro. El cuarto, "Incidentes", era el único con tono
+                        de peligro y pulso, y su condición `> 0` no se cumplió jamás:
+                        el modelo `Incident` tiene CERO filas, no en Cupey — en toda
+                        la base. Las caídas, que es lo que se creía leer ahí, viven en
+                        `FallIncident` y entran al Inbox por su propio camino. */}
+                    <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <StatTile
                             tone="teal"
                             icon={<Users className="w-8 h-8" />}
@@ -929,13 +946,6 @@ export default function SupervisorMissionControlPage() {
                             icon={<Coffee className="w-8 h-8" />}
                             value={liveData ? Object.values(liveData.liveStats.meals).reduce((a: any, b: any) => a + b, 0) : "—"}
                             label="Dietas"
-                            className="rounded-[2rem] p-6"
-                        />
-                        <StatTile
-                            tone={liveData && liveData.liveStats.incidents > 0 ? "danger" : "neutral"}
-                            icon={<Siren className="w-8 h-8" />}
-                            value={liveData ? liveData.liveStats.incidents : "—"}
-                            label="Incidentes"
                             className="rounded-[2rem] p-6"
                         />
                     </div>
@@ -973,11 +983,11 @@ export default function SupervisorMissionControlPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="font-black text-slate-800 text-sm">Rondas de Inspección</p>
-                            <p className="text-xs text-slate-500 font-medium">
-                                {roundsSummary
-                                    ? `${roundsSummary.completedSlots}/${roundsSummary.totalSlots} rondas iniciadas hoy`
-                                    : 'Checklist de 3 rondas por turno'}
-                            </p>
+                            {/* Texto fijo: el "X/3 de hoy" salía de una consulta
+                                que corría cada 30 s para contar filas de hace dos
+                                meses. La función está dormida (ver
+                                funciones-dormidas.ts) y este enlace no se pinta. */}
+                            <p className="text-xs text-slate-500 font-medium">Checklist de 3 rondas por turno</p>
                         </div>
                         <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-slate-700 group-hover:translate-x-1 transition-all" />
                     </Link>
@@ -1336,8 +1346,6 @@ export default function SupervisorMissionControlPage() {
                         Mapea cada tab a las categories del backend:
                           CLINICO        → CLINICO_CRITICO + INCIDENTE
                           UPP            → UPP_PIEL
-                          FAMILIA        → FAMILY
-                          MANTENIMIENTO  → MANTENIMIENTO
                           TODOS          → sin filtro
                         Los conteos se calculan sobre el feed completo, no sobre el filtrado. */}
                     {(() => {
@@ -1351,8 +1359,6 @@ export default function SupervisorMissionControlPage() {
                             // se distingue igual y se puede contar.
                             if (tab === 'CLINICO') return cat === 'CLINICO_CRITICO' || cat === 'INCIDENTE' || cat === 'MEDICAMENTO';
                             if (tab === 'UPP') return cat === 'UPP_PIEL';
-                            if (tab === 'FAMILIA') return cat === 'FAMILY';
-                            if (tab === 'MANTENIMIENTO') return cat === 'MANTENIMIENTO';
                             return false;
                         };
                         const feed = liveData?.triageFeed || [];
@@ -1362,8 +1368,6 @@ export default function SupervisorMissionControlPage() {
                             { id: 'TODOS', label: 'Todos' },
                             { id: 'CLINICO', label: 'Clínico' },
                             { id: 'UPP', label: 'UPP' },
-                            { id: 'FAMILIA', label: 'Familia' },
-                            { id: 'MANTENIMIENTO', label: 'Mantenimiento' },
                         ];
                         return (
                             <div className="flex flex-wrap gap-1 mb-4 border-b border-slate-100 pb-2">
@@ -1396,18 +1400,32 @@ export default function SupervisorMissionControlPage() {
                                     mismo día: había alertas abiertas de hasta 80
                                     días y ninguna pantalla desde la que cerrarlas.
                                     Amplía SOLO las alertas clínicas — incidentes
-                                    y caídas se quedan en 24 h. */}
+                                    y caídas se quedan en 24 h.
+
+                                    AHORA CON EL NÚMERO. Era un botón gris sin
+                                    contador junto a pestañas que sí lo llevaban,
+                                    y detrás estaba todo: al 21-sep hay 11 alertas
+                                    abiertas, la más vieja de hace 26 días, y 0 en
+                                    las últimas 24 h — así que el Inbox salía
+                                    VACÍO y las 11 dependían de que alguien
+                                    pulsara un botón que no prometía nada. Cuando
+                                    no queda ninguna fuera, el botón desaparece en
+                                    vez de ofrecer un cajón vacío. */}
+                                {(verAntiguas || fueraDeVentana > 0) && (
                                 <button
                                     onClick={() => setVerAntiguas(v => !v)}
                                     title="Amplía solo las alertas clínicas a 90 días. Incidentes y caídas siguen en 24 horas."
-                                    className={`ml-auto px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border ${
+                                    className={`ml-auto px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border flex items-center gap-1.5 ${
                                         verAntiguas
                                             ? 'bg-amber-100 text-amber-800 border-amber-300'
-                                            : 'text-slate-500 border-slate-200 hover:bg-slate-50'
+                                            : 'text-amber-800 bg-amber-50 border-amber-300 hover:bg-amber-100'
                                     }`}
                                 >
-                                    {verAntiguas ? 'Viendo hasta 90 días' : 'Ver alertas anteriores'}
+                                    {verAntiguas
+                                        ? 'Viendo hasta 90 días'
+                                        : <>Ver {fueraDeVentana} alerta{fueraDeVentana !== 1 ? 's' : ''} anterior{fueraDeVentana !== 1 ? 'es' : ''}</>}
                                 </button>
+                                )}
                             </div>
                         );
                     })()}
@@ -1419,8 +1437,6 @@ export default function SupervisorMissionControlPage() {
                             if (tab === 'TODOS') return true;
                             if (tab === 'CLINICO') return cat === 'CLINICO_CRITICO' || cat === 'INCIDENTE' || cat === 'MEDICAMENTO';
                             if (tab === 'UPP') return cat === 'UPP_PIEL';
-                            if (tab === 'FAMILIA') return cat === 'FAMILY';
-                            if (tab === 'MANTENIMIENTO') return cat === 'MANTENIMIENTO';
                             return false;
                         };
                         const filteredFeed = activeTriageTab === 'TODOS'
@@ -1795,15 +1811,16 @@ export default function SupervisorMissionControlPage() {
                                                     </div>
                                                 )}
                                             </div>
-                                            {score !== null && score !== undefined && (
-                                                <div className="mt-2">
-                                                    <ProgressBar
-                                                        percent={score}
-                                                        tone={(p) => (p >= 80 ? "success" : p >= 60 ? "warning" : "danger")}
-                                                        trackTone="white"
-                                                    />
-                                                </div>
-                                            )}
+                                            {/* AQUÍ IBA LA BARRA DEL SCORE, Y SE QUEDÓ FUERA DEL GATE.
+                                                El 09-sep se puso Z_SCORE_VISIBLE=false y se apagaron el
+                                                número y el fondo tintado — pero la barra dibujaba ESE MISMO
+                                                número con los mismos umbrales (80/60), en verde, ámbar o
+                                                rojo, bajo un encabezado que dice "Score Cumplimiento". Se
+                                                escondió la cifra y el juicio sobre la persona siguió en
+                                                pantalla doce días, en color y a lo ancho de la tarjeta.
+                                                Ver src/lib/z-score-visible.ts: el número está invertido y no
+                                                tiene dueño. Mientras no lo tenga, no se pinta de ninguna
+                                                forma. */}
                                         </div>
                                     );
                                 })
@@ -1813,7 +1830,7 @@ export default function SupervisorMissionControlPage() {
                 </div>
 
                 {/* ============================================== */}
-                {/* SECCIÓN 4 — VITALES DE ENTRADA + MEDS DEL TURNO  */}
+                {/* SECCIÓN 4 — VITALES DE ENTRADA + DOSIS SIN DAR   */}
                 {/* ============================================== */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Vitales de Entrada 4h */}
@@ -1870,57 +1887,114 @@ export default function SupervisorMissionControlPage() {
                         )}
                     </Card>
 
-                    {/* Meds del Turno */}
+                    {/* ═══ DOSIS SIN DAR ═══
+                        Aquí estaba "Meds del Turno": un porcentaje en text-6xl, el
+                        número más grande de la pantalla, y no podía significar nada.
+                        Su denominador eran TODAS las dosis de las ocho horas del
+                        turno y su numerador las dadas hasta ese segundo, así que en
+                        el minuto 84 de 480 decía 0% EN ROJO — y lo diría todas las
+                        mañanas sin que nadie hubiera hecho nada mal. La misma alarma
+                        que no puede dejar de sonar que la cobertura de comidas del
+                        panel del director.
+
+                        Lo que ocupa su sitio SÍ puede llegar a cero, que es la
+                        prueba de que sirve. Medido en Cupey día clínico a día
+                        clínico hasta el 21-sep: 0, 8, 20, 25, 57, 11, 24 — 145 en
+                        siete días, y ninguna aparecía hasta hoy en pantalla alguna.
+                        Se queda con el tamaño que tenía el porcentaje porque es lo
+                        que de verdad pide acción. */}
                     <div className="bg-white rounded-[2.5rem] p-7 shadow-sm border border-slate-200">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="font-black text-slate-800 text-xl flex items-center gap-3">
-                                <Pill className="w-6 h-6 text-fuchsia-600" /> Meds del Turno
-                                <InfoTooltip text={`Porcentaje de medicamentos administrados en el turno actual (${shiftMeta.es}, ${shiftMeta.window}). Incluye solo slots programados cuya hora cae dentro del turno.`} />
+                                <Pill className="w-6 h-6 text-fuchsia-600" /> Dosis sin dar hoy
+                                <InfoTooltip text="Dosis del día clínico (desde las 6:00 AM AST) que no llegaron al residente: vencidas sin administrar, omitidas, rechazadas o retenidas. No cuenta las que todavía no toca dar." />
                             </h3>
                             <span className="text-[10px] font-black text-slate-500 bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-full uppercase tracking-widest">
                                 {shiftMeta.icon} {currentShift}
                             </span>
                         </div>
-                        {medsProgress ? (
+                        {/* EL CERO SOLO VALE SI HAY DÍA QUE CONTAR.
+                            `totalDelDia === 0` significa que el cron de las 06:01
+                            no materializó ni una dosis —el día acaba de empezar, o
+                            el cron no corrió—. Sin este corte, ese caso pintaba un
+                            0 verde gigante y el texto "ninguna dosis se ha quedado
+                            sin dar en todo el día clínico": un número tranquilizador
+                            fabricado por la AUSENCIA de datos, que es exactamente el
+                            olor de CLAUDE.md. Medido el 21-sep: las 262 filas del día
+                            nacen a las 10:00:37 UTC, 37 segundos después del corte del
+                            día clínico — la ventana es estrecha, pero el cron ya ha
+                            fallado antes y ese día la tarjeta mentiría entera. */}
+                        {dosisSinDar && dosisSinDar.totalDelDia > 0 ? (
                             <div className="space-y-5">
                                 <div className="flex items-end gap-3">
-                                    <p className={`text-6xl font-black leading-none ${medsProgress.pct === null ? 'text-slate-400' : medsProgress.pct >= 90 ? 'text-emerald-600' : medsProgress.pct >= 70 ? 'text-amber-600' : 'text-rose-600'}`}>
-                                        {medsProgress.pct !== null ? `${medsProgress.pct}%` : '—'}
+                                    {/* Verde en cero a propósito: cero es el objetivo,
+                                        no una pantalla vacía. */}
+                                    <p className={`text-6xl font-black leading-none ${dosisSinDar.sinDar === 0 ? 'text-emerald-600' : dosisSinDar.sinDar <= 5 ? 'text-amber-600' : 'text-rose-600'}`}>
+                                        {dosisSinDar.sinDar}
                                     </p>
                                     <p className="text-sm text-slate-500 font-bold mb-2">
-                                        {medsProgress.completed} / {medsProgress.total} administrados
+                                        de {dosisSinDar.totalDelDia} dosis del día
                                     </p>
                                 </div>
-                                <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-                                    <div
-                                        className={`h-full rounded-full transition-all ${medsProgress.pct === null ? 'bg-slate-300' : medsProgress.pct >= 90 ? 'bg-emerald-500' : medsProgress.pct >= 70 ? 'bg-amber-500' : 'bg-rose-500'}`}
-                                        style={{ width: `${medsProgress.pct ?? 0}%` }}
-                                    />
+
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    {/* "0 dadas" en verde a las 8 de la mañana no es una
+                                        buena noticia, es el día sin empezar. El badge
+                                        aparece cuando hay algo que celebrar. */}
+                                    {dosisSinDar.dadas > 0 && (
+                                        <Badge variant="success">{dosisSinDar.dadas} dadas</Badge>
+                                    )}
+                                    {dosisSinDar.pendientes > 0 && (
+                                        <Badge variant="neutral" className="bg-slate-50 border border-slate-200 text-slate-600">
+                                            {dosisSinDar.pendientes} aún por dar
+                                        </Badge>
+                                    )}
+                                    {dosisSinDar.sinDar > 0 && (
+                                        <Badge variant="danger">{dosisSinDar.sinDar} sin dar</Badge>
+                                    )}
                                 </div>
+
                                 <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
                                     <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                                        Denominador: slots programados de <span className="font-bold text-slate-700">{shiftMeta.window}</span> para residentes ACTIVE.
-                                        {medsProgress.total === 0 && ' Sin meds programados en este turno.'}
+                                        {dosisSinDar.sinDar === 0 ? (
+                                            dosisSinDar.pendientes > 0
+                                                ? <>Ninguna dosis se ha quedado sin dar. Quedan <span className="font-bold text-slate-700">{dosisSinDar.pendientes}</span> por llegar a su hora.</>
+                                                : <>Ninguna dosis se ha quedado sin dar en todo el día clínico.</>
+                                        ) : (
+                                            <>Vencidas sin administrar, omitidas, rechazadas o retenidas. Cada una es un residente que no recibió lo suyo — están en el eMAR, por residente.</>
+                                        )}
                                     </p>
                                 </div>
                             </div>
                         ) : (
-                            <div className="flex justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-slate-400" /></div>
+                            <div className="p-6 text-center bg-slate-50 border border-slate-100 rounded-[1.5rem]">
+                                {/* Dos causas distintas y no se pueden confundir: que
+                                    el panel no haya podido leer el dato, o que el día
+                                    no tenga ni una dosis programada. La segunda, a
+                                    media mañana, es una avería del cron — se dice. */}
+                                <p className="text-slate-500 font-medium text-sm">
+                                    {dosisSinDar
+                                        ? 'Ninguna dosis programada para el día clínico de hoy. Si ya pasó la mañana, el cron de las 6:01 no corrió: revisa el eMAR antes de darlo por bueno.'
+                                        : 'No se pudo leer el estado de las dosis. Se reintenta en el próximo ciclo.'}
+                                </p>
+                            </div>
                         )}
                     </div>
                 </div>
 
                 {/* ============================================== */}
-                {/* SECCIÓN 5 — HANDOVERS HOY                        */}
-                {/* Reorganizada: brechas → esperando tu firma →     */}
-                {/* completados (colapsable). Drawer inline para     */}
+                {/* SECCIÓN 5 — RELEVOS (ÚLTIMOS TRES TURNOS)        */}
+                {/* El parte de los tres turnos → esperando tu firma */}
+                {/* → completados (colapsable). Drawer inline para   */}
                 {/* firmar sin navegar a /care/reports/[id].         */}
                 {/* ============================================== */}
                 {(() => {
                     const pendingMyFirma = handoversFeed.filter((h: HandoverFeedItem) => h.derivedStatus !== 'SUPERVISOR_SIGNED');
                     const signedToday = handoversFeed.filter((h: HandoverFeedItem) => h.derivedStatus === 'SUPERVISOR_SIGNED');
-                    const totalNothing = pendingMyFirma.length === 0 && signedToday.length === 0 && missingHandovers.length === 0;
-                    const allCleared = pendingMyFirma.length === 0 && missingHandovers.length === 0 && signedToday.length > 0;
+                    const totalNothing = pendingMyFirma.length === 0 && signedToday.length === 0;
+                    // `allCleared` se calcula más abajo, DESPUÉS del parte de los
+                    // tres turnos: necesita saber si algún turno terminó sin que
+                    // nadie entregara. Ver la nota allí.
 
                     const COLOR_BADGES: Record<string, string> = {
                         RED: 'bg-rose-500 text-white',
@@ -2011,17 +2085,49 @@ export default function SupervisorMissionControlPage() {
                         };
                     });
 
+                    /**
+                     * "DÍA COMPLETO ✓" — REHECHO PARA QUE PUEDA SER FALSO.
+                     *
+                     * Este badge exigía `missingHandovers.length === 0`, y esa
+                     * lista era un array vacío literal en el backend: la
+                     * condición era verdadera SIEMPRE. Con el arreglo del parte
+                     * de tres turnos, "Día completo, todos los handovers están
+                     * firmados por ti" podía salir a cien píxeles de la fila
+                     * "Terminó sin que nadie entregara". Las dos cosas en la
+                     * misma tarjeta, y una de las dos mentía.
+                     *
+                     * Ahora se apoya en el parte, que es lo único de esta
+                     * tarjeta que sí puede ser falso: un turno ya terminado sin
+                     * una sola entrega deja de ser "día completo", aunque todo
+                     * lo que llegó esté firmado. El turno en curso no cuenta —
+                     * todavía puede entregar.
+                     */
+                    const turnosSinEntrega = parteDeTurnos.filter(t => !t.corriendo && t.entregas === 0);
+                    const allCleared =
+                        pendingMyFirma.length === 0 &&
+                        turnosSinEntrega.length === 0 &&
+                        signedToday.length > 0;
+
                     return (
                         <div className={`rounded-[2.5rem] p-7 shadow-sm border ${allCleared ? 'bg-emerald-50/40 border-emerald-200' : 'bg-white border-slate-200'}`}>
                             <div className="flex justify-between items-center mb-5 flex-wrap gap-3">
                                 <h3 className="font-black text-slate-800 text-xl flex items-center gap-3">
-                                    <ClipboardSignature className={`w-6 h-6 ${allCleared ? 'text-emerald-600' : 'text-teal-600'}`} /> Handovers Hoy
-                                    <InfoTooltip text="Traspasos de turno firmados en el día + brechas. Cada handover requiere firma de la cuidadora saliente + tu firma como supervisor." />
+                                    {/* El título decía "Handovers Hoy" y contradecía al
+                                        arreglo del 21-sep: la tarjeta ya no mira el día
+                                        clínico, mira 26 horas — los tres últimos turnos,
+                                        que es lo que un supervisor necesita al entrar. */}
+                                    <ClipboardSignature className={`w-6 h-6 ${allCleared ? 'text-emerald-600' : 'text-teal-600'}`} /> Relevos — últimos tres turnos
+                                    <InfoTooltip text="Los tres turnos del ciclo, el que corre incluido. Cada relevo requiere la firma de la cuidadora saliente y la tuya como supervisor." />
                                 </h3>
                                 <div className="flex gap-2 flex-wrap">
-                                    {missingHandovers.length > 0 && (
+                                    {/* El chip "N brechas" salía de `missingHandovers`, un
+                                        array vacío literal en el backend derivado de
+                                        `ShiftSchedule`, el modelo viejo sin datos. Nunca
+                                        mostró una fila. Lo que de verdad falta lo dice el
+                                        parte de abajo, con el turno y la fecha. */}
+                                    {turnosSinEntrega.length > 0 && (
                                         <span className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                                            <AlertTriangle className="w-3.5 h-3.5" /> {missingHandovers.length} brecha{missingHandovers.length > 1 ? 's' : ''}
+                                            <AlertTriangle className="w-3.5 h-3.5" /> {turnosSinEntrega.length} turno{turnosSinEntrega.length > 1 ? 's' : ''} sin entrega
                                         </span>
                                     )}
                                     {pendingMyFirma.length > 0 && (
@@ -2089,36 +2195,19 @@ export default function SupervisorMissionControlPage() {
                                 <div className="bg-emerald-100 border border-emerald-200 p-5 rounded-[1.5rem] flex items-center gap-4 mb-5">
                                     <CheckCircle2 className="w-10 h-10 text-emerald-600 shrink-0" />
                                     <div>
-                                        <p className="font-black text-emerald-900 text-lg">Día completo ✓</p>
-                                        <p className="text-sm text-emerald-700 font-medium">Todos los handovers del día están firmados por ti.</p>
+                                        <p className="font-black text-emerald-900 text-lg">Ciclo completo ✓</p>
+                                        <p className="text-sm text-emerald-700 font-medium">Los tres turnos entregaron y todo está firmado por ti.</p>
                                     </div>
                                 </div>
                             )}
 
-                            {/* (1) BRECHAS — siempre arriba si hay */}
-                            {missingHandovers.length > 0 && (
-                                <div className="mb-5">
-                                    <h4 className="text-[10px] font-black text-rose-700 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                        <AlertTriangle className="w-3.5 h-3.5" /> Brechas — turnos cerrados sin handover
-                                    </h4>
-                                    <div className="space-y-2">
-                                        {missingHandovers.map((mh: MissingHandover, i: number) => {
-                                            const diffHrs = (nowTime - new Date(mh.endTime).getTime()) / 3600000;
-                                            const isCritical = diffHrs > 2;
-                                            return (
-                                                <div key={i} className={`p-4 rounded-[1.25rem] border-l-[6px] flex flex-wrap items-center justify-between gap-3 ${isCritical ? 'bg-rose-50 border-l-rose-500 border-y border-r border-rose-200' : 'bg-amber-50 border-l-amber-400 border-y border-r border-amber-200'}`}>
-                                                    <div>
-                                                        <span className={`font-black text-[10px] uppercase tracking-widest ${isCritical ? 'text-rose-600' : 'text-amber-600'}`}>Falta firma legal</span>
-                                                        <p className="font-bold text-slate-800 text-base">{mh.employeeName}</p>
-                                                        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">{mh.shiftType}</p>
-                                                    </div>
-                                                    <span className={`text-xs font-bold px-2.5 py-1 rounded-md text-white ${isCritical ? 'bg-rose-600' : 'bg-amber-500'}`}>hace {diffHrs.toFixed(1)}h</span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )}
+                            {/* Aquí iba la sección "Brechas — turnos cerrados sin
+                                handover". No podía pintar nada: su fuente era
+                                `missingHandovers`, un array vacío literal en
+                                live/route.ts, derivado de `ShiftSchedule` —modelo
+                                viejo sin datos, antipatrón 1 de CLAUDE.md—. Un turno
+                                que acabó sin que nadie entregara sí se ve, y con su
+                                fecha, en el parte de los tres turnos de arriba. */}
 
                             {/* (2) PENDIENTES TU FIRMA — call-to-action prominente con firma inline */}
                             {pendingMyFirma.length > 0 && (
@@ -2239,100 +2328,23 @@ export default function SupervisorMissionControlPage() {
                     );
                 })()}
 
-                {/* ============================================== */}
-                {/* SECCIÓN 6 — OBSERVACIONES + APELACIONES          */}
-                {/* ============================================== */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Observaciones de Personal */}
-                    <div className="bg-white rounded-[2.5rem] p-7 shadow-sm border border-slate-200">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-black text-slate-800 text-xl flex items-center gap-3">
-                                <MessageSquareWarning className="w-6 h-6 text-amber-600" /> Observaciones de Personal
-                                <InfoTooltip text="Reportes tipo OBSERVATION (Sprint C) de los últimos 7 días en estados activos. No son disciplinarios — registran conducta para análisis y acompañamiento." />
-                            </h3>
-                            <span className="bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest">{observationsFeed.length}</span>
-                        </div>
-                        {observationsFeed.length === 0 ? (
-                            <div className="p-6 text-center bg-slate-50 border border-slate-100 rounded-[1.5rem]">
-                                <p className="text-slate-500 font-medium text-sm">Sin observaciones activas (7 días).</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                                {observationsFeed.slice(0, 12).map((ob: ObservationFeedItem) => {
-                                    const date = new Date(ob.createdAt).toLocaleDateString('es-PR', { day: 'numeric', month: 'short' });
-                                    return (
-                                        <div key={ob.id} className="bg-white border-l-[5px] border-l-amber-400 border-y border-r border-slate-200 rounded-xl p-3 shadow-sm">
-                                            <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
-                                                <span className="font-bold text-slate-800 text-sm truncate">{ob.employeeName}</span>
-                                                <span className="text-[10px] font-black text-slate-500 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-md uppercase">{ob.category}</span>
-                                            </div>
-                                            <ExpandableText
-                                                text={ob.description}
-                                                previewLines={2}
-                                                className="text-xs text-slate-600 font-medium mb-1"
-                                            />
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-[10px] text-slate-400 font-bold">{ob.supervisorName} · {date}</span>
-                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-md uppercase ${ob.status === 'EXPLANATION_RECEIVED' ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-600'}`}>
-                                                    {ob.status.replace('_', ' ')}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
+                {/* ═══ AQUÍ ESTABA RRHH, Y RRHH NO ES PISO ═══
+                    Dos tarjetas salieron de esta pantalla el 21-sep-2026:
+                    "Observaciones de Personal" (el feed de IncidentReport de 7
+                    días) y "Apelaciones Activas". El criterio de este panel es lo
+                    que se resuelve en una o dos horas de turno, y una apelación no
+                    lo es: se lee, se contesta por escrito y se resuelve en
+                    dirección. Su sitio es /hr.
 
-                    {/* Apelaciones Activas */}
-                    <div className="bg-white rounded-[2.5rem] p-7 shadow-sm border border-slate-200">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-black text-slate-800 text-xl flex items-center gap-3">
-                                <Gavel className="w-6 h-6 text-rose-600" /> Apelaciones Activas
-                                <InfoTooltip text="Reportes disciplinarios (WARNING/SUSPENSION/TERMINATION) con apelación recibida o respuesta del empleado pendiente de revisión." />
-                            </h3>
-                            <span className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest">{incidentAppeals.length}</span>
-                        </div>
-                        {incidentAppeals.length === 0 ? (
-                            <div className="p-6 text-center bg-slate-50 border border-slate-100 rounded-[1.5rem]">
-                                <p className="text-slate-500 font-medium text-sm">Sin apelaciones pendientes.</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                                {incidentAppeals.map((ap: IncidentAppealItem) => {
-                                    const date = new Date(ap.createdAt).toLocaleDateString('es-PR', { day: 'numeric', month: 'short' });
-                                    return (
-                                        <div key={ap.id} className="bg-rose-50 border border-rose-200 rounded-xl p-3">
-                                            <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
-                                                <span className="font-bold text-slate-800 text-sm truncate">{ap.employeeName}</span>
-                                                <span className="text-[10px] font-black text-rose-700 bg-white border border-rose-200 px-2 py-0.5 rounded-md uppercase">{ap.severity}</span>
-                                            </div>
-                                            <p className="text-xs text-slate-600 font-medium line-clamp-2 mb-1">{ap.description}</p>
-                                            {ap.appealText && (
-                                                <div className="bg-white border border-rose-100 rounded-md p-2 mt-2">
-                                                    <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-0.5">Texto apelación</p>
-                                                    <p className="text-xs text-slate-700 font-medium line-clamp-2">"{ap.appealText}"</p>
-                                                </div>
-                                            )}
-                                            <div className="flex items-center justify-between mt-2 gap-2">
-                                                <span className="text-[10px] text-slate-500 font-bold">{date}</span>
-                                                <button
-                                                    onClick={() => router.push(`/hr/incidents/${ap.id}`)}
-                                                    className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg transition-all active:scale-95"
-                                                >
-                                                    Resolver apelación <ArrowRight className="w-3 h-3" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
-                </div>
+                    LO QUE /hr TIENE QUE RECIBIR ARREGLADO: la consulta de
+                    apelaciones no filtraba por empleado activo. Las 2 abiertas en
+                    Cupey son las dos de Zuleyka Valcárcel, con isActive:false e
+                    isDeleted:true; y 5 de las 8 observaciones de la semana son de
+                    empleadas ya inactivas. Mudar el bloque sin poner el filtro muda
+                    el fallo con él. Está dicho también en live/route.ts. */}
 
                 {/* ============================================== */}
-                {/* SECCIÓN 7 — TAREAS ACTIVAS + GENERADOR HR        */}
+                {/* SECCIÓN 6 — TAREAS ACTIVAS + REDACTAR MEMORÁNDUM */}
                 {/* ============================================== */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Tareas Activas */}
@@ -2398,11 +2410,15 @@ export default function SupervisorMissionControlPage() {
                         )}
                     </div>
 
-                    {/* Observaciones de Personal */}
+                    {/* Redactar memorándum — es un redactor, no un feed. Se llamaba
+                        "Observaciones de Personal" igual que la tarjeta que listaba
+                        las observaciones ya escritas: dos bloques con el mismo
+                        nombre y funciones opuestas. Aquel se fue; este dice lo que
+                        hace. */}
                     <div className="bg-white rounded-[2.5rem] p-7 shadow-sm border border-slate-200">
                         <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
                             <h3 className="font-black text-slate-800 text-xl flex items-center gap-3">
-                                <Brain className="w-6 h-6 text-teal-600" /> Observaciones de Personal
+                                <Brain className="w-6 h-6 text-teal-600" /> Redactar memorándum
                             </h3>
                             <button onClick={() => setIncidentModalOpen(true)}
                                 className="flex items-center gap-2 px-4 py-3 bg-[#1F2D3A] hover:bg-[#0F6B78] text-white rounded-xl text-sm font-medium transition">
@@ -2422,6 +2438,22 @@ export default function SupervisorMissionControlPage() {
                                 {processedMemo}
                             </div>
                         )}
+                        {/* LA PUERTA DE SALIDA QUE FALTABA.
+                            El 21-sep salieron de esta pantalla las dos tarjetas de
+                            RRHH —observaciones y apelaciones— y con ellas el único
+                            enlace a /hr/incidents que había aquí: el botón "Resolver
+                            apelación". El criterio de sacarlas es correcto (no se
+                            resuelven en un turno), pero dejaba a Celia escribiendo
+                            memorándums sin ningún sitio desde el que ver qué pasó con
+                            ellos, y con 2 apelaciones abiertas invisibles y sin
+                            aviso. Se quita el feed, no el camino. */}
+                        <button
+                            onClick={() => router.push('/hr/incidents')}
+                            className="mt-4 w-full flex items-center justify-between gap-2 px-4 py-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 transition"
+                        >
+                            <span>Ver respuestas y apelaciones en RRHH</span>
+                            <ArrowRight className="w-4 h-4" />
+                        </button>
                     </div>
                 </div>
 

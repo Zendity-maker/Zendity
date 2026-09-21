@@ -128,38 +128,37 @@ export async function GET(req: Request) {
             astHour >= 6 && astHour < 14 ? 'MORNING'
             : astHour >= 14 && astHour < 22 ? 'EVENING'
             : 'NIGHT';
-        const shiftWindow: Record<typeof currentShift, [number, number]> = {
-            MORNING: [6, 14],
-            EVENING: [14, 22],
-            NIGHT: [22, 30], // 22..29 ≡ 22..5 (+24 para madrugada)
-        };
-        const [shiftFrom, shiftTo] = shiftWindow[currentShift];
+        // La ventana horaria del turno ([6,14] / [14,22] / [22,30]) se usaba
+        // solo para repartir las dosis del turno entre numerador y denominador
+        // del porcentaje. Ese porcentaje se fue el 21-sep-2026 y con él la
+        // aritmética de franjas: contar dosis SIN DAR no necesita saber en qué
+        // hora caía cada una. `currentShift` sigue, que es lo que la pantalla
+        // usa para rotular el turno activo.
 
         // ============================================================================
-        // FASE 2 + SPRINT K: OPTIMIZACIÓN DE LATENCIA — PROMISE.ALL CONCURRENTE
-        // 14 queries legacy + 6 queries Sprint K = 20 consultas en un solo ciclo
+        // PROMISE.ALL CONCURRENTE — 16 consultas por ciclo.
+        //
+        // Eran 22 hasta el 21-sep-2026. El recorte quitó siete que alimentaban
+        // bloques que no podían decir nada (ver cada `(Removida)` más abajo),
+        // fusionó las dos de medicamentos en un groupBy, y añadió una: el
+        // `count` que le pone número al botón de alertas anteriores. Con poll
+        // de 30 s, cada pestaña abierta pasó de ~2.640 consultas/hora a ~1.920.
         // ============================================================================
         const [
             activeSessions,
             zombieSessionsRaw,
             bathsToday,
             mealsToday,
-            incidentsToday,
-            pendingComplaintsList,
-            recentIncidents,
             pxWithUPP,
             briefing,
             activeFastActions,
             clinicalAlerts,
+            alertasFueraDeVentana,
             fallIncidents,
             lastBriefingEver,
-            // ── Sprint K: 6 queries nuevas ──
             vitalsOrdersToday,
-            medsAdministeredToday,
-            activeMedsForDenominator,
+            dosisDelDiaPorEstado,
             handoversTodayFull,
-            activeIncidentReports,
-            todayZoneInspections,
             // ── Tickets referidos a enfermería hoy (para filtrarlos del feed) ──
             referredTodayLogs,
             // ── Historial de acciones del Inbox hoy ──
@@ -186,14 +185,20 @@ export async function GET(req: Request) {
             prisma.bathLog.count({ where: { timeLogged: { gte: todayStart }, patient: { headquartersId: hqId } } }),
             // 3. Progreso de Comidas
             prisma.mealLog.groupBy({ by: ['mealType'], where: { timeLogged: { gte: todayStart }, patient: { headquartersId: hqId } }, _count: { mealType: true } }),
-            // 4. Incidentes (Hoy)
-            prisma.incident.count({ where: { headquartersId: hqId, reportedAt: { gte: todayStart }, resolvedAt: null } }),
-            // 5. Quejas Triage Pendientes
-            prisma.complaint.findMany({ where: { headquartersId: hqId, status: 'PENDING' }, include: { patient: true }, orderBy: { createdAt: 'asc' } }),
-            // 6. Incidentes Recientes (24 hrs para feed)
-            // Un incidente cerrado deja de aparecer al instante, sin esperar
-            // a que se caiga de la ventana de 24 horas.
-            prisma.incident.findMany({ where: { headquartersId: hqId, reportedAt: { gte: twentyFourHrsAgo }, resolvedAt: null }, include: { patient: true } }),
+            // 4-6. (Removidas el 21-sep-2026) Incidentes del día, incidentes de
+            //      las últimas 24 h para el feed, y quejas PENDING.
+            //
+            //      `Incident` tiene CERO filas: no en Cupey — en toda la base.
+            //      El KPI "Incidentes" era el único tile con tono de peligro y
+            //      pulso, y su condición `> 0` no se cumplió jamás. Las caídas,
+            //      que es lo que se creía contar ahí, viven en `FallIncident`
+            //      (query 13) y ya entran al feed por su propio camino.
+            //
+            //      `Complaint PENDING` salía en el payload como
+            //      `pendingComplaints` y `liveStats.triageInbox`, y ninguno de
+            //      los dos se leía en page.tsx. Los señalamientos de familia se
+            //      sacaron de este panel a propósito (ver la nota larga abajo):
+            //      se resuelven en dirección, no en el turno. Hoy hay 0 PENDING.
             // 7. Pacientes con UPP Activas — solo los que están en la sede (no TEMPORARY_LEAVE)
             prisma.patient.findMany({ where: { headquartersId: hqId, status: 'ACTIVE', pressureUlcers: { some: { status: 'ACTIVE' } } }, include: { posturalChanges: { orderBy: { performedAt: 'desc' }, take: 1 } } }),
             // 8. Zendi Morning Briefing — Sprint L: solo el prólogo del cron (isDailyPrologue=true)
@@ -206,6 +211,29 @@ export async function GET(req: Request) {
             //     isResolved:false — antes no se filtraba porque nada las resolvía.
             // Solo residentes ACTIVE — los que están en TEMPORARY_LEAVE no generan alertas de vulnerabilidad
             prisma.dailyLog.findMany({ where: { patient: { headquartersId: hqId, status: 'ACTIVE' }, isClinicalAlert: true, isResolved: false, createdAt: { gte: desdeAlertas } }, include: { patient: { select: { id: true, name: true, colorGroup: true } }, author: { select: { id: true, name: true, role: true } } }, orderBy: { createdAt: 'desc' }, take: 20 }),
+            /**
+             * CUÁNTAS ALERTAS QUEDAN FUERA DE LA VENTANA. El número del botón.
+             *
+             * El botón "Ver alertas anteriores" era gris, `text-xs`, `ml-auto`
+             * y SIN NÚMERO, al lado de pestañas que sí llevaban contador. Y
+             * detrás de él estaba todo: en Cupey hay 11 alertas clínicas
+             * abiertas de residentes activos, la más vieja de hace 26 días, y
+             * CERO en las últimas 24 horas. Con la ventana por defecto el Inbox
+             * sale vacío y las 11 solo se ven pulsando un botón que no promete
+             * nada. Un botón que no promete nada no se pulsa.
+             *
+             * Se cuenta lo que queda FUERA de la ventana vigente, así que al
+             * ampliar a 90 días el número baja a 0 solo y el botón deja de
+             * ofrecer lo que ya está en pantalla.
+             */
+            prisma.dailyLog.count({
+                where: {
+                    patient: { headquartersId: hqId, status: 'ACTIVE' },
+                    isClinicalAlert: true,
+                    isResolved: false,
+                    createdAt: { lt: desdeAlertas },
+                },
+            }),
             // 13. Caídas recientes (FallIncident — NO Incident genérico) — solo residentes presentes
             prisma.fallIncident.findMany({
                 where: { patient: { headquartersId: hqId, status: 'ACTIVE' }, incidentDate: { gte: twentyFourHrsAgo }, resolvedAt: null },
@@ -228,31 +256,41 @@ export async function GET(req: Request) {
                 },
                 orderBy: { orderedAt: 'desc' },
             }),
-            // ── Sprint K #16: MedicationAdministrations registradas hoy (para numerador de % turno)
-            prisma.medicationAdministration.findMany({
+            /**
+             * LAS DOSIS DEL DÍA CLÍNICO, POR ESTADO. Un solo groupBy.
+             *
+             * Sustituye a dos consultas: la lista completa de administraciones
+             * del día y la de `PatientMedication` activos que servía de
+             * denominador para el porcentaje del turno. Ese porcentaje se fue
+             * el 21-sep-2026 (ver `dosisSinDar` en el payload).
+             *
+             * TRES DECISIONES, y las tres están medidas:
+             *
+             * 1) Se acota por `createdAt`, no por `administeredAt` ni
+             *    `scheduledTime`. Esos dos son nulos justo en las filas que
+             *    importan —`administeredAt` siempre que el estado no sea
+             *    ADMINISTERED, `scheduledTime` en las 7.018 filas de los
+             *    últimos 30 días— así que filtrar por ellos excluye en silencio
+             *    las omisiones, que es lo único que se quiere contar aquí.
+             *
+             * 2) `patient.status: 'ACTIVE'`. Sin este filtro salen 232 no
+             *    administradas en 7 días; con él, 145. Las 87 de diferencia son
+             *    de residentes que ya no están —el caso de Isidra E. Beaton,
+             *    ingresada en el hospital desde el 9-sep, con 13 dosis
+             *    materializadas que nadie del hogar podía dar—. Una dosis no
+             *    dada de quien no estaba aquí no es una omisión del piso.
+             *
+             * 3) El groupBy devuelve TODOS los estados, no solo los no dados.
+             *    Hace falta el resto para que el número tenga de dónde salir:
+             *    "6 sin dar de 271" se entiende, "6" solo, no.
+             */
+            prisma.medicationAdministration.groupBy({
+                by: ['status'],
                 where: {
-                    patientMedication: { patient: { headquartersId: hqId } },
+                    patientMedication: { patient: { headquartersId: hqId, status: 'ACTIVE' } },
                     createdAt: { gte: todayStart },
                 },
-                select: {
-                    id: true,
-                    status: true,
-                    scheduleTime: true,
-                    scheduledTime: true,
-                    administeredAt: true,
-                    createdAt: true,
-                    administeredById: true,
-                    patientMedicationId: true,
-                },
-            }),
-            // ── Sprint K #17: PatientMedication ACTIVE para denominador de % turno
-            prisma.patientMedication.findMany({
-                where: {
-                    patient: { headquartersId: hqId, status: 'ACTIVE' },
-                    isActive: true,
-                    status: 'ACTIVE',
-                },
-                select: { id: true, patientId: true, scheduleTimes: true, frequency: true },
+                _count: { status: true },
             }),
             // ── Sprint K #18 + Sprint L: Handovers individuales de cuidadores hoy
             // (isDailyPrologue=false para excluir el prólogo del cron; incluye colorGroups y notas)
@@ -265,27 +303,48 @@ export async function GET(req: Request) {
                     _count: { select: { notes: true } },
                 },
                 orderBy: { createdAt: 'desc' },
-                take: 20,
+                /**
+                 * 40, no 20, desde el 21-sep-2026.
+                 *
+                 * Este feed dejó de ser solo una lista: el parte de los tres
+                 * turnos se deriva de él, y de ahí salen el chip rojo "N turnos
+                 * sin entrega" y el badge "Ciclo completo ✓". El `orderBy` es
+                 * DESC, así que lo que se cae por el `take` es SIEMPRE el turno
+                 * más viejo de la ventana — justo el que entonces se acusaría de
+                 * no haber entregado.
+                 *
+                 * Medido sobre 30 días en Cupey: 247 relevos firmados, y el
+                 * máximo en cualquier ventana de 26 h fue 16. Con 20 quedaban
+                 * cuatro de margen y un día de equipo grande convertía el tope
+                 * en una acusación falsa al piso. 40 dobla el peor caso medido.
+                 */
+                take: 40,
             }),
-            // ── Sprint K #19: IncidentReport Sprint C en estados activos + observaciones 7d
-            prisma.incidentReport.findMany({
-                where: {
-                    headquartersId: hqId,
-                    createdAt: { gte: sevenDaysAgo },
-                    status: { in: ['NOTIFIED', 'PENDING_EXPLANATION', 'EXPLANATION_RECEIVED'] },
-                },
-                include: {
-                    employee: { select: { id: true, name: true, role: true } },
-                    supervisor: { select: { id: true, name: true } },
-                },
-                orderBy: { createdAt: 'desc' },
-                take: 30,
-            }),
-            // ── Sprint K #20: Rondas de inspección de hoy (resumen X/3)
-            prisma.zoneInspection.findMany({
-                where: { headquartersId: hqId, createdAt: { gte: todayStart } },
-                select: { id: true, roundType: true, floor: true, zoneName: true, createdAt: true },
-            }),
+            /**
+             * (Removidas el 21-sep-2026) IncidentReport de 7 días y rondas de
+             * inspección del día.
+             *
+             * RRHH SALE DE LA PANTALLA DEL PISO. Los `IncidentReport`
+             * alimentaban "Observaciones de Personal" y "Apelaciones Activas".
+             * Nada de eso se resuelve en una o dos horas, que es el criterio de
+             * este panel: una apelación se lee, se contesta por escrito y se
+             * resuelve en dirección. Su sitio es /hr.
+             *
+             * *** LO QUE /hr TIENE QUE RECIBIR ARREGLADO: la consulta de
+             * apelaciones que vivía aquí NO filtraba por empleado activo. Las
+             * 2 apelaciones abiertas de Cupey son las dos de Zuleyka Valcárcel,
+             * que tiene isActive:false e isDeleted:true. De las 8 observaciones
+             * de los últimos 7 días, 5 son de empleadas ya inactivas. Si el
+             * bloque se muda sin `employee: { isActive: true }`, el fallo se
+             * muda con él y /hr le pedirá a alguien que gestione a gente que ya
+             * no trabaja aquí. Es el antipatrón 7 de CLAUDE.md. ***
+             *
+             * Las rondas de inspección están dormidas desde el 24-ago-2026 (ver
+             * `rondasDeInspeccion` en src/lib/funciones-dormidas.ts): 75
+             * registros, ninguno desde el 24 de julio. El chip que consumía
+             * `roundsSummary` ya no se pinta, pero la consulta seguía saliendo
+             * cada 30 segundos para contar filas de hace dos meses.
+             */
             // ── Tickets referidos a enfermería hoy — para ocultarlos del feed
             prisma.systemAuditLog.findMany({
                 where: {
@@ -385,25 +444,10 @@ export async function GET(req: Request) {
             });
         });
 
-        // Integrar Incidentes Clínicos
-        recentIncidents.forEach(inc => {
-            let urg = 'RUTINA';
-            if (inc.severity === 'CRITICAL' || inc.type === 'FALL') urg = 'INMINENTE';
-            else if (inc.severity === 'HIGH' || inc.type === 'ULCER') urg = 'ATENCION';
-
-            triageFeed.push({
-                id: `inc_${inc.id}`,
-                sourceId: inc.id,
-                sourceType: 'INCIDENT',
-                category: inc.type === 'FALL' ? 'CLINICO_CRITICO' : (inc.type === 'ULCER' ? 'UPP_PIEL' : 'INCIDENTE'),
-                title: `Incidente Reportado: ${inc.type}`,
-                description: inc.description,
-                patientId: inc.patientId || null,
-                patientName: inc.patient?.name || 'N/A',
-                urgency: urg,
-                createdAt: inc.reportedAt,
-            });
-        });
+        // Aquí se integraban los tickets del modelo `Incident`. No entraba
+        // ninguno: la tabla está vacía en las dos sedes y en toda la historia
+        // de la base. Lo que sí llega al feed son las caídas de `FallIncident`,
+        // justo arriba, y las alertas clínicas de `DailyLog`, justo abajo.
 
         // Integrar Alertas Clínicas del Action Hub (DailyLog isClinicalAlert)
         clinicalAlerts.forEach((log: any) => {
@@ -535,102 +579,82 @@ export async function GET(req: Request) {
             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         });
 
-        const finalTriage: TriageTicket[] = [];
-        const maintItems: TriageTicket[] = [];
-        clusteredTriage.forEach(t => {
-            if (t.category === 'MANTENIMIENTO' && t.urgency === 'RUTINA') maintItems.push(t);
-            else finalTriage.push(t);
-        });
+        /**
+         * Aquí había un apartado que agrupaba los tickets de MANTENIMIENTO en
+         * uno solo ("Zendi agrupó N tickets operativos de fondo"). Se fue el
+         * 21-sep-2026 porque ya no puede entrar ninguno: el único origen de esa
+         * categoría era la clasificación por palabras clave de los
+         * señalamientos, y esa se retiró cuando los señalamientos salieron del
+         * panel. El grupo se alimentaba solo de lo que él mismo creaba.
+         */
+        const finalTriage: TriageTicket[] = clusteredTriage;
 
-        if (maintItems.length > 0) {
-            finalTriage.push({
-                id: 'zendi_group_maint',
-                sourceId: 'zendi_maint',
-                sourceType: 'ZENDI_GROUP',
-                category: 'MANTENIMIENTO',
-                title: `Zendi agrupó ${maintItems.length} tickets operativos de fondo.`,
-                description: `Infraestructura reportada por el piso (Focos, limpieza, fugas). No requieren acción clínica inmediata. Se pueden derivar a personal de Facilities.`,
-                patientName: 'Edificio',
-                urgency: 'RUTINA',
-                items: maintItems,
-                createdAt: maintItems[0].createdAt
-            });
-        }
-
-        // Procesar Handovers Faltantes
-        // (Antes derivado de ShiftSchedule legacy. Pendiente de migrar a ScheduledShift.)
-        const missingHandovers: { employeeName: string; endTime: string; shiftType: string }[] = [];
+        /**
+         * Aquí vivía `missingHandovers`, y era un ARRAY VACÍO LITERAL.
+         *
+         * Salía de `ShiftSchedule`, el modelo viejo sin datos (antipatrón 1 de
+         * CLAUDE.md). El panel pintaba con él un chip "N brechas" y la sección
+         * "Brechas — turnos cerrados sin handover" que ninguna supervisora ha
+         * visto nunca con una sola fila dentro.
+         *
+         * Y arrastraba algo peor: el badge "Día completo ✓" exigía
+         * `missingHandovers.length === 0`, que era verdad SIEMPRE. Así que "Día
+         * completo, todos los handovers están firmados por ti" podía salir a
+         * cien píxeles de la fila "Terminó sin que nadie entregara" del parte de
+         * los tres turnos. Al quitar las brechas, esa condición se rehízo en
+         * page.tsx sobre el parte, que sí puede ser falso.
+         *
+         * Lo que de verdad falta —un turno que acabó sin que nadie entregara— ya
+         * se ve, con nombre y hora, en el parte de los tres últimos turnos, que
+         * se deriva de `handoversFeed` y no de una tabla vacía.
+         */
 
         // ====================================================================
         // SPRINT K — PROCESAMIENTO POST-DB
         // ====================================================================
 
-        // Parser robusto de scheduleTimes (JSON array o CSV "08:00, 14:00, 20:00")
-        const parseScheduleTimes = (raw: string | null | undefined): number[] => {
-            if (!raw) return [];
-            try {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed)) {
-                    return parsed.map((t: string) => {
-                        const match = /(\d{1,2}):(\d{2})\s*(AM|PM)?/i.exec(t);
-                        if (!match) return NaN;
-                        let h = parseInt(match[1], 10);
-                        const suf = (match[3] || '').toUpperCase();
-                        if (suf === 'PM' && h !== 12) h += 12;
-                        if (suf === 'AM' && h === 12) h = 0;
-                        return h;
-                    }).filter(n => !Number.isNaN(n));
-                }
-            } catch { /* cae a CSV */ }
-            return raw.split(',').map(t => {
-                const match = /(\d{1,2}):(\d{2})\s*(AM|PM)?/i.exec(t.trim());
-                if (!match) return NaN;
-                let h = parseInt(match[1], 10);
-                const suf = (match[3] || '').toUpperCase();
-                if (suf === 'PM' && h !== 12) h += 12;
-                if (suf === 'AM' && h === 12) h = 0;
-                return h;
-            }).filter(n => !Number.isNaN(n));
+        /**
+         * ═══ LAS DOSIS QUE NO SE DIERON HOY ═══
+         *
+         * Lo que había aquí era el porcentaje de medicamentos del turno, y era
+         * el número más grande de la pantalla: `text-6xl`. No podía significar
+         * nada.
+         *
+         * Su denominador eran TODAS las dosis de las ocho horas del turno y su
+         * numerador las dadas hasta ese segundo. A las 7:24 de la mañana —minuto
+         * 84 de las 480 del turno— decía 0% EN ROJO, y lo diría todas las
+         * mañanas de todos los días, sin que nadie hubiera hecho nada mal. Es el
+         * mismo caso que la cobertura de comidas del panel del director que está
+         * en CLAUDE.md: una alarma que no puede dejar de sonar.
+         *
+         * En su lugar va un número que SÍ puede llegar a cero, y que por eso
+         * significa algo cuando no lo está. Medido en Cupey el 21-sep-2026,
+         * día clínico a día clínico: 0, 8, 20, 25, 57, 11, 24. Se mueve, y
+         * ninguna de esas dosis aparecía hasta hoy en pantalla alguna.
+         *
+         * Qué cuenta como "sin dar": los cuatro estados que el prólogo del cron
+         * ya usa para lo mismo (src/app/api/cron/clinical-day-start:105).
+         * MISSED lo escribe el sistema al vencer la ventana; OMITTED, REFUSED y
+         * HELD los declara la cuidadora. Al piso le importan los cuatro: la
+         * pregunta no es quién lo marcó, es qué residente no recibió su dosis.
+         *
+         * PENDING no entra, y esa es la diferencia con el porcentaje: una dosis
+         * cuya hora todavía no ha llegado no es una omisión. Va aparte, como
+         * contexto, para que el 0 de las 6 de la mañana se lea como lo que es
+         * —el día acaba de empezar— y no como una pantalla vacía.
+         */
+        const DOSIS_SIN_DAR = ['MISSED', 'OMITTED', 'REFUSED', 'HELD'];
+        const cuentaPorEstado = (estados: string[]) =>
+            dosisDelDiaPorEstado
+                .filter(g => estados.includes(g.status))
+                .reduce((n, g) => n + (g._count?.status ?? 0), 0);
+
+        const dosisSinDar = {
+            sinDar: cuentaPorEstado(DOSIS_SIN_DAR),
+            pendientes: cuentaPorEstado(['PENDING']),
+            dadas: cuentaPorEstado(['ADMINISTERED']),
+            totalDelDia: dosisDelDiaPorEstado.reduce((n, g) => n + (g._count?.status ?? 0), 0),
         };
-
-        const hourInShift = (h: number): boolean => {
-            // NIGHT [22,30) abarca 22..29 ≡ 22..5. Para NIGHT probamos h y h+24.
-            if (shiftTo <= 24) return h >= shiftFrom && h < shiftTo;
-            return (h >= shiftFrom && h < 24) || (h + 24 >= shiftFrom && h + 24 < shiftTo);
-        };
-
-        // — Meds del turno actual —
-        let medsShiftDenominator = 0;
-        activeMedsForDenominator.forEach(pm => {
-            if (pm.frequency === 'PRN') return;
-            const hours = parseScheduleTimes(pm.scheduleTimes);
-            medsShiftDenominator += hours.filter(hourInShift).length;
-        });
-
-        const parseHourFromSlot = (slot: string | null | undefined): number | null => {
-            if (!slot) return null;
-            const match = /(\d{1,2}):(\d{2})\s*(AM|PM)?/i.exec(slot);
-            if (!match) return null;
-            let h = parseInt(match[1], 10);
-            const suf = (match[3] || '').toUpperCase();
-            if (suf === 'PM' && h !== 12) h += 12;
-            if (suf === 'AM' && h === 12) h = 0;
-            return h;
-        };
-
-        const medsShiftCompleted = medsAdministeredToday.filter(ma => {
-            if (ma.status !== 'ADMINISTERED') return false;
-            const slotHour = parseHourFromSlot(ma.scheduleTime);
-            if (slotHour === null && ma.scheduledTime) {
-                const h = parseInt(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/Puerto_Rico' }).format(new Date(ma.scheduledTime)), 10) % 24;
-                return hourInShift(h);
-            }
-            return slotHour !== null && hourInShift(slotHour);
-        }).length;
-
-        const medsShiftPct = medsShiftDenominator > 0
-            ? Math.round((medsShiftCompleted / medsShiftDenominator) * 100)
-            : null;
 
         // — Vitales agrupadas por cuidador —
         type VitalsBucket = { caregiverId: string | null; caregiverName: string; pending: number; completedOnTime: number; completedLate: number; expired: number };
@@ -675,82 +699,17 @@ export async function GET(req: Request) {
                 ? (a.complianceScore ?? 999) - (b.complianceScore ?? 999)
                 : String(a.name ?? '').localeCompare(String(b.name ?? ''), 'es'));
 
-        // — Rondas del día: X/3 por turno actual (INICIO/MEDIO/CIERRE) —
-        const roundsSummary = {
-            inicio: todayZoneInspections.filter(r => r.roundType === 'INICIO').length,
-            medio: todayZoneInspections.filter(r => r.roundType === 'MEDIO').length,
-            cierre: todayZoneInspections.filter(r => r.roundType === 'CIERRE').length,
-        };
-        const roundsCompleted = (roundsSummary.inicio > 0 ? 1 : 0) + (roundsSummary.medio > 0 ? 1 : 0) + (roundsSummary.cierre > 0 ? 1 : 0);
-
-        // — Observaciones vs apelaciones/warnings (split por severity) —
-        const observationsFeed = activeIncidentReports
-            .filter(ir => ir.severity === 'OBSERVATION')
-            .map(ir => ({
-                id: ir.id,
-                createdAt: ir.createdAt,
-                status: ir.status,
-                category: ir.category,
-                description: ir.description,
-                pointsDeducted: ir.pointsDeducted,
-                employeeId: ir.employeeId,
-                employeeName: ir.employee?.name || 'Empleado',
-                employeeRole: ir.employee?.role || '',
-                supervisorName: ir.supervisor?.name || 'Supervisor',
-                appealedAt: ir.appealedAt,
-                respondedAt: ir.respondedAt,
-            }));
-
-        // ── Apelaciones sin resolver ──────────────────────────────────────
-        //
-        // Consulta propia, sin la ventana de 7 días del feed. Una apelación
-        // llega cuando el empleado la escribe, que puede ser semanas después
-        // del incidente: en Cupey las 25 registradas son de incidentes más
-        // viejos, así que ninguna cabía en la ventana.
-        //
-        // Y ninguna podía aparecer por otra razón: el feed filtra estados
-        // NOTIFIED/PENDING/EXPLANATION_RECEIVED, pero apelar EXIGE que la
-        // sanción ya esté APPLIED. Eran condiciones incompatibles — el panel
-        // de apelaciones no podía mostrar una apelación jamás.
-        const apelacionesAbiertas = await prisma.incidentReport.findMany({
-            where: { headquartersId: hqId, appealedAt: { not: null }, appealResolvedAt: null },
-            select: {
-                id: true, createdAt: true, status: true, severity: true, category: true,
-                description: true, appealText: true, appealedAt: true,
-                employee: { select: { name: true } },
-            },
-            orderBy: { appealedAt: 'desc' },
-            take: 50,
-        });
-
-        const incidentAppeals = [
-            ...apelacionesAbiertas.map(ir => ({
-                id: ir.id,
-                createdAt: ir.createdAt,
-                status: ir.status,
-                severity: ir.severity,
-                category: ir.category,
-                description: ir.description,
-                appealText: ir.appealText,
-                employeeName: ir.employee?.name || 'Empleado',
-                appealedAt: ir.appealedAt,
-            })),
-            // Respuestas del empleado pendientes de revisar — estas sí viven en
-            // la ventana del feed porque son parte del proceso reciente.
-            ...activeIncidentReports
-                .filter(ir => ir.status === 'EXPLANATION_RECEIVED' && ir.severity !== 'OBSERVATION')
-                .map(ir => ({
-                    id: ir.id,
-                    createdAt: ir.createdAt,
-                    status: ir.status,
-                    severity: ir.severity,
-                    category: ir.category,
-                    description: ir.description,
-                    appealText: ir.appealText,
-                    employeeName: ir.employee?.name || 'Empleado',
-                    appealedAt: ir.appealedAt,
-                })),
-        ];
+        /**
+         * Aquí se derivaban tres cosas que ya no se pintan y que salían de las
+         * consultas removidas arriba: el resumen X/3 de rondas de inspección
+         * (dormidas, sin una fila desde el 24-jul), el feed de observaciones de
+         * personal y la lista de apelaciones. Los tres eran RRHH o función
+         * dormida en una pantalla de piso.
+         *
+         * La consulta de apelaciones era además la que NO filtraba por empleado
+         * activo — está dicho arriba, en la nota de lo removido, para que quien
+         * la lleve a /hr la lleve arreglada.
+         */
 
         // — Handovers feed (individuales por cuidador, sin el prólogo del cron) —
         // Cada fila es el reporte de una cuidadora con los colores que cubrió.
@@ -816,8 +775,9 @@ export async function GET(req: Request) {
             liveStats: {
                 baths: bathsToday,
                 meals: mealsToday.reduce((acc, curr) => ({ ...acc, [curr.mealType]: curr._count.mealType }), {}),
-                incidents: incidentsToday,
-                triageInbox: pendingComplaintsList.length
+                // `incidents` y `triageInbox` se fueron el 21-sep-2026 con sus
+                // consultas: el primero contaba un modelo de cero filas, el
+                // segundo no lo leía nadie en page.tsx.
             },
             activeSessions,
             // Sesiones zombies (>12h sin cerrar, hasta 7 días atrás) — visibles
@@ -831,11 +791,12 @@ export async function GET(req: Request) {
                     ? { id: s.caregiver.id, name: s.caregiver.name, role: s.caregiver.role }
                     : null,
             })),
-            missingHandovers,
-            pendingComplaints: pendingComplaintsList,
             triageFeed: finalTriage,
+            alertasFueraDeVentana,
             activeFastActions,
-            fallIncidents, // Caídas reales últimas 24h (FallIncident, no Incident genérico)
+            // `fallIncidents` en crudo salía aquí y no lo leía nadie: las caídas
+            // llegan a la pantalla por el triageFeed, ya clasificadas por
+            // gravedad. Se consultan igual — solo no se duplican en el payload.
             morningBriefing: briefing?.aiSummaryReport || null,
             lastBriefingAt: lastBriefingEver?.createdAt?.toISOString() || null,
             // ── Sprint K — Mission Control payload ──
@@ -843,17 +804,11 @@ export async function GET(req: Request) {
             vitalsFeed,
             vitalsByCaregiver: Object.values(vitalsByCaregiver),
             vitalsTotals,
-            medsProgress: {
-                shift: currentShift,
-                completed: medsShiftCompleted,
-                total: medsShiftDenominator,
-                pct: medsShiftPct,
-            },
+            // Sustituye a `medsProgress`, que era el porcentaje del turno. Ver
+            // la nota larga de `dosisSinDar` arriba.
+            dosisSinDar,
             teamScores,
             handoversFeed,
-            observationsFeed,
-            incidentAppeals,
-            roundsSummary: { ...roundsSummary, completedSlots: roundsCompleted, totalSlots: 3 },
             inboxHistory: inboxHistoryLogs.map((log: any) => {
                 const p = log.payloadChanges as any;
                 return {

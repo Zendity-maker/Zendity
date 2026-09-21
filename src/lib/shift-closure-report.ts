@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { prisma } from '@/lib/prisma';
+import { clinicalDay } from '@/lib/dates';
 import { compatibleShiftTypesAt } from '@/lib/shift-coverage';
 
 /**
@@ -126,18 +127,99 @@ export async function resolverTurnoTrabajado(
     return inferShiftType(horaDeEntrada);
 }
 
+/**
+ * Margen de ponche temprano. Alguien que entra a las 6 llega y poncha a menos
+ * cuarto — y a esa hora el día clínico todavía es el de AYER.
+ *
+ * Medido sobre los 747 relevos firmados de 90 días en Cupey: hay 37 ponches en
+ * la hora AST de las 5, contra 9 en todas las horas de 0 a 3 juntas. O sea,
+ * casi todo lo que entra entre las 5 y las 6 es gente de MAÑANA llegando
+ * temprano, no gente de NOCHE llegando seis horas tarde.
+ *
+ * El margen se midió, no se eligió: con 0 quedaban 18 relevos con el color
+ * equivocado; con 15 min, 4; con 30 min, 3; con 60 min vuelve a subir a 4.
+ * 30 minutos es el fondo de esa curva.
+ */
+const MARGEN_PONCHE_TEMPRANO_MS = 30 * 60 * 1000;
+
+/**
+ * LA VENTANA DE `ScheduledShift.date` QUE LE TOCA AL TURNO QUE EMPEZÓ EN
+ * `shiftStart`. El nombre dice contra qué campo es válida a propósito: NO es
+ * una ventana de timestamps, y usarla sobre `createdAt` o `performedAt` da
+ * resultados silenciosamente corridos.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * POR QUÉ HACÍA FALTA ESCRIBIRLA
+ *
+ * El repo ya tenía tres anclas de fecha y ninguna respondía esta pregunta:
+ *
+ *   · `todayStartAST()`              → 10:00 UTC. El día clínico, para acotar
+ *                                      timestamps reales. Compararla contra
+ *                                      `ScheduledShift.date` (00:00 UTC) da
+ *                                      SIEMPRE falso y nada en el nombre avisa.
+ *   · `fechaCalendarioAST()`         → el día natural de PR, sin retroceso de
+ *                                      6 AM. Es lo correcto para el menú.
+ *   · `clinicalDayCalendarUTCRange()`→ sí casa con `ScheduledShift.date`, pero
+ *                                      siempre contra AHORA, no contra el
+ *                                      instante en que arrancó un turno dado.
+ *
+ * Al no existir, cada sitio que la necesitaba la improvisaba a mano con
+ * `new Date(shiftStart); setUTCHours(0,0,0,0)` — la misma línea, con el mismo
+ * defecto dentro, copiada aquí y en el panel de auditoría de turno
+ * (`src/app/api/care/supervisor/shift-audit/route.ts`). Los dos sitios llaman
+ * ya a esta función; el fallo nació de copiar esa línea de un fichero a otro,
+ * así que si hay que tocar la ventana se toca UNA vez y es aquí.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * QUÉ TENÍA MAL ESA LÍNEA
+ *
+ * `shiftStart` es un timestamp de TURNO. Un turno que entra a las 22:00 AST
+ * son las 02:00 UTC del día SIGUIENTE, así que `setUTCHours(0,0,0,0)` devuelve
+ * el día de mañana y la consulta busca la pauta del día equivocado. Simétrico
+ * por el otro lado: un ponche entre medianoche y las 6 AM AST cae en el día UTC
+ * de hoy cuando su día clínico es el de ayer. En total falla 10 de las 24 horas
+ * —las AST ≥ 20 y las AST < 6—, que son justo las de NIGHT.
+ *
+ * MEDIDO contra producción, 90 días en Cupey (21-sep-2026): de los 747 relevos
+ * firmados, 628 tienen una pauta que de verdad cubre la hora del ponche y por
+ * tanto son comprobables. De esos 628, **114 resolvían el grupo de color
+ * EQUIVOCADO, y en 71 la lista de residentes salía VACÍA**: la cuidadora firmó
+ * un parte sobre gente que no cuidó, o sobre nadie. Con esta función bajan a 3
+ * y 1. Los 3 que quedan son ponches de las 5 y pico con pauta en los dos días
+ * y colores distintos: eso ya no lo decide una fecha, lo decide el tipo de
+ * turno (regla D2, `compatibleShiftTypesAt`).
+ *
+ * Y el repo ya lo sabía por escrito: `src/lib/estado-operativo.ts:139-143`
+ * describe exactamente esta ventana de medianoche UTC como el motivo de que
+ * dos pantallas se contradijeran, y se siguió llamando a la función.
+ *
+ * No reescribe el histórico: los relevos ya firmados conservan su lista.
+ *
+ * @param shiftStart Instante en que arrancó el turno (`ShiftSession.startTime`).
+ * @returns `{ start, end }` para usar tal cual como `date: { gte: start, lt: end }`.
+ */
+export function scheduledShiftDateRangeForShiftStart(
+    shiftStart: Date,
+): { start: Date; end: Date } {
+    // Sin aritmética nueva: `clinicalDay(at)` ya sabe pasar de un instante al
+    // día calendar AST a medianoche UTC, que es la llave de ScheduledShift.date.
+    // Lo único que se añade es adelantar el instante el margen de ponche.
+    const { calendarStartUtc, calendarEndUtc } = clinicalDay(
+        new Date(shiftStart.getTime() + MARGEN_PONCHE_TEMPRANO_MS),
+    );
+    return { start: calendarStartUtc, end: calendarEndUtc };
+}
+
 export async function resolveColorGroupsForCaregiver(
     caregiverId: string,
     hqId: string,
     shiftStart: Date,
 ): Promise<string[]> {
-    const todayStart = new Date(shiftStart);
-    todayStart.setUTCHours(0, 0, 0, 0);
-    const tomorrow = new Date(todayStart);
-    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    const { start: diaDeLaPauta, end: diaSiguiente } =
+        scheduledShiftDateRangeForShiftStart(shiftStart);
 
     const scheduledShifts = await prisma.scheduledShift.findMany({
-        where: { userId: caregiverId, date: { gte: todayStart, lt: tomorrow } },
+        where: { userId: caregiverId, date: { gte: diaDeLaPauta, lt: diaSiguiente } },
         include: { colorAssignments: true },
     });
 

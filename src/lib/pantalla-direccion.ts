@@ -184,10 +184,26 @@ export async function construirPantallaDireccion(hqId: string, hqNombre: string)
         /**
          * Una ausencia sin motivo no se puede gestionar: no se sabe si avisó,
          * si está enferma o si no apareció. Las seis del mes lo tenían nulo.
+         *
+         * Los dos filtros de abajo son los mismos que le faltaban a la consulta
+         * gemela de `estado-operativo.ts`, y aquí fallaban igual. Medido en
+         * Cupey el 21-sep-2026: el panel pedía completar CUATRO motivos, y
+         * tres eran de Zuleyka Valcarcel (×2) y Joaneliz Rosario, ambas
+         * inactivas y borradas hace meses. Nadie puede anotar el motivo de una
+         * ausencia de quien ya no trabaja aquí: era trabajo imposible en la
+         * lista de pendientes del director. Queda una, Mariangelie Rivera, que
+         * es real y sí se puede completar. Mayagüez da 0 en los dos casos.
+         *
+         * `status: 'PUBLISHED'` no cambia el número hoy (las cuatro cuelgan de
+         * horarios publicados), pero se pone igual: un borrador es un ensayo
+         * del constructor de horarios y sus ausencias no son hechos. Los otros
+         * cuatro sitios que consultan `ScheduledShift` ya lo filtran.
          */
         prisma.scheduledShift.count({
             where: {
-                schedule: { headquartersId: hqId }, isAbsent: true,
+                schedule: { headquartersId: hqId, status: 'PUBLISHED' },
+                isAbsent: true,
+                user: { isActive: true, isDeleted: false },
                 absentMarkedAt: { gte: hace30d },
                 // Vacío y "sin confirmar" son dos cosas distintas y las dos son
                 // trabajo pendiente. Desde el 16-sep-2026 el motivo es obligatorio

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { aFahrenheit } from '@/lib/vitals-thresholds';
+import { scheduledShiftDateRangeForShiftStart } from '@/lib/shift-closure-report';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -50,36 +51,94 @@ export async function GET(req: Request) {
         const shiftType = astHour >= 6 && astHour < 14 ? 'MORNING'
             : astHour >= 14 && astHour < 22 ? 'EVENING'
             : 'NIGHT';
-        const isNight = shiftType === 'NIGHT';
 
         // ── Resolver grupos de color del cuidador ────────────────────────────
-        const todayStart = new Date(shiftStart);
-        todayStart.setUTCHours(0, 0, 0, 0);
-        const tomorrow = new Date(todayStart);
-        tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+        //
+        // LA VENTANA LA DA LA FUNCION COMPARTIDA. NO SE ESCRIBE AQUI.
+        //
+        // Antes esto era `new Date(shiftStart); setUTCHours(0,0,0,0)` + un dia.
+        // `shiftStart` es un timestamp de TURNO, y ahi esta el error de tipo:
+        // quien entra a las 22:00 AST son las 02:00 UTC del dia SIGUIENTE, asi
+        // que esa linea pedia la pauta de MAÑANA. Simetrico por abajo: un ponche
+        // de madrugada cae en el dia UTC de hoy cuando su dia clinico es el de
+        // ayer. Falla 10 de las 24 horas —las AST >= 20 y las AST < 6—, que son
+        // justo las de NIGHT. Y no da error: devuelve otro color con aplomo.
+        //
+        // MEDIDO contra produccion, 90 dias en Cupey (21-sep-2026), 793 sesiones:
+        // 187 tenian el dia desfasado y en 138 de ellas el color resuelto era
+        // DISTINTO del que le tocaba. Contra la pauta que de verdad cubre la hora
+        // del ponche (ventana AST real del shiftType, 1.5 h de gracia), de 666
+        // sesiones comprobables fallaban 95; con esta ventana fallan 4. Los 4 que
+        // quedan son ponches de las 5 y pico con pauta en dos dias y colores
+        // distintos: eso ya no lo decide una fecha, lo decide el tipo de turno.
+        //
+        // Lo que se veia en pantalla: el supervisor auditaba la guardia nocturna
+        // contra los residentes de OTRA cuidadora — baño no registrado, vitales
+        // no tomados— de gente que esa persona nunca tuvo asignada.
+        //
+        // La misma linea, con el mismo defecto dentro, estaba copiada en
+        // src/lib/shift-closure-report.ts. Por eso la ventana vive alli y aqui
+        // solo se llama: este fallo nacio precisamente de copiarla de un fichero
+        // a otro. Si hay que tocarla, se toca una vez y alli.
+        const { start: diaDeLaPauta, end: diaSiguiente } =
+            scheduledShiftDateRangeForShiftStart(shiftStart);
 
         const scheduledShifts = await prisma.scheduledShift.findMany({
-            where: { userId: caregiverId, date: { gte: todayStart, lt: tomorrow } },
+            where: { userId: caregiverId, date: { gte: diaDeLaPauta, lt: diaSiguiente } },
             include: { colorAssignments: true },
         });
-        let colorGroups: string[] = scheduledShifts
-            .flatMap(s => s.colorAssignments.map(a => a.color))
-            .filter(Boolean);
+
+        // De donde salio el color. Va en la respuesta porque "no se pudo
+        // resolver" y "se resolvio y no hay residentes" se ven iguales en la
+        // pantalla —ambos dan 0 brechas en verde— y no son lo mismo.
+        let colorSource: 'assignments' | 'legacy' | 'unresolved' = 'assignments';
+        let colorGroups: string[] = Array.from(new Set(
+            scheduledShifts.flatMap(s => s.colorAssignments.map(a => a.color)).filter(Boolean)
+        ));
         if (colorGroups.length === 0) {
-            colorGroups = scheduledShifts
-                .map(s => s.colorGroup)
-                .filter((c): c is string => !!c && c !== 'UNASSIGNED');
+            colorGroups = Array.from(new Set(
+                scheduledShifts
+                    .map(s => s.colorGroup)
+                    .filter((c): c is string => !!c && c !== 'UNASSIGNED')
+            ));
+            colorSource = colorGroups.length > 0 ? 'legacy' : 'unresolved';
         }
 
-        // Fallback: último color asignado por ShiftColorAssignment
-        if (colorGroups.length === 0) {
-            const lastColor = await prisma.shiftColorAssignment.findFirst({
-                where: { userId: caregiverId },
-                orderBy: { assignedAt: 'desc' },
-                select: { color: true }
-            });
-            if (lastColor?.color) colorGroups = [lastColor.color];
-        }
+        // AQUI HABIA UN FALLBACK AL ULTIMO COLOR QUE LA PERSONA TUVO ALGUNA VEZ.
+        // Se quito. No se acoto: se quito, y conviene decir por que las dos cosas.
+        //
+        // Era `shiftColorAssignment.findFirst({ where: { userId }, orderBy:
+        // { assignedAt: 'desc' } })`, sin ninguna cota de fecha. (No era fuga
+        // multi-tenant: un usuario pertenece a una sola sede. El problema es
+        // otro.)
+        //
+        // POR QUE NO ACOTARLO AL TURNO: seria codigo muerto. Toda
+        // ShiftColorAssignment cuelga de una ScheduledShift — comprobado contra
+        // produccion: de las 170 de Cupey, 0 tienen un userId distinto al de su
+        // pauta. Asi que el conjunto "asignaciones de este usuario en esta
+        // ventana" es EXACTAMENTE el que ya devuelve la consulta de arriba por
+        // `include: { colorAssignments: true }`. Acotarlo es borrarlo escribiendo
+        // mas lineas.
+        //
+        // POR QUE QUITARLO EN VEZ DE DEJARLO: porque mentia, y no de vez en
+        // cuando. Medido sobre 90 dias en Cupey: de las 76 veces que disparo en
+        // sesiones comprobables, dio el color EQUIVOCADO 46 — el 61%. Y 59 de
+        // esos ponches eran de las 22:00 AST, o sea que el fallback existia
+        // sobre todo para tapar el desfase de fecha que se acaba de arreglar.
+        // Ya arreglada la ventana solo quedarian 69 disparos, y en 67 de ellos
+        // NO hay ninguna pauta que cubra la hora: no es que el dato estuviera
+        // mal buscado, es que no existe.
+        //
+        // Lo que servia en esos casos era un color viejo: mediana de 7 dias de
+        // antiguedad, 27 de 66 por encima de una semana, hasta 41 dias. Y siete
+        // servian un color del FUTURO —`assignedAt` POSTERIOR al turno, uno de
+        // ellos 69 dias despues—, o sea auditaban un turno de junio con un color
+        // decidido en agosto.
+        //
+        // Una lista vacia dice "no se pudo resolver". Un color viejo dice algo
+        // falso con aplomo, y encima invita al supervisor a firmar la auditoria
+        // de una cuidadora contra residentes que no eran suyos. Preferimos el
+        // hueco visible.
 
         // ── Residentes del grupo ─────────────────────────────────────────────
         const patients = colorGroups.length === 0 ? [] : await prisma.patient.findMany({
@@ -104,7 +163,17 @@ export async function GET(req: Request) {
         if (patientIds.length === 0) {
             return NextResponse.json({
                 success: true,
-                audit: buildEmptyAudit({ caregiverName, caregiverId, shiftStart, shiftEnd, shiftType, colorGroups, shiftSession }),
+                audit: buildEmptyAudit({
+                    shiftSessionId: shiftSession.id,
+                    caregiverId,
+                    caregiverName,
+                    shiftType,
+                    shiftStart,
+                    shiftEnd: shiftSession.actualEndTime,
+                    isOpen: !shiftSession.actualEndTime,
+                    colorGroups,
+                    colorSource,
+                }),
             });
         }
 
@@ -497,6 +566,7 @@ export async function GET(req: Request) {
                 shiftEnd: shiftSession.actualEndTime,
                 isOpen: !shiftSession.actualEndTime,
                 colorGroups,
+                colorSource,
                 totalResidents: patients.length,
                 patients: patientAudits,
                 summary: {
@@ -531,7 +601,34 @@ export async function GET(req: Request) {
     }
 }
 
-function buildEmptyAudit(params: any) {
+/**
+ * El turno sin residentes que auditar.
+ *
+ * Se llamaba con `shiftSession` entero y hacia `...params`, asi que la
+ * respuesta vacia salia con OTRA forma que la normal: metia el objeto
+ * `shiftSession` completo y le faltaban `shiftSessionId` e `isOpen`, los dos
+ * declarados como obligatorios en la pantalla que la consume
+ * (`src/app/care/supervisor/audit/page.tsx`). Pasaba desapercibido porque casi
+ * nunca se llegaba aqui: el fallback al ultimo color de siempre inventaba un
+ * grupo y la respuesta se iba por el camino normal. Al quitarlo, este es el
+ * camino honesto y tiene que devolver la misma forma.
+ *
+ * `colorSource: 'unresolved'` es la diferencia que importa: un turno del que no
+ * se pudo resolver el grupo se ve hoy en pantalla igual que uno impecable
+ * —0 brechas, 0 sin actividad, todo en verde—. No es lo mismo "no hubo nada que
+ * señalar" que "no sabemos a quien cuidaba". Ver la nota al final del fichero.
+ */
+function buildEmptyAudit(params: {
+    shiftSessionId: string;
+    caregiverId: string;
+    caregiverName: string | null;
+    shiftType: string;
+    shiftStart: Date;
+    shiftEnd: Date | null;
+    isOpen: boolean;
+    colorGroups: string[];
+    colorSource: 'assignments' | 'legacy' | 'unresolved';
+}) {
     return {
         ...params,
         totalResidents: 0,
@@ -544,3 +641,23 @@ function buildEmptyAudit(params: any) {
         handover: null,
     };
 }
+
+/*
+ * ─────────────────────────────────────────────────────────────────────────────
+ * PENDIENTE EN LA PANTALLA, NO AQUI — `colorSource: 'unresolved'`
+ *
+ * Esta ruta ya distingue los tres casos. La pantalla todavia no:
+ * `src/app/care/supervisor/audit/page.tsx` pinta los mismos ceros en verde
+ * —"Brechas 0 ✅", "Sin actividad 0 ✅", "Detalle por residente (0)"— tanto si
+ * el turno fue impecable como si no se pudo resolver a quien cuidaba.
+ *
+ * Es el olor que CLAUDE.md describe: una metrica que sale redonda siempre no es
+ * una metrica buena. Con 'unresolved' la tarjeta deberia decir que no hay a
+ * quien auditar, no felicitar a nadie. Medido el 21-sep-2026 sobre las 793
+ * sesiones de 90 dias en Cupey: 69 caen ahi (139 resuelven por asignacion, 585
+ * por colorGroup de la pauta). De esas 69, en 67 no hay NINGUNA pauta que
+ * cubra la hora del ponche — no es un dato mal buscado, es un dato que no existe.
+ *
+ * No se toca el fichero de la pantalla desde aqui a proposito.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */

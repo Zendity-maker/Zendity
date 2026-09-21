@@ -35,6 +35,20 @@ interface ShiftAudit {
     shiftSessionId: string; caregiverName: string;
     shiftType: string; shiftStart: string; shiftEnd: string | null; isOpen: boolean;
     colorGroups: string[];
+    /**
+     * De dónde salió el grupo de color, que no es lo mismo que cuál es.
+     *
+     * 'unresolved' quiere decir que NO se pudo saber a quién cuidaba. Sin él,
+     * esta pantalla pintaba esos turnos exactamente igual que uno impecable:
+     * «Brechas 0 ✅», «Sin actividad 0 ✅», «Detalle por residente (0)». Son
+     * ceros de "no lo sabemos", no de "no hubo nada que señalar" — y el verde
+     * los convertía en una felicitación.
+     *
+     * Medido el 21-sep-2026 sobre las 793 sesiones de 90 días en Cupey: 69 caen
+     * aquí, y en 67 de esas 69 no existe NINGUNA pauta que cubra la hora del
+     * ponche. No es un dato mal buscado; es un dato que no está.
+     */
+    colorSource: 'assignments' | 'legacy' | 'unresolved';
     totalResidents: number;
     patients: PatientAudit[];
     summary: Record<string, number>;
@@ -467,7 +481,12 @@ export default function ShiftAuditPage() {
                                                 {audit.shiftEnd ? ` → ${fmtTime(audit.shiftEnd)}` : ' → (turno abierto)'}
                                             </p>
                                             <div className="flex items-center gap-2 mt-2">
-                                                {audit.colorGroups.map(c => (
+                                                {audit.colorSource === 'unresolved' ? (
+                                                    <span className="flex items-center gap-1.5 text-[11px] font-bold bg-amber-400/20 text-amber-300 px-2.5 py-1 rounded-full print:border print:border-amber-400 print:bg-white print:text-amber-700">
+                                                        <span className="w-2 h-2 rounded-full bg-amber-400" />
+                                                        Grupo sin resolver
+                                                    </span>
+                                                ) : audit.colorGroups.map(c => (
                                                     <span key={c} className="flex items-center gap-1.5 text-[11px] font-bold bg-white/10 px-2.5 py-1 rounded-full print:border print:border-slate-300 print:bg-white print:text-slate-700">
                                                         <span className={`w-2 h-2 rounded-full ${COLOR_DOT[c] || 'bg-slate-400'}`} />
                                                         Grupo {COLOR_LABEL[c] || c}
@@ -482,6 +501,36 @@ export default function ShiftAuditPage() {
                                     </div>
                                 </div>
 
+                                {/*
+                                  * Un turno del que no se sabe a quién cuidaba NO se puntúa.
+                                  *
+                                  * Los contadores de abajo se calculan sobre los residentes del
+                                  * grupo. Sin grupo el denominador es cero, así que todos salen en
+                                  * cero — y en verde. La pantalla felicitaba por un turno del que
+                                  * no se sabe nada. Es el olor que describe CLAUDE.md: una métrica
+                                  * que no puede moverse no es una métrica.
+                                  */}
+                                {audit.colorSource === 'unresolved' ? (
+                                    <div className="bg-amber-50 border border-amber-300 rounded-[1.5rem] p-6 flex items-start gap-4 print:border-slate-400">
+                                        <div className="text-3xl">🗂️</div>
+                                        <div>
+                                            <p className="font-black text-slate-800">
+                                                Este turno no se puede auditar: no consta a quién cuidaba
+                                            </p>
+                                            <p className="text-sm text-slate-600 font-medium mt-1.5 leading-relaxed">
+                                                No hay pauta ni cobertura de color que cubra la hora en que ponchó, así que
+                                                no hay residentes contra los que medir. Los contadores saldrían todos en
+                                                cero, y ese cero significa <strong>no lo sabemos</strong>, no «no hubo nada
+                                                que señalar».
+                                            </p>
+                                            <p className="text-xs text-slate-500 font-medium mt-2.5">
+                                                Se arregla en el constructor de horarios: asignarle el turno en la pauta de
+                                                esa semana, o registrarle la cobertura de color que de verdad llevó.
+                                            </p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                  <>
                                 {/* ── Resumen KPIs ── */}
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                     {[
@@ -524,6 +573,8 @@ export default function ShiftAuditPage() {
                                         </div>
                                     ))}
                                 </div>
+                                  </>
+                                )}
 
                                 {/* ── Estado del Handover ── */}
                                 {audit.handover ? (
@@ -551,6 +602,9 @@ export default function ShiftAuditPage() {
                                 )}
 
                                 {/* ── Por residente ── */}
+                                {/* Un "(0)" bajo este título se lee como "no había nadie", que es
+                                  * justo lo contrario de lo que pasa cuando el grupo no se resolvió. */}
+                                {audit.colorSource !== 'unresolved' && (
                                 <div>
                                     <h3 className="font-black text-slate-700 text-xs uppercase tracking-widest mb-3">
                                         Detalle por residente ({audit.patients.length})
@@ -559,6 +613,7 @@ export default function ShiftAuditPage() {
                                         {audit.patients.map(p => <PatientCard key={p.id} p={p} />)}
                                     </div>
                                 </div>
+                                )}
 
                                 {/* ── Sección de firma física (solo print) ── */}
                                 <div className="hidden print:block mt-8 pt-6 border-t-2 border-slate-300">

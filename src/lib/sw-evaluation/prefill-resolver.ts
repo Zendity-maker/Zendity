@@ -77,9 +77,11 @@ export interface PrefillSourceData {
         identifiedAt: Date;
     }>;
     emarAdherence: {
-        adherenceRate: number;
+        adherenceRate: number | null;
         weeklyLogsCount: number;
-    } | null;
+        /** Dosis de la semana todavia sin resolver (PENDING). Ver load-prefill-source. */
+        sinResolver: number;
+    };
     externalServicesActiveCount: number;
 }
 
@@ -181,7 +183,7 @@ function resolvePath(path: string, src: PrefillSourceData): unknown {
 
     // ── emar.adherenceRate ──
     if (path === 'emar.adherenceRate') {
-        return src.emarAdherence ?? { adherenceRate: null, weeklyLogsCount: 0 };
+        return src.emarAdherence;
     }
 
     // ── patient.servicesContext ──

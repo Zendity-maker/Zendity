@@ -74,7 +74,16 @@ const FREQUENCY_PRESETS = [
 export default function PatientEMARTab({ patientId }: { patientId: string }) {
     const { user } = useAuth();
     const [medications, setMedications] = useState<any[]>([]);
-    const [adherenceRate, setAdherenceRate] = useState<number>(0);
+    /**
+     * `null` = todavía no hay ninguna dosis RESUELTA esta semana, que no es lo
+     * mismo que 0% de adherencia. Antes la API devolvía 100 en ese caso —"si no
+     * hay datos, asumimos 100%"— y era una mentira; ahora devuelve null y aquí
+     * hay que distinguirlo, porque `null >= 80` es false y caía en rojo
+     * "Crítica". Hoy lunes a las 8am la sede tiene 262 dosis PENDING y 9
+     * resueltas: sin esta rama, 39 de 48 residentes saldrían en rojo cada lunes
+     * por la mañana. Una alarma que suena todos los lunes enseña a no mirar.
+     */
+    const [adherenceRate, setAdherenceRate] = useState<number | null>(null);
     const [weeklyLogsCount, setWeeklyLogsCount] = useState<number>(0);
     const [loading, setLoading] = useState(true);
 
@@ -278,21 +287,34 @@ export default function PatientEMARTab({ patientId }: { patientId: string }) {
                                 fill="none" stroke="currentColor" strokeWidth="3"
                             />
                             <path
-                                className={`${adherenceRate >= 80 ? 'text-emerald-500' : adherenceRate >= 50 ? 'text-amber-500' : 'text-rose-500'}`}
-                                strokeDasharray={`${adherenceRate}, 100`}
+                                className={adherenceRate === null ? 'text-slate-200'
+                                    : adherenceRate >= 80 ? 'text-emerald-500'
+                                    : adherenceRate >= 50 ? 'text-amber-500' : 'text-rose-500'}
+                                strokeDasharray={`${adherenceRate ?? 0}, 100`}
                                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                                 fill="none" stroke="currentColor" strokeWidth="3"
                             />
                         </svg>
-                        <div className="absolute inset-0 flex items-center justify-center font-black text-sm text-slate-800">
-                            {adherenceRate}%
+                        <div className={`absolute inset-0 flex items-center justify-center font-black ${adherenceRate === null ? 'text-lg text-slate-300' : 'text-sm text-slate-800'}`}>
+                            {adherenceRate === null ? '—' : `${adherenceRate}%`}
                         </div>
                     </div>
                     <div>
                         <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-1">Adherencia eMAR Semanal</h3>
-                        <p className="text-2xl font-black text-slate-800 tracking-tight">
-                            {adherenceRate >= 80 ? 'Óptima' : adherenceRate >= 50 ? 'Regular' : 'Crítica'}
-                        </p>
+                        {adherenceRate === null ? (
+                            <>
+                                <p className="text-2xl font-black text-slate-400 tracking-tight">Sin dosis resueltas</p>
+                                {/* Dice lo MEDIDO. La primera redacción decía "todavía no toca
+                                  * darlas", que es una inferencia y hoy era falsa para 154 de las
+                                  * 262 dosis PENDING de la semana: estaban pautadas a las 8:00 AST
+                                  * y a las 9:02 seguían sin firmar. Ver format-hint.ts. */}
+                                <p className="text-xs text-slate-400 mt-0.5">Las de esta semana siguen sin firmar.</p>
+                            </>
+                        ) : (
+                            <p className="text-2xl font-black text-slate-800 tracking-tight">
+                                {adherenceRate >= 80 ? 'Óptima' : adherenceRate >= 50 ? 'Regular' : 'Crítica'}
+                            </p>
+                        )}
                     </div>
                 </div>
 
