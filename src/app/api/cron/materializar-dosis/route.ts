@@ -59,6 +59,39 @@ export const revalidate = 0;
  * no duplica nada, y si esta pasada de las cuatro falla, la de las seis crea
  * igual el resto del día. Red de seguridad, no duplicado.
  */
+/**
+ * ⚠ DESPROGRAMADO EL 21-sep-2026, EL MISMO DÍA, ANTES DE SU PRIMERA CORRIDA.
+ *
+ * La ruta se queda; la entrada de vercel.json se quitó. Motivo: una revisión
+ * adversarial del cambio encontró que adelantar la creación de las filas a las
+ * 04:00 APAGA EL eMAR DE TODAS LAS PANTALLAS DE "HOY".
+ *
+ * Siete sitios acotan el eMAR del día con `createdAt >= todayStartAST()`, y
+ * `todayStartAST()` son las 06:00 AST. Las filas nacían a las 06:00:0x y
+ * entraban en la ventana POR TREINTA Y SIETE SEGUNDOS. Creadas a las 04:00
+ * quedan fuera el día entero — y nada vuelve a tocar `createdAt` después, ni el
+ * upsert de la segunda pasada (`update: {}`) ni la firma (un `updateMany` que
+ * no lo incluye).
+ *
+ * Medido simulando las filas reales: 270 de 273 visibles el 20-sep → 0.
+ * 262 de 271 hoy → 0. Se quedarían en blanco la pizarra de la pared, el panel
+ * del supervisor ("6 sin dar de 271" → "0 de 0"), facility-health y el portal
+ * de la familia, que volvería al "—" que se arregló el 11-sep.
+ *
+ * O sea: el arreglo era peor que el fallo. Mejor romper el ritmo que romper
+ * producción.
+ *
+ * QUÉ FALTA PARA REACTIVARLO: anclar esas siete lecturas al DÍA DE CALENDARIO
+ * AST de `scheduledTime` (`fechaCalendarioAST()`), que es el mismo día con el
+ * que `materializarDosisDelDia` construye la fila — lector y escritor usando la
+ * misma definición de día. `createdAt` dejó de servir para esto el 15-sep, en
+ * cuanto la fila pasó a nacer ANTES del acto; de hecho ya se pierden 3-9 filas
+ * al día por esto, las que firma la tableta de madrugada. El `where` tiene que
+ * llevar un OR para las filas sin `scheduledTime` (los PRN nunca lo llevan).
+ *
+ * Mientras tanto el pack de las 5:00 AM sigue naciendo tarde. Es el fallo
+ * conocido y medido, y lleva así desde el 15-sep: una noche más no lo empeora.
+ */
 export async function GET(req: Request) {
     const denied = requireCronSecret(req);
     if (denied) return denied;
