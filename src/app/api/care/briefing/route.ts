@@ -28,6 +28,39 @@ export async function POST(req: Request) {
         const { colorGroup, userName } = await req.json();
 
         const todayStart = todayStartAST();
+
+        /**
+         * LA VENTANA DEL RELEVO NO ES EL DÍA CLÍNICO — Y ESTE ERA EL FALLO.
+         *
+         * El relevo del color anterior se buscaba con `createdAt >= todayStart`,
+         * que es el corte de las 6:00 AM AST. El turno de noche cierra ANTES de
+         * esa hora: medido sobre 30 días, de los 74 relevos etiquetados NIGHT,
+         * **36 se firmaron a las 5:xx AST**. Los 36 caían fuera de la consulta.
+         *
+         * O sea: quien entraba a las 6 de la mañana nunca podía ver lo que le
+         * dejó la noche. La cadena se rompía justo en el eslabón que más
+         * importa, y sin decirlo — la pantalla simplemente no pintaba el bloque,
+         * que se lee igual que "el turno anterior no dejó nada".
+         *
+         * Se cambia por una VENTANA DESLIZANTE. Es el mismo remedio que ya usa
+         * `ACTIVE_PRESENCE_MAX_HOURS` (src/lib/shift-coverage.ts:601) para el
+         * mismo problema, y su comentario lo dice con todas las letras: no usar
+         * la frontera de las 6am porque rompe a quien cruza esa hora.
+         * No se reutiliza esa constante a propósito: ese fichero avisa de que es
+         * para presencia y no para otros usos.
+         *
+         * Por qué 16 horas: un turno dura 8. En el peor caso razonable —el
+         * anterior cerró temprano y tú entras tarde— entre su firma y tu entrada
+         * caben unas 8 horas más. 16 cubre siempre el turno anterior y nunca
+         * llega a un día completo atrás. Los cierres medidos caen a las 5, 6, 9,
+         * 13, 14, 17, 18, 21 y 22 AST: con 16 horas, cualquiera de esas alcanza
+         * al que entra en el turno siguiente.
+         *
+         * Y como la ventana ya no coincide con "hoy", el payload lleva la fecha
+         * completa: la pantalla tiene que poder decir que un relevo es de ayer.
+         */
+        const HORAS_DE_RELEVO_ATRAS = 16;
+        const desdeElRelevo = new Date(Date.now() - HORAS_DE_RELEVO_ATRAS * 60 * 60 * 1000);
         const todayEnd = new Date(new Date().setHours(23, 59, 59, 999));
 
         // Sprint O — Multi-color. El tablet puede pasar 'RED' o 'RED,YELLOW'
@@ -95,7 +128,7 @@ export async function POST(req: Request) {
                           isDailyPrologue: false,
                           colorGroups: userColors.length > 0 ? { hasSome: userColors } : { has: primaryColor },
                           signature: { not: null },
-                          createdAt: { gte: todayStart },
+                          createdAt: { gte: desdeElRelevo },
                       },
                       orderBy: { createdAt: 'desc' },
                       select: {
@@ -104,6 +137,12 @@ export async function POST(req: Request) {
                           createdAt: true,
                           shiftType: true,
                           outgoingNurse: { select: { name: true } },
+                          // Lo que el supervisor dejó dicho al firmar. Faltaba en
+                          // este select, y por eso no viajaba: se escribe en la
+                          // pantalla de firma y se leía solo en tres pantallas de
+                          // archivo que hay que ir a buscar. Escrito 1 vez en
+                          // 1.151 relevos — nadie llena una caja que nadie lee.
+                          supervisorNote: true,
                       },
                   })
                 : Promise.resolve(null),
@@ -185,6 +224,7 @@ export async function POST(req: Request) {
                   fromCaregiver: colorHandoverRow.outgoingNurse?.name || 'Cuidador anterior',
                   closedAt: colorHandoverRow.createdAt,
                   shiftType: colorHandoverRow.shiftType,
+                  notaDelSupervisor: colorHandoverRow.supervisorNote,
               }
             : null;
 

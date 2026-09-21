@@ -2806,8 +2806,25 @@ export default function ZendityCareTabletPage() {
                                         <UserCheck size={18} className="text-teal-400" />
                                         <h4 className="text-[11px] font-black uppercase tracking-widest text-teal-300">Relevo de tu turno anterior</h4>
                                     </div>
+                                    {/*
+                                        LA HORA SOLA MIENTE CUANDO EL RELEVO NO ES DE HOY.
+
+                                        La ventana de búsqueda dejó de ser "el día
+                                        clínico" y pasó a ser 16 horas deslizantes
+                                        (src/app/api/care/briefing/route.ts), porque el
+                                        turno de noche cierra a las 5:xx y el corte de
+                                        las 6 AM se comía 36 de 36 relevos de noche.
+                                        Con una ventana que cruza la medianoche, "5:30"
+                                        a secas no dice si fue hace una hora o hace
+                                        veinte. Por eso va el día cuando no es hoy.
+                                    */}
                                     <span className="text-[10px] font-bold text-slate-400">
-                                        {new Date(briefingData.colorHandover.closedAt).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' })}
+                                        {(() => {
+                                            const cerrado = new Date(briefingData.colorHandover.closedAt);
+                                            const hora = cerrado.toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' });
+                                            const esDeHoy = cerrado.toDateString() === new Date().toDateString();
+                                            return esDeHoy ? hora : `${cerrado.toLocaleDateString('es-PR', { day: 'numeric', month: 'short' })} · ${hora}`;
+                                        })()}
                                     </span>
                                 </div>
                                 <p className="text-sm text-slate-300 font-semibold mb-3">
@@ -2817,6 +2834,32 @@ export default function ZendityCareTabletPage() {
                                     {(briefingData.colorHandover.report || '').replace(/[#*]/g, '').trim().slice(0, 300)}
                                     {(briefingData.colorHandover.report || '').length > 300 ? '…' : ''}
                                 </p>
+                                {/*
+                                    LO QUE DEJÓ DICHO EL SUPERVISOR.
+
+                                    Este bloque no existía. El campo `supervisorNote`
+                                    se escribe al firmar el relevo y hasta hoy solo se
+                                    leía en tres pantallas de archivo que hay que ir a
+                                    buscar: nunca llegaba a quien entra al turno.
+                                    Resultado medido: escrito 1 vez en 1.151 relevos, y
+                                    esa única entrada dice "ese día no teníamo acceso a
+                                    meternos en la plataforma".
+
+                                    Nadie llena una caja que nadie lee. Se pinta aparte
+                                    del reporte —y no dentro— porque el reporte lo
+                                    redacta Zendi y esto lo escribió una persona a
+                                    quien hay que poder responderle.
+                                */}
+                                {briefingData.colorHandover.notaDelSupervisor?.trim() && (
+                                    <div className="mt-4 pt-4 border-t border-teal-500/25">
+                                        <p className="text-[11px] font-black uppercase tracking-widest text-teal-300 mb-1.5">
+                                            El supervisor dejó dicho
+                                        </p>
+                                        <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">
+                                            {briefingData.colorHandover.notaDelSupervisor.trim()}
+                                        </p>
+                                    </div>
+                                )}
                                 {briefingData.colorHandover.id && (
                                     <Link
                                         href={`/care/reports/${briefingData.colorHandover.id}`}

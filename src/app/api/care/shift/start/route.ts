@@ -399,40 +399,30 @@ export async function POST(req: Request) {
             logWarn('care.shift.start.vitals_preseed', vitalsErr, { caregiverId, headquartersId });
         }
 
-        // --- Reporte de turno previo para el cuidador entrante ---
-        // El entrante recibe el último handover del turno anterior firmado por
-        // el cuidador saliente. Lo ve esté pendiente de firma del supervisor
-        // (PENDING) o ya firmado (ACCEPTED). Excluye el prólogo diario del cron.
-        // Ventana 12h: cubre cualquier cambio de turno reciente.
-        //
-        // Caso edge cubierto: si la misma cuidadora cierra un turno y arranca
-        // el siguiente, debe ver el reporte que ella misma firmó (cubre dos
-        // turnos seguidos). Por eso filtramos por shiftSessionId (excluir la
-        // sesión recién creada) en lugar de excluir por outgoingNurseId.
-        const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
-        const pendingHandover = await prisma.shiftHandover.findFirst({
-            where: {
-                headquartersId,
-                isDailyPrologue: false,
-                handoverCompleted: true,
-                createdAt: { gte: twelveHoursAgo },
-            },
-            orderBy: { createdAt: 'desc' },
-            include: {
-                outgoingNurse: { select: { name: true } },
-                notes: true,
-            },
-        });
-
-        if (pendingHandover) {
-            return NextResponse.json({
-                success: true,
-                shiftSession: newSession,
-                requireHandoverAccept: true,
-                pendingHandover,
-            });
-        }
-        // -------------------------------------------------------------
+        /**
+         * AQUÍ HABÍA UN INTERCEPTOR QUE NO INTERCEPTABA NADA.
+         *
+         * Este bloque buscaba el último relevo de las 12 horas previas y
+         * devolvía `requireHandoverAccept: true` junto al relevo entero en cada
+         * ponche de entrada. La intención era que quien entra tuviera que
+         * aceptar el relevo antes de empezar.
+         *
+         * Nunca ocurrió. Ninguna pantalla lee esos dos campos: el grep de
+         * `requireHandoverAccept` sobre todo `src/` solo devolvía este fichero,
+         * y `src/app/care/page.tsx:1072` ya documentaba que el modal que iba a
+         * consumirlo no existe. Es el patrón "promete y no entrega": la API
+         * cumplía su parte, el cliente nunca se enteró, y nadie lo notó.
+         *
+         * Y mientras tanto costaba algo real: el `include: { notes: true }`
+         * mandaba las HandoverNote —con su patientId y su texto clínico— al
+         * navegador de cada cuidadora en cada inicio de turno, para nada.
+         *
+         * Se borra en vez de conectarse por decisión de producto (20-sep-2026):
+         * aceptar un relevo NO puede bloquear el inicio de un turno. Si el
+         * anterior no entregó, quien entra tiene que poder empezar igual y VER
+         * el hueco. El relevo se le enseña en el briefing, que es donde ya mira:
+         * ver `src/app/api/care/briefing/route.ts`.
+         */
 
         return NextResponse.json({ success: true, shiftSession: newSession });
 
