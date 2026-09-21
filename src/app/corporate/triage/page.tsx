@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
-import { ArrowLeft, ShieldAlert, AlertOctagon, Activity, Loader2, CheckCircle2, Clock, User, ChevronDown, Send, MessageSquarePlus, Stethoscope, Wrench, ClipboardList, AlertTriangle, MessageCircle, Filter, Zap } from "lucide-react";
+import { ArrowLeft, ShieldAlert, AlertOctagon, Activity, Loader2, CheckCircle2, Clock, User, ChevronDown, Send, MessageSquarePlus, Stethoscope, Wrench, ClipboardList, AlertTriangle, MessageCircle, Filter, Zap, PenLine } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { ExpandableText } from "@/components/ui/ExpandableText";
+import { createTriageTicket } from "@/actions/operational/triage";
 
 interface FollowUpNote {
     authorId: string;
@@ -24,6 +25,8 @@ interface TriageTicketData {
     status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED';
     isEscalated: boolean;
     isVoided: boolean;
+    /** Solo lo traen los que escribió una persona; los de máquina van en null. */
+    title: string | null;
     description: string;
     resolutionNote: string | null;
     followUpNotes: FollowUpNote[] | null;
@@ -66,6 +69,34 @@ export default function TriageCenterPage() {
     const [tickets, setTickets] = useState<TriageTicketData[]>([]);
     const [loading, setLoading] = useState(true);
     const [staff, setStaff] = useState<any[]>([]);
+
+    /**
+     * ANOTAR PENDIENTE — la puerta que faltaba en el único tablero vivo.
+     *
+     * Este Centro de Triage es lo único del hogar donde alguien escribe, otro
+     * cierra y queda constancia, de forma sostenida: 356 tickets, 352 cerrados,
+     * 344 CON NOTA DE RESOLUCIÓN escrita a mano.
+     *
+     * Pero los 356 los creó una máquina — DAILY_LOG 325, INCIDENT 13, FALL 9,
+     * COMPLAINT 9. De origen MANUAL había CERO en toda la historia. Y no por
+     * falta de mecanismo: `createTriageTicket` acepta MANUAL desde hace meses y
+     * NO TENÍA UN SOLO LLAMADOR en todo src/. Estaba construido y sin botón.
+     *
+     * Andrés pidió una pantalla nueva para esto el 20-sep-2026. No hacía falta
+     * la pantalla: hacía falta el botón, aquí.
+     *
+     * (Primero lo puse en el "Inbox Operativo" de /care/supervisor, que es donde
+     * el supervisor trabaja. Estaba mal: ese feed NO lee la tabla TriageTicket
+     * —se computa al vuelo desde incidentes y notas del piso— así que el ticket
+     * se habría guardado y no habría aparecido en ninguna pantalla. Dos cosas
+     * distintas que se llaman "triage".)
+     */
+    const [anotarAbierto, setAnotarAbierto] = useState(false);
+    const [anotarTitulo, setAnotarTitulo] = useState('');
+    const [anotarTexto, setAnotarTexto] = useState('');
+    const [anotarResponsable, setAnotarResponsable] = useState('');
+    const [anotarGuardando, setAnotarGuardando] = useState(false);
+    const [anotarError, setAnotarError] = useState<string | null>(null);
     const [showResolved, setShowResolved] = useState(false);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
     // Filtro por originType — viaja al endpoint. 'ALL' = sin filtro.
@@ -208,7 +239,13 @@ export default function TriageCenterPage() {
                     </h1>
                     <p className="text-slate-500 font-medium mt-1">Seguimiento de reportes clínicos, mantenimiento y familiares — sin SLA automático.</p>
                 </div>
-                <div className="flex gap-3 flex-wrap">
+                <div className="flex gap-3 flex-wrap items-center">
+                    <button
+                        onClick={() => { setAnotarAbierto(true); setAnotarError(null); }}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-2xl text-sm font-black shadow-sm flex items-center gap-2 transition-colors"
+                    >
+                        <PenLine className="w-4 h-4" /> Anotar pendiente
+                    </button>
                     {criticalCount > 0 && (
                         <div className="bg-rose-50 border border-rose-200 px-5 py-3 rounded-2xl flex items-center gap-2 shadow-sm">
                             <AlertOctagon className="w-5 h-5 text-rose-600 animate-pulse" />
@@ -358,11 +395,23 @@ export default function TriageCenterPage() {
                                             </div>
                                         )}
 
+                                        {/* El título solo existe en los que escribió una
+                                            persona. Los 356 que hay hoy los creó una máquina
+                                            y para esos la descripción ES el ticket, así que
+                                            la tarjeta sigue viéndose igual que siempre. */}
+                                        {ticket.title && (
+                                            <p className="text-lg font-black text-slate-900 leading-snug mb-1">
+                                                {ticket.title}
+                                            </p>
+                                        )}
+
                                         {/* Description — colapsada a 3 líneas con toggle "Ver más" */}
                                         <ExpandableText
                                             text={ticket.description}
                                             previewLines={3}
-                                            className="text-base font-bold text-slate-800 leading-relaxed"
+                                            className={ticket.title
+                                                ? "text-sm text-slate-600 leading-relaxed"
+                                                : "text-base font-bold text-slate-800 leading-relaxed"}
                                         />
 
                                         {/* Meta */}
@@ -537,6 +586,106 @@ export default function TriageCenterPage() {
                             </div>
                         );
                     })}
+                </div>
+            )}
+
+            {/* ANOTAR PENDIENTE */}
+            {anotarAbierto && (
+                <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden">
+                        <div className="px-7 pt-6 pb-4 border-b border-slate-100">
+                            <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                                <PenLine className="w-5 h-5 text-indigo-600" /> Anotar un pendiente
+                            </h3>
+                            <p className="text-sm text-slate-500 mt-1">
+                                Entra a este mismo tablero. No caduca por reloj: se queda hasta que
+                                alguien lo cierre con su nota.
+                            </p>
+                        </div>
+
+                        <div className="px-7 py-5 space-y-4">
+                            <div>
+                                <label className="block text-sm font-black text-slate-800 mb-1">De qué se trata</label>
+                                <input
+                                    value={anotarTitulo}
+                                    onChange={e => setAnotarTitulo(e.target.value)}
+                                    maxLength={120}
+                                    placeholder="Ej.: llamar al suplidor de oxígeno"
+                                    className="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:border-indigo-500 outline-none"
+                                    autoFocus
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-black text-slate-800 mb-1">Qué hay que hacer</label>
+                                <textarea
+                                    value={anotarTexto}
+                                    onChange={e => setAnotarTexto(e.target.value)}
+                                    rows={3}
+                                    placeholder="Lo que la otra persona necesita saber para resolverlo."
+                                    className="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:border-indigo-500 outline-none resize-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-black text-slate-800 mb-1">
+                                    Quién lo atiende <span className="font-medium text-slate-400">— opcional</span>
+                                </label>
+                                <select
+                                    value={anotarResponsable}
+                                    onChange={e => setAnotarResponsable(e.target.value)}
+                                    className="w-full border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:border-indigo-500 outline-none bg-white"
+                                >
+                                    <option value="">Sin asignar — queda en el tablero</option>
+                                    {staff.map((u: any) => (
+                                        <option key={u.id} value={u.id}>{u.name}{u.role ? ` · ${u.role}` : ''}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            {anotarError && (
+                                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-sm text-rose-800">
+                                    {anotarError}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="px-7 py-4 bg-slate-50 flex gap-3 justify-end">
+                            <button
+                                onClick={() => setAnotarAbierto(false)}
+                                disabled={anotarGuardando}
+                                className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-50"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                disabled={anotarGuardando || (!anotarTitulo.trim() && !anotarTexto.trim())}
+                                onClick={async () => {
+                                    setAnotarGuardando(true);
+                                    setAnotarError(null);
+                                    try {
+                                        const r = await createTriageTicket({
+                                            originType: 'MANUAL',
+                                            title: anotarTitulo.trim() || undefined,
+                                            description: anotarTexto.trim() || anotarTitulo.trim(),
+                                            assignedToId: anotarResponsable || undefined,
+                                        });
+                                        if (!r.success) {
+                                            setAnotarError(r.error || 'No se pudo guardar');
+                                            return;
+                                        }
+                                        setAnotarAbierto(false);
+                                        setAnotarTitulo(''); setAnotarTexto(''); setAnotarResponsable('');
+                                        fetchTickets();
+                                    } catch {
+                                        setAnotarError('No se pudo guardar. Intenta otra vez.');
+                                    } finally {
+                                        setAnotarGuardando(false);
+                                    }
+                                }}
+                                className="px-5 py-2.5 rounded-xl text-sm font-black text-white bg-indigo-600 hover:bg-indigo-700 transition-colors disabled:opacity-40 flex items-center gap-2"
+                            >
+                                {anotarGuardando ? (<><Loader2 className="w-4 h-4 animate-spin" /> Guardando…</>) : 'Anotar'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

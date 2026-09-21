@@ -161,6 +161,7 @@ export default function SupervisorMissionControlPage() {
     // accesibles desde el wall del supervisor sin tener que ir a la tablet del cuidador.
     const [quickActionsOpen, setQuickActionsOpen] = useState(false);
 
+
     const [dispatchingTicket, setDispatchingTicket] = useState<any>(null);
     const [isDispatching, setIsDispatching] = useState(false);
     const [incidentModalOpen, setIncidentModalOpen] = useState(false);

@@ -3274,6 +3274,20 @@ model TriageTicket {
   isEscalated Boolean        @default(false)
   isVoided    Boolean        @default(false)
 
+  /// Título corto — de qué va esto, en una línea.
+  ///
+  /// Nulo en los 356 tickets que ya existen: los crea una máquina (upp_sla,
+  /// clinical_, zendi_px_cluster) y para esos la descripción ES el ticket.
+  /// Se llena solo cuando lo escribe una persona.
+  ///
+  /// Por qué existe: sin título no hay dónde poner el asunto, y la gente lo
+  /// mete donde puede. Medido el 20-sep-2026 sobre las 8 notas que Andrés
+  /// asignó a mano entre el 8 y el 11-sep, en CUATRO metió el asunto en el
+  /// campo de residente: "[Residente: REGISTRA!]", "[Residente: Piso 2]",
+  /// "[Residente: Ulceras]", "[Residente: Previene caídas y mantente
+  /// haciendo rondas]". Ninguno de los cuatro es un residente. Estaba
+  /// escribiendo un título en la única casilla que había.
+  title          String?
   description    String  @db.Text
   resolutionNote String? @db.Text
   followUpNotes  Json? // Array de { authorId, authorName, note, createdAt }
