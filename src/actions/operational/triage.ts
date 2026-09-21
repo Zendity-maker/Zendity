@@ -1,6 +1,6 @@
 "use server";
 import { prisma } from '@/lib/prisma';
-import {  TicketPriority, TicketOriginType, TicketStatus, SystemAuditAction, Role } from '@prisma/client';
+import { TicketPriority, TicketOriginType, SystemAuditAction, Role } from '@prisma/client';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { createAuditLog } from './audit';
@@ -110,104 +110,29 @@ export async function createTriageTicket(data: {
     }
 }
 
-/**
- * Cerrar un pendiente con su nota.
+/*
+ * AQUÍ VIVÍA `resolveTriageTicket`, y se borró el 21-sep-2026.
  *
- * OJO AL LEER ESTO: la pantalla /corporate/triage NO usa esta acción — usa
- * `PATCH /api/corporate/triage/resolve`, que hace lo mismo y ya estaba bien.
- * Esta acción no tiene llamadores en `src/`. No se borra porque una rama en
- * curso (worktree `sad-wiles`) sí la importa, y borrarla la rompería al
- * mergear. Dos caminos a la misma escritura es una trampa: el que no se usa
- * se queda sin arreglar y un día alguien cablea el equivocado. Le acaba de
- * pasar a `createTriageTicket`, que llevaba meses muerta y se cableó hoy.
- * Si la rama se descarta, esta función se borra.
+ * Era un segundo camino para cerrar un ticket, en paralelo al que la pantalla
+ * usa de verdad: `PATCH /api/corporate/triage/resolve`. Esa ruta ya hacía lo
+ * mismo y ya estaba bien —requireRole, que mira roles secundarios, y
+ * comprobación de que el ticket sea de tu sede—.
  *
- * Se le arreglan cuatro cosas de golpe, todas presentes desde que se escribió:
+ * El camino muerto llevaba cuatro fallos desde que se escribió: gateaba solo
+ * por rol primario, escribía con `update({ where: { id } })` sin mirar la sede,
+ * pisaba la nota y la autoría de quien hubiera cerrado primero, y devolvía el
+ * objeto de error crudo al cliente. Se arreglaron y luego se quitó entero.
+ *
+ * POR QUÉ SE QUITA EN VEZ DE DEJARLO ARREGLADO: dos caminos a la misma
+ * escritura es una trampa. El que no se usa se queda sin mantener, y un día
+ * alguien cablea el equivocado. No es hipotético: `createTriageTicket` llevaba
+ * meses sin un solo llamador y se cableó el 21-sep. Si se hubiera cableado
+ * este en vez de aquel, el agujero de sede habría entrado en producción.
+ *
+ * Lo único que lo sostenía era una rama de abril —worktree `sad-wiles`— que
+ * todavía lo importaba. Esa rama estaba mergeada en main y sus cambios sin
+ * guardar ya estaban en main por otra vía; se borró el mismo día.
+ *
+ * Para cerrar un ticket: PATCH /api/corporate/triage/resolve.
  */
-export async function resolveTriageTicket(ticketId: string, resolutionNote: string) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-        return { success: false, error: 'No autorizado' };
-    }
 
-    /**
-     * 1. LOS ROLES SECUNDARIOS CUENTAN.
-     *
-     * Comparaba solo `session.user.role` contra [SUPERVISOR, DIRECTOR]. En
-     * este hogar eso deja fuera a cualquiera que tenga el rol de secundario,
-     * y es una configuración normal aquí: la enfermería la hace la directora
-     * con NURSE secundario, y las dos supervisoras tienen CAREGIVER
-     * secundario. La ruta equivalente usa `requireRole`, que sí los mira; esto
-     * es una server action y no puede usarla, así que replica su criterio.
-     * Se añade ADMIN para igualar a la ruta.
-     */
-    const suyos = [
-        (session.user as any).role,
-        ...(((session.user as any).secondaryRoles ?? []) as string[]),
-    ];
-    const PUEDEN_CERRAR: string[] = [Role.SUPERVISOR, Role.DIRECTOR, Role.ADMIN];
-    if (!suyos.some(r => PUEDEN_CERRAR.includes(r))) {
-        return { success: false, error: 'Tu rol no puede cerrar pendientes' };
-    }
-
-    // @ts-ignore
-    const hqId = session.user.headquartersId;
-    // @ts-ignore
-    const userId = session.user.id;
-
-    const nota = resolutionNote?.trim() || '';
-    if (!nota) {
-        // 2. Cerrar sin decir qué se hizo vacía el valor del tablero: de los 356
-        //    tickets, 344 tienen nota de resolución escrita a mano. Eso es lo
-        //    único que lo hace consultable después.
-        return { success: false, error: 'Escribe qué se hizo antes de cerrarlo' };
-    }
-
-    try {
-        /**
-         * 3. EL TICKET TIENE QUE SER DE TU SEDE.
-         *
-         * Hacía `update({ where: { id } })` sin comprobar nada: con el id de un
-         * ticket de la otra sede, se cerraba. Es la misma clase de agujero que
-         * se cerró el 19-sep en `hr/staff` y en `hq-resolver`. La ruta
-         * equivalente sí lo comprueba (/api/corporate/triage/resolve:23-30).
-         *
-         * 4. Y NO SE PISA EL CIERRE DE OTRO. Si ya estaba resuelto, se devuelve
-         *    el que hay en vez de sobrescribir la nota y la autoría de quien lo
-         *    cerró primero. Dos personas mirando el mismo tablero es el caso
-         *    normal, no el raro.
-         */
-        const actual = await prisma.triageTicket.findUnique({
-            where: { id: ticketId },
-            select: { headquartersId: true, status: true },
-        });
-        if (!actual || actual.headquartersId !== hqId) {
-            return { success: false, error: 'Ese pendiente no es de tu sede' };
-        }
-        if (actual.status === TicketStatus.RESOLVED) {
-            const yaCerrado = await prisma.triageTicket.findUnique({ where: { id: ticketId } });
-            return { success: true, ticket: yaCerrado, yaEstabaCerrado: true };
-        }
-
-        const ticket = await prisma.triageTicket.update({
-            where: { id: ticketId },
-            data: {
-                status: TicketStatus.RESOLVED,
-                resolutionNote: nota,
-                resolvedById: userId,
-                resolvedAt: new Date()
-            }
-        });
-
-        await createAuditLog(hqId, 'TriageTicket', ticket.id, SystemAuditAction.RESOLVED, { resolutionNote: nota });
-        revalidatePath('/corporate/triage');
-        revalidatePath('/care/supervisor');
-        return { success: true, ticket };
-    } catch (error) {
-        // Devolvía el objeto de error crudo al cliente, que puede llevar dentro
-        // la consulta y el nombre de las columnas. Se registra aquí y afuera va
-        // una frase.
-        console.error('[resolveTriageTicket]', error);
-        return { success: false, error: 'No se pudo cerrar el pendiente' };
-    }
-}
