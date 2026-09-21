@@ -160,3 +160,63 @@ export function tiposQueCubren(franja: FranjaT): ShiftT[] {
 export function cubreLaFranja(shiftType: string, franja: FranjaT): boolean {
     return (tiposQueCubren(franja) as string[]).includes(shiftType);
 }
+
+/**
+ * CUÁNTAS HORAS DURA CADA TIPO DE TURNO.
+ *
+ * Las cinco que cubren color salen CONTADAS de la tabla de ventanas de arriba,
+ * no escritas a mano: si mañana `FULL_DAY` pasa a 06–19, esto cambia solo. Los
+ * otros dos no tienen ventana de cobertura y van explícitos.
+ *
+ * SUPERVISOR_DAY son 09–18, nueve horas. No cubre color —por eso no está en
+ * VENTANA_AST— pero sí son horas trabajadas y cuentan para la semana.
+ */
+export const DURACION_HORAS: Record<string, number> = {
+    ...Object.fromEntries(TIPOS_QUE_CUBREN.map(t => [t, horasDe(t).size])),
+    SUPERVISOR_DAY: 9,
+    OFF: 0,
+};
+
+/**
+ * Las horas de UN turno, incluido el de horario manual.
+ *
+ * Un turno manual lleva sus propias horas (`customStartTime`/`customEndTime`) y
+ * puede durar cualquier cosa: contar 8 porque su `shiftType` diga MORNING sería
+ * inventarse el dato. Si cruza la medianoche —de 22:00 a 06:00— se le suman las
+ * 24 horas, que es la única lectura posible de un fin anterior al inicio.
+ *
+ * Devuelve 0 para lo que no sabe medir, nunca un número de relleno.
+ */
+export function horasDelTurno(t: {
+    shiftType: string;
+    isManual?: boolean | null;
+    customStartTime?: string | Date | null;
+    customEndTime?: string | Date | null;
+}): number {
+    if (t.isManual && t.customStartTime && t.customEndTime) {
+        const a = new Date(t.customStartTime).getTime();
+        const b = new Date(t.customEndTime).getTime();
+        if (Number.isNaN(a) || Number.isNaN(b)) return 0;
+        const horas = (b - a) / 3600000;
+        return horas > 0 ? horas : horas + 24;
+    }
+    return DURACION_HORAS[t.shiftType] ?? 0;
+}
+
+/**
+ * La jornada semanal completa: el umbral a partir del cual la pantalla AVISA.
+ *
+ * QUÉ SON ESTAS HORAS Y QUÉ NO SON. Son las horas PAUTADAS: lo que el horario
+ * dice que esa persona va a trabajar. No son horas fichadas —esas salen de
+ * `ShiftSession`— ni horas de nómina: un turno de doce suele llevar descanso
+ * dentro, y si se paga o no es una decisión del hogar que este número no
+ * conoce. Sirve para repartir la semana con criterio, no para pagar.
+ *
+ * Cuarenta porque es la jornada completa de referencia y la línea a partir de
+ * la cual se suele hablar de horas extra. Medido el 21-sep-2026 sobre la semana
+ * publicada de Cupey: 7 de 12 personas la pasan (48, 48, 44, 44, 44, 44, 44),
+ * tres están justo en 40 y dos por debajo. O sea que el aviso SE MUEVE y no es
+ * decorativo — pero también que aquí pasar de 40 es lo normal, así que el
+ * número es para verlo al armar, no una alarma que haya que apagar.
+ */
+export const HORAS_SEMANA_COMPLETA = 40;

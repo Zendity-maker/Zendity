@@ -6,7 +6,7 @@ import { Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Send, Clock, User, P
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import SchedulePrintView from "@/components/hr/SchedulePrintView";
-import { tiposQueCubren, TIPOS_QUE_CUBREN, type FranjaT } from '@/lib/ventanas-de-turno';
+import { tiposQueCubren, TIPOS_QUE_CUBREN, horasDelTurno, HORAS_SEMANA_COMPLETA, type FranjaT } from '@/lib/ventanas-de-turno';
 
 const SHIFT_LABELS: Record<string, string> = {
     MORNING:        "Diurno 6AM–2PM",
@@ -94,6 +94,10 @@ const COLORES_CON_RESIDENTES = ['RED', 'YELLOW', 'BLUE'];
 
 /** Las tres franjas en que se piensa un día. Los turnos largos pisan varias. */
 const FRANJAS: FranjaT[] = ['MORNING', 'EVENING', 'NIGHT'];
+
+/** 32 → "32"; 33.5 → "33,5". Sin decimales cuando no hacen falta. */
+const formatoHoras = (h: number) =>
+    Number.isInteger(h) ? String(h) : h.toFixed(1).replace('.', ',');
 
 /**
  * Los turnos que necesitan cobertura de color. Un día libre no cubre nada.
@@ -637,7 +641,12 @@ export default function ScheduleBuilderPage() {
             // Sin el guard de supervisión, salir del modo manual le devolvía el
             // color a GREEN y borraba en silencio lo que el director había
             // decidido. Ese es el "vuelve solo" que reportó Celia.
-            ? { ...s, isManual: false, customStartTime: null, customEndTime: null, customDescription: null, shiftType: 'MORNING', colorGroup: s.isFloorSupervision ? '' : (s.colorGroup || 'GREEN') }
+            // `|| null` y no `|| 'GREEN'`: el grupo Verde no tiene ni un residente
+            // (medido el 21-sep: RED 11, BLUE 11, YELLOW 9, GREEN 0), así que
+            // salir del horario manual dejaba a esa persona cuidando a nadie.
+            // Sin color, la celda sale en ámbar y publicar lo exige. Mismo
+            // motivo que en `addShift`.
+            ? { ...s, isManual: false, customStartTime: null, customEndTime: null, customDescription: null, shiftType: 'MORNING', colorGroup: s.isFloorSupervision ? '' : (s.colorGroup || null) }
             : s));
         setManualErrors(prev => { const next = { ...prev }; delete next[tempId]; return next; });
     };
@@ -1438,6 +1447,27 @@ export default function ScheduleBuilderPage() {
 
                 const listaOrdenada = [...activos, ...(huerfanos as any[])];
 
+                /**
+                 * HORAS DE LA SEMANA, POR PERSONA.
+                 *
+                 * Con turnos de ocho horas esto se hacía de cabeza: cinco días
+                 * son cuarenta y ya. Con los de doce deja de ser obvio —dos
+                 * largos y un corto son 32 horas en TRES días— y quien arma la
+                 * semana no tenía forma de verlo hasta la nómina.
+                 *
+                 * Las horas salen de `horasDelTurno`, que cuenta la ventana de
+                 * cada tipo desde la tabla de src/lib/ventanas-de-turno.ts, y
+                 * para un turno de horario manual usa SUS horas reales: contar
+                 * ocho porque su tipo diga MORNING sería inventarse el dato.
+                 *
+                 * El día libre suma cero y por eso no estorba en el total.
+                 */
+                const horasPorPersona = new Map<string, number>();
+                for (const sh of shifts) {
+                    horasPorPersona.set(sh.userId, (horasPorPersona.get(sh.userId) ?? 0) + horasDelTurno(sh));
+                }
+                const horasDeLaSede = [...horasPorPersona.values()].reduce((a, b) => a + b, 0);
+
                 const sinDecidir = listaOrdenada.length * weekDays.length
                     - shifts.filter(sh => listaOrdenada.some(p => p.id === sh.userId)).length;
 
@@ -1520,10 +1550,28 @@ export default function ScheduleBuilderPage() {
                                 <tr key={emp.id} className="border-b border-slate-100">
                                     <td className="px-3 py-2 font-bold text-slate-700 text-xs sticky left-0 bg-white z-10 whitespace-nowrap">
                                         <div className={(emp as any).deBaja ? 'text-rose-700' : ''}>{emp.name}</div>
-                                        <div className="text-[10px] text-slate-500 font-medium">
-                                            {(emp as any).deBaja
-                                                ? <span className="text-rose-600 font-bold">De baja — reasignar</span>
-                                                : emp.role === 'SUPERVISOR' ? 'Supervisor' : emp.role === 'NURSE' ? 'Enfermero/a' : emp.role === 'CLEANING' ? 'Limpieza' : 'Cuidador/a'}
+                                        <div className="text-[10px] text-slate-500 font-medium flex items-center gap-1.5">
+                                            <span>
+                                                {(emp as any).deBaja
+                                                    ? <span className="text-rose-600 font-bold">De baja — reasignar</span>
+                                                    : emp.role === 'SUPERVISOR' ? 'Supervisor' : emp.role === 'NURSE' ? 'Enfermero/a' : emp.role === 'CLEANING' ? 'Limpieza' : 'Cuidador/a'}
+                                            </span>
+                                            {/* Las horas de la semana. Se pinta solo si hay alguna: un
+                                                "0 h" en cada fila vacía sería ruido, no información. */}
+                                            {(horasPorPersona.get(emp.id) ?? 0) > 0 && (
+                                                <span
+                                                    title={`${formatoHoras(horasPorPersona.get(emp.id)!)} horas esta semana` +
+                                                        ((horasPorPersona.get(emp.id) ?? 0) > HORAS_SEMANA_COMPLETA
+                                                            ? ` — ${formatoHoras((horasPorPersona.get(emp.id) ?? 0) - HORAS_SEMANA_COMPLETA)} por encima de la jornada completa`
+                                                            : '')}
+                                                    className={`px-1.5 py-0.5 rounded font-black tabular-nums ${
+                                                        (horasPorPersona.get(emp.id) ?? 0) > HORAS_SEMANA_COMPLETA
+                                                            ? 'bg-amber-100 text-amber-800'
+                                                            : 'bg-slate-100 text-slate-600'}`}
+                                                >
+                                                    {formatoHoras(horasPorPersona.get(emp.id)!)} h
+                                                </span>
+                                            )}
                                         </div>
                                     </td>
                                     {weekDays.map(d => {
@@ -1613,6 +1661,34 @@ export default function ScheduleBuilderPage() {
                             Faltan {sinDecidir} {sinDecidir === 1 ? 'celda' : 'celdas'} por decidir — las de fondo ámbar.
                         </div>
                     )}
+
+                    {/* El total de la semana y a quién se le va de la jornada. Va
+                        abajo y no arriba porque es el dato de repaso: se mira al
+                        terminar de armar, justo antes de publicar. */}
+                    {horasDeLaSede > 0 && (() => {
+                        const pasados = [...horasPorPersona.entries()]
+                            .filter(([, h]) => h > HORAS_SEMANA_COMPLETA)
+                            .map(([id, h]) => ({
+                                nombre: listaOrdenada.find(e => e.id === id)?.name ?? '',
+                                h,
+                            }))
+                            .filter(p => p.nombre)
+                            .sort((a, b) => b.h - a.h);
+                        return (
+                            <div className="border-t border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-bold text-slate-600 flex flex-wrap items-center gap-x-3 gap-y-1">
+                                <span className="tabular-nums">
+                                    {formatoHoras(horasDeLaSede)} horas pautadas esta semana
+                                    <span className="text-slate-400 font-medium"> · {horasPorPersona.size} {horasPorPersona.size === 1 ? 'persona' : 'personas'}</span>
+                                </span>
+                                {pasados.length > 0 && (
+                                    <span className="text-amber-800">
+                                        Por encima de {HORAS_SEMANA_COMPLETA} h:{' '}
+                                        {pasados.map(p => `${p.nombre} (${formatoHoras(p.h)})`).join(' · ')}
+                                    </span>
+                                )}
+                            </div>
+                        );
+                    })()}
                 </div>
                 </div>
                 );
