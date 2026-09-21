@@ -151,7 +151,41 @@ function slotInShift(minutes: number, shift: string): boolean {
  */
 function groupMedsByScheduleTime(medications: any[]) {
     const shift = getCurrentShift();
-    const groups: Record<string, { slotMinutes: number; meds: any[] }> = {};
+    const ahora = new Date();
+    const ahoraMin = ahora.getHours() * 60 + ahora.getMinutes();
+    /**
+     * LOS PACKS QUE SE QUEDARON SIN PONER, ANTES DE ESTE TURNO.
+     *
+     * Hasta el 21-sep-2026 esta función tiraba todo lo que no fuera del turno
+     * en curso, y con ello se iba la ÚNICA forma de registrar una dosis que se
+     * dio y no se anotó a tiempo. Andrés lo dijo con sus palabras el mismo día,
+     * contando la mañana del 21: «ellas sí dieron los medicamentos pero se les
+     * pasó la hora de ponerlos en Zendity».
+     *
+     * Y no era un descuido con final abierto: era un portazo. Pasada la hora la
+     * casilla desaparecía, el barrido marcaba omitido a las 14:30, y no había
+     * camino de vuelta. Ese día el grupo ROJO quedó con 45 de 45 dosis de las
+     * 8:00 sin registrar, once residentes, con la cuidadora en el piso ocho
+     * horas y doce baños anotados.
+     *
+     * Explica también por qué la salida honesta no se ha usado NUNCA —cero
+     * REFUSED, cero HELD, tres OMITTED en toda la historia contra 232
+     * omisiones por vencimiento—: cuando se acuerdan, la casilla ya no está.
+     *
+     * TODO LO DEMÁS YA ESTABA: `conciliarPack` acepta firmar una dosis ya
+     * marcada MISSED (ABIERTOS = PENDING, MISSED) y la busca por su instante
+     * exacto sin mirar el turno; `/api/care/meds/bulk` no exige turno abierto y
+     * ya recibe `administeredAt` del body; `resolverHoraReal` valida la hora
+     * declarada; y esta pantalla ya manda `horaRegistro`. Lo único que faltaba
+     * era dejar de esconder el pack.
+     *
+     * SOLO DE LAS 06:00 EN ADELANTE, y no es arbitrario: `conciliarPack`
+     * reconstruye el instante con la fecha de HOY. De madrugada, un pack "de
+     * antes" sería de ayer y la firma caería en el día equivocado. De 00:00 a
+     * 05:59 no se ofrece ninguno — y a esa hora tampoco hay ninguno que ofrecer.
+     */
+    const puedeHaberAtrasados = ahora.getHours() >= 6;
+    const groups: Record<string, { slotMinutes: number; meds: any[]; atrasado: boolean }> = {};
     medications.forEach(m => {
         if (!m.scheduleTimes) return;
         if (!tocaHoy(m)) return;
@@ -159,17 +193,22 @@ function groupMedsByScheduleTime(medications: any[]) {
         times.forEach((t: string) => {
             const min = parseTimeToMinutes(t);
             if (min < 0) return;
-            if (!slotInShift(min, shift)) return;
+            const enTurno = slotInShift(min, shift);
+            const atrasado = !enTurno && puedeHaberAtrasados && min < ahoraMin;
+            if (!enTurno && !atrasado) return;
             const label = formatSlotLabel(min);
-            if (!groups[label]) groups[label] = { slotMinutes: min, meds: [] };
+            if (!groups[label]) groups[label] = { slotMinutes: min, meds: [], atrasado };
             // Evitar duplicar el mismo med en el mismo slot (si CSV repetido)
             if (!groups[label].meds.find((x: any) => x.id === m.id)) {
                 groups[label].meds.push(m);
             }
         });
     });
-    const entries = Object.entries(groups).map(([label, v]) => ({ label, slotMinutes: v.slotMinutes, meds: v.meds }));
+    const entries = Object.entries(groups).map(([label, v]) => ({ label, slotMinutes: v.slotMinutes, meds: v.meds, atrasado: v.atrasado }));
+    // Los atrasados van DESPUÉS de los del turno: lo que toca ahora es el
+    // trabajo, lo de antes es la corrección. Pero van, que es el punto.
     entries.sort((a, b) => {
+        if (a.atrasado !== b.atrasado) return a.atrasado ? 1 : -1;
         if (shift === 'NIGHT') {
             // 22:00..23:59 va antes que 00:00..05:59
             const na = a.slotMinutes < 360 ? a.slotMinutes + 1440 : a.slotMinutes;
@@ -4770,11 +4809,37 @@ export default function ZendityCareTabletPage() {
                                     <div className="space-y-4">
                                         <div className="flex items-center justify-between flex-wrap gap-2">
                                             <div className="flex items-center gap-2">
-                                                <span className="inline-flex items-center bg-[#0F6B78] text-white text-sm font-black px-3 py-1.5 rounded-full shadow-sm">Pack {activePack.label}</span>
+                                                <span className={`inline-flex items-center text-white text-sm font-black px-3 py-1.5 rounded-full shadow-sm ${(activePack as any).atrasado ? 'bg-amber-600' : 'bg-[#0F6B78]'}`}>Pack {activePack.label}</span>
+                                                {(activePack as any).atrasado && (
+                                                    <span className="inline-flex items-center bg-amber-100 text-amber-800 text-[11px] font-black px-2.5 py-1 rounded-full">
+                                                        De antes — pon la hora
+                                                    </span>
+                                                )}
                                                 <span className="text-[11px] font-bold text-slate-500">{activePack.meds.length} med{activePack.meds.length !== 1 ? 's' : ''}</span>
                                             </div>
                                             <span className="text-[11px] font-bold text-slate-500">Pack {activePackIdx + 1} de {totalPacks} · {completedPacks.length}/{totalPacks} completados</span>
                                         </div>
+
+                                        {/*
+                                          * EL AVISO DEL PACK ATRASADO.
+                                          *
+                                          * Sin esto se firmaría con la hora de ahora, y el expediente
+                                          * diría que la levotiroxina de las 8 se dio a las 5 de la
+                                          * tarde. El control de la hora ya está abajo en la pantalla
+                                          * (HoraDelRegistro); esto solo dice que HAY que usarlo.
+                                          */}
+                                        {(activePack as any).atrasado && (
+                                            <div className="bg-amber-50 border border-amber-300 rounded-2xl px-4 py-3">
+                                                <p className="text-sm font-black text-amber-900">
+                                                    Este pack era de las {activePack.label} y no se registró.
+                                                </p>
+                                                <p className="text-xs font-medium text-amber-800 mt-1 leading-relaxed">
+                                                    Se puede poner ahora. Pon abajo <strong>la hora a la que de verdad
+                                                    se dio</strong> antes de firmar — si lo dejas en «Ahora», el
+                                                    expediente dirá que se dio a esta hora.
+                                                </p>
+                                            </div>
+                                        )}
 
                                         {/* Panel de omisión individual */}
                                         {omittingMed ? (
