@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { todayStartAST, clinicalDayCalendarUTCRange, clinicalDay } from '@/lib/dates';
+import { tiposQueCubren, compatibleShiftTypesAt, type FranjaT } from '@/lib/ventanas-de-turno';
 
 export type ShiftT = 'MORNING' | 'EVENING' | 'NIGHT' | 'FULL_DAY' | 'FULL_NIGHT';
 
@@ -209,9 +210,42 @@ export async function computeShiftCoverage(params: {
     const scheduledShifts = scheduleIds.length === 0 ? [] : await prisma.scheduledShift.findMany({
         where: {
             scheduleId: { in: scheduleIds },
-            shiftType: shiftType as any,
+            /**
+             * POR SOLAPE DE VENTANA, NO POR IGUALDAD.
+             *
+             * Esto era `shiftType: shiftType` —igualdad exacta contra un bucket
+             * de ocho horas— y los seis llamadores de esta función solo pueden
+             * pasar MORNING, EVENING o NIGHT. O sea: una pauta FULL_DAY o
+             * FULL_NIGHT era INALCANZABLE por construcción, y la cuidadora de
+             * doce horas salía sin color aunque estuviera en el piso.
+             *
+             * Medido el 21-sep-2026: de las 28 pautas FULL_* publicadas desde
+             * el 01-jul, la persona fichó en 17, y en **16 de esas 17** no
+             * había `ShiftColorAssignment` que tapara el hueco. El 94% de los
+             * turnos largos realmente trabajados eran invisibles aquí — y como
+             * `shift-redistribute.ts:111` hace
+             * `recipients = activeCaregivers.filter(c => c.color)`, tampoco
+             * podían RECIBIR una redistribución. Invisibles por los dos lados.
+             *
+             * El propio fichero ya tenía la regla escrita 300 líneas más abajo
+             * (decisión D2) y `resolveCaregiverColors` la cumplía. Esta mitad
+             * no. Dos resolvedores del mismo fichero contradiciéndose: el wall
+             * de caregiver-rounds pintaba a la de FULL_DAY con su color y este
+             * la contaba sin ninguno.
+             *
+             * `tiposQueCubren` y no `compatibleShiftTypesAt(now)`: esta función
+             * recibe la franja como PARÁMETRO y se le puede pedir una distinta
+             * a la del reloj —`care/shift/coverage` lo permite—, así que mirar
+             * la hora actual respondería a otra pregunta.
+             */
+            shiftType: { in: tiposQueCubren(shiftType as FranjaT) as any },
             date: { gte: scheduledDayRange.start, lt: scheduledDayRange.end },
             isAbsent: false,
+            // Una pauta de quien ya no trabaja aquí no cubre nada: esa persona
+            // no va a venir. Sin esto el color salía cubierto y nadie recibía
+            // el aviso — medido el 21-sep, los cuatro turnos que Joaneliz
+            // Rosario dejó pautados tras darse de baja seguían contando.
+            user: { isActive: true, isDeleted: false },
             releasedAt: null,                   // FASE 82: ignorar pautas liberadas manualmente
             colorGroup: { not: null },
         },
@@ -508,19 +542,13 @@ export function resolveCaregiverCurrentColors(params: {
  * aparezca como "cubriendo EVENING" a las 14:30 — su turno no inicia hasta
  * las 18:00.
  */
-export function compatibleShiftTypesAt(at?: Date): ShiftT[] {
-    const astFmt = new Intl.DateTimeFormat('en-US', {
-        hour: 'numeric', hour12: false, timeZone: 'America/Puerto_Rico',
-    });
-    const hAst = parseInt(astFmt.format(at ?? new Date()), 10) % 24;
-    const out: ShiftT[] = [];
-    if (hAst >= 6 && hAst < 14)  out.push('MORNING');
-    if (hAst >= 14 && hAst < 22) out.push('EVENING');
-    if (hAst >= 22 || hAst < 6)  out.push('NIGHT');
-    if (hAst >= 6 && hAst < 18)  out.push('FULL_DAY');
-    if (hAst >= 18 || hAst < 6)  out.push('FULL_NIGHT');
-    return out;
-}
+// Vive en src/lib/ventanas-de-turno.ts desde el 21-sep-2026, junto a
+// `tiposQueCubren` y a la tabla de ventanas de la que salen las dos. Se
+// re-exporta para no tocar a sus llamadores (shift-closure-report y los de
+// abajo). El motivo de la mudanza: la regla estaba aquí, en un fichero que
+// importa prisma, y el constructor de horarios —que es cliente— no podía
+// usarla. Por eso llevaba su propia copia, y su copia estaba mal.
+export { compatibleShiftTypesAt };
 
 // ════════════════════════════════════════════════════════════════════════════
 // CONSOLIDATED COLOR RESOLVER — el chokepoint canónico

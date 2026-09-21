@@ -6,6 +6,7 @@ import { Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Send, Clock, User, P
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import SchedulePrintView from "@/components/hr/SchedulePrintView";
+import { tiposQueCubren, TIPOS_QUE_CUBREN, type FranjaT } from '@/lib/ventanas-de-turno';
 
 const SHIFT_LABELS: Record<string, string> = {
     MORNING:        "Diurno 6AM–2PM",
@@ -91,8 +92,15 @@ const TECLA_COLOR: Record<string, string> = {
  */
 const COLORES_CON_RESIDENTES = ['RED', 'YELLOW', 'BLUE'];
 
-/** Los turnos que necesitan cobertura de color. Un día libre no cubre nada. */
-const TURNOS_QUE_CUBREN = ['MORNING', 'EVENING', 'NIGHT', 'FULL_DAY', 'FULL_NIGHT'];
+/** Las tres franjas en que se piensa un día. Los turnos largos pisan varias. */
+const FRANJAS: FranjaT[] = ['MORNING', 'EVENING', 'NIGHT'];
+
+/**
+ * Los turnos que necesitan cobertura de color. Un día libre no cubre nada.
+ * Sale de src/lib/ventanas-de-turno.ts, que es donde vive la tabla de horas —
+ * esta constante era una copia y las copias se desincronizan.
+ */
+const TURNOS_QUE_CUBREN = TIPOS_QUE_CUBREN;
 
 const NOMBRE_COLOR: Record<string, string> = {
     RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde', ALL: 'Todos',
@@ -384,12 +392,25 @@ export default function ScheduleBuilderPage() {
         const huecos: { fecha: string; dia: string; turno: string; faltan: string[] }[] = [];
         for (const d of weekDays) {
             const fecha = d.toISOString().split('T')[0];
-            for (const turno of ['MORNING', 'EVENING', 'NIGHT']) {
+            for (const turno of FRANJAS) {
+                /**
+                 * LOS TURNOS LARGOS CUENTAN PARA LAS FRANJAS QUE DE VERDAD PISAN.
+                 *
+                 * Esto era un mapa escrito a mano que decía FULL_DAY→MORNING y
+                 * FULL_NIGHT→NIGHT, y **dejaba EVENING sin ninguno de los dos**.
+                 * Pero FULL_DAY va de 6 a 18, así que cubre la primera mitad de
+                 * la tarde, y FULL_NIGHT va de 18 a 6, así que cubre la
+                 * segunda. Un día armado con los dos turnos largos no tiene un
+                 * solo minuto descubierto — y el constructor lo pintaba con un
+                 * hueco en la tarde, todos los días.
+                 *
+                 * Ahora sale de `tiposQueCubren`, la misma tabla que usa la
+                 * cobertura del servidor. Antes había tres copias de esta regla
+                 * y las tres decían cosas distintas.
+                 */
+                const cubren = tiposQueCubren(turno);
                 const delTurno = shifts.filter(s =>
-                    s.date === fecha
-                    && (s.shiftType === turno
-                        || (turno === 'MORNING' && s.shiftType === 'FULL_DAY')
-                        || (turno === 'NIGHT' && s.shiftType === 'FULL_NIGHT')));
+                    s.date === fecha && cubren.includes(s.shiftType as any));
                 if (delTurno.length === 0) continue; // nadie trabaja: no hay hueco que llenar
                 const cubiertos = new Set(delTurno.flatMap(s =>
                     s.colorGroup === 'ALL' ? COLORES_CON_RESIDENTES : (s.colorGroup ? [s.colorGroup] : [])));
@@ -423,13 +444,15 @@ export default function ScheduleBuilderPage() {
             const copia = [...prev];
             for (const d of weekDays) {
                 const fecha = d.toISOString().split('T')[0];
-                for (const turno of ['MORNING', 'EVENING', 'NIGHT']) {
+                for (const turno of FRANJAS) {
+                    // Mismo solape real que en `huecosDeColor`. Sin esto, el
+                    // reparto automático no le daba color a nadie en la tarde
+                    // de un día cubierto con turnos largos: creía que no había
+                    // a quién dárselo.
+                    const cubren = tiposQueCubren(turno);
                     const idx = copia
                         .map((s, i) => ({ s, i }))
-                        .filter(({ s }) => s.date === fecha
-                            && (s.shiftType === turno
-                                || (turno === 'MORNING' && s.shiftType === 'FULL_DAY')
-                                || (turno === 'NIGHT' && s.shiftType === 'FULL_NIGHT')));
+                        .filter(({ s }) => s.date === fecha && cubren.includes(s.shiftType as any));
                     if (idx.length === 0) continue;
 
                     const yaPuestos = new Set(idx
