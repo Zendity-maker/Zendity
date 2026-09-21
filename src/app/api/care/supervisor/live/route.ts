@@ -66,6 +66,31 @@ export async function GET(req: Request) {
         const todayStart = todayStartAST();
         const twelveHrsAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
         const fourteenHrsAgo = new Date(Date.now() - 14 * 60 * 60 * 1000);
+
+        /**
+         * LOS TRES ÚLTIMOS TURNOS — no "hoy".
+         *
+         * La tarjeta de relevos acotaba con `createdAt >= todayStart`, el corte
+         * de las 6:00 AM AST. Pero el turno de noche entrega ANTES de esa hora:
+         * medido en 30 días, 36 relevos se firmaron entre medianoche y las 6 AM,
+         * los 36 etiquetados NIGHT, repartidos en 24 días distintos.
+         *
+         * Por la definición de día clínico de este repo esos relevos pertenecen
+         * al día de AYER, así que a las 6:01 desaparecían de la tarjeta. El
+         * supervisor que entra por la mañana no veía nunca lo que le acababa de
+         * entregar la noche — y peor: la tarjeta podía decir "Día completo, todos
+         * los handovers están firmados por ti" con los de la noche sin firmar y
+         * fuera de la vista.
+         *
+         * El arreglo no es redefinir "hoy": es que la tarjeta deje de contar días
+         * y pase a contar TURNOS. Lo que un supervisor necesita ver al entrar son
+         * los tres turnos del ciclo, el suyo incluido, sin importar en qué lado
+         * de las 6 AM cayeron.
+         *
+         * 26 horas = tres turnos de 8 más dos de margen para cierres tardíos.
+         * Cubre el ciclo completo y nunca alcanza el mismo turno de antes de ayer.
+         */
+        const tresTurnosAtras = new Date(Date.now() - 26 * 60 * 60 * 1000);
         const twentyFourHrsAgo = new Date(Date.now() - 24 * 3600000);
 
         /**
@@ -232,7 +257,7 @@ export async function GET(req: Request) {
             // ── Sprint K #18 + Sprint L: Handovers individuales de cuidadores hoy
             // (isDailyPrologue=false para excluir el prólogo del cron; incluye colorGroups y notas)
             prisma.shiftHandover.findMany({
-                where: { headquartersId: hqId, createdAt: { gte: todayStart }, isDailyPrologue: false, signature: { not: null } },
+                where: { headquartersId: hqId, createdAt: { gte: tresTurnosAtras }, isDailyPrologue: false, signature: { not: null } },
                 include: {
                     outgoingNurse: { select: { id: true, name: true } },
                     incomingNurse: { select: { id: true, name: true } },

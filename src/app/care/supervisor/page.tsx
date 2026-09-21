@@ -1929,6 +1929,87 @@ export default function SupervisorMissionControlPage() {
                     };
                     const shiftIcon = (s: string) => s === 'MORNING' ? '☀️' : s === 'EVENING' ? '🌆' : '🌙';
 
+                    /**
+                     * EL PARTE DE LOS TRES ÚLTIMOS TURNOS — y los huecos con nombre.
+                     *
+                     * Andrés, 20-sep-2026: "la cadena formal de tres turnos debiera
+                     * existir aunque no tenga el flujo... una cosa no debe depender
+                     * de que otra se haga. Que se haga lo posible y que así se maneje
+                     * hasta que pueda estar el panorama perfecto."
+                     *
+                     * Esta tarjeta ya listaba los relevos, pero agrupados POR ESTADO
+                     * —pendientes de firma, firmados, brechas—. Un turno entero sin
+                     * entregas no aparecía en ninguna de las tres listas: simplemente
+                     * no estaba, y eso se lee igual que "no pasó nada". Aquí los tres
+                     * salen SIEMPRE, con lo que dejó cada uno o con el hueco dicho.
+                     *
+                     * SON LOS TRES ÚLTIMOS TURNOS, NO LOS TRES DE HOY. La diferencia
+                     * importa y la primera versión de esto la tuvo mal: a las 7 de la
+                     * mañana pintaba la fila "Tarde" como "todavía no empieza" y al
+                     * mismo tiempo le colgaba la entrega de AYER por la tarde, que sí
+                     * está dentro de la ventana. Contando hacia atrás desde el turno
+                     * que corre ahora, cada fila es un turno concreto con su fecha, y
+                     * "por venir" deja de existir: o está corriendo, o ya terminó.
+                     */
+                    const VENTANAS_DE_TURNO = [
+                        { tipo: 'MORNING', nombre: 'Mañana', desde: 6, hasta: 14 },
+                        { tipo: 'EVENING', nombre: 'Tarde', desde: 14, hasta: 22 },
+                        { tipo: 'NIGHT', nombre: 'Noche', desde: 22, hasta: 6 },
+                    ];
+                    const ahoraAST = new Date(
+                        new Date().toLocaleString('en-US', { timeZone: 'America/Puerto_Rico' }),
+                    );
+                    const horaAST = ahoraAST.getHours();
+
+                    /*
+                        Se calcula el INSTANTE en que empezó el turno que corre ahora, y
+                        los otros dos se sacan restando 8 horas. Nada de contar días a
+                        mano: la primera versión lo hacía con un setDate condicional y
+                        salía mal en 16 de las 24 horas —los turnos quedaban separados
+                        por días enteros en vez de por ocho horas—. Restar milisegundos
+                        no se puede desalinear, y el tipo de cada turno se deduce de la
+                        hora de su propio inicio, que siempre cae en 6, 14 o 22.
+                        (Puerto Rico no cambia la hora, así que restar 8h y restar un
+                        bloque de turno son lo mismo todo el año.)
+                    */
+                    const vCorriendo = VENTANAS_DE_TURNO.find(v =>
+                        v.desde < v.hasta
+                            ? (horaAST >= v.desde && horaAST < v.hasta)
+                            : (horaAST >= v.desde || horaAST < v.hasta),
+                    )!;
+                    const inicioActual = new Date(ahoraAST);
+                    inicioActual.setHours(vCorriendo.desde, 0, 0, 0);
+                    if (inicioActual > ahoraAST) inicioActual.setDate(inicioActual.getDate() - 1);
+
+                    const soloElDia = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+                    const parteDeTurnos = [16, 8, 0].map(horasAtras => {
+                        const inicio = new Date(inicioActual.getTime() - horasAtras * 60 * 60 * 1000);
+                        const fin = new Date(inicio.getTime() + 8 * 60 * 60 * 1000);
+                        const v = VENTANAS_DE_TURNO.find(w => w.desde === inicio.getHours()) ?? vCorriendo;
+                        const dias = Math.round((soloElDia(ahoraAST) - soloElDia(inicio)) / 86400000);
+
+                        const suyos = handoversFeed.filter((h: HandoverFeedItem) => {
+                            const encaja = h.shiftType === v.tipo
+                                || (v.tipo === 'MORNING' && h.shiftType === 'FULL_DAY')
+                                || (v.tipo === 'EVENING' && h.shiftType === 'FULL_NIGHT');
+                            if (!encaja) return false;
+                            // El mismo tipo de turno cabe dos veces en la ventana de 26h:
+                            // la entrega tiene que pertenecer a ESTE, no al de ayer.
+                            const cuando = new Date(h.createdAt);
+                            return cuando >= inicio && cuando < new Date(fin.getTime() + 2 * 60 * 60 * 1000);
+                        });
+                        const colores = Array.from(new Set(suyos.flatMap((h: HandoverFeedItem) => h.colorGroups || [])));
+                        const sinFirmar = suyos.filter((h: HandoverFeedItem) => h.derivedStatus !== 'SUPERVISOR_SIGNED').length;
+                        return {
+                            ...v,
+                            cuando: dias === 0 ? 'hoy' : dias === 1 ? 'ayer' : `hace ${dias} días`,
+                            corriendo: horasAtras === 0,
+                            entregas: suyos.length,
+                            colores,
+                            sinFirmar,
+                        };
+                    });
+
                     return (
                         <div className={`rounded-[2.5rem] p-7 shadow-sm border ${allCleared ? 'bg-emerald-50/40 border-emerald-200' : 'bg-white border-slate-200'}`}>
                             <div className="flex justify-between items-center mb-5 flex-wrap gap-3">
@@ -1953,6 +2034,53 @@ export default function SupervisorMissionControlPage() {
                                         </span>
                                     )}
                                 </div>
+                            </div>
+
+                            {/* ── EL PARTE DE LOS TRES TURNOS ── */}
+                            <div className="mb-5 rounded-[1.5rem] border border-slate-200 bg-slate-50/70 overflow-hidden">
+                                <p className="px-5 pt-4 pb-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                    Los tres últimos turnos
+                                </p>
+                                <div className="divide-y divide-slate-200">
+                                    {parteDeTurnos.map(t => (
+                                        <div key={t.tipo} className="flex items-center gap-4 px-5 py-3">
+                                            <span className="text-lg shrink-0">{shiftIcon(t.tipo)}</span>
+                                            <div className="w-28 shrink-0">
+                                                <p className="text-sm font-black text-slate-800">{t.nombre}</p>
+                                                <p className="text-[10px] text-slate-400 font-bold tabular-nums">
+                                                    {t.cuando} · {String(t.desde).padStart(2, '0')}:00–{String(t.hasta).padStart(2, '0')}:00
+                                                </p>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                {t.entregas > 0 ? (
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <span className="text-sm font-bold text-slate-700">
+                                                            {t.entregas} entrega{t.entregas !== 1 ? 's' : ''}
+                                                        </span>
+                                                        {t.colores.map(c => (
+                                                            <span key={c} className={`w-2.5 h-2.5 rounded-full ${COLOR_BADGES[c]?.split(' ')[0] || 'bg-slate-300'}`} title={c} />
+                                                        ))}
+                                                        {t.sinFirmar > 0 && (
+                                                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded-lg">
+                                                                {t.sinFirmar} sin tu firma
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                ) : t.corriendo ? (
+                                                    <span className="text-sm text-slate-500 font-medium">En curso — todavía puede entregar</span>
+                                                ) : (
+                                                    <span className="text-sm font-bold text-rose-700">
+                                                        Terminó sin que nadie entregara
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <p className="px-5 pb-4 pt-1 text-[11px] text-slate-400 leading-snug">
+                                    Un turno sin entregas no significa que no pasara nada: significa que nadie lo
+                                    escribió. Aquí se distingue del que todavía no ha empezado.
+                                </p>
                             </div>
 
                             {/* Vista "Día completo" cuando no hay pendientes ni brechas */}
