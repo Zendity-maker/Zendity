@@ -59,7 +59,28 @@ const RUTA_INGRESO: Record<string, string[]> = {
      */
     CAREGIVER: ['Acceso y Roles en Zendity', 'El Cuidador en Zendity', 'eMAR: Administracion Electronica', 'Protocolo de Respuesta a Caidas'],
     NURSE: ['Acceso y Roles en Zendity', 'La Enfermera en Zendity', 'eMAR: Administracion Electronica', 'Protocolo de Respuesta a Caidas'],
-    SUPERVISOR: ['Acceso y Roles en Zendity', 'El Supervisor en Zendity', 'Handover de Enfermeria', 'Protocolo de Respuesta a Caidas'],
+    /**
+     * SUPERVISOR lleva SEIS, y son los que más falta hacen.
+     *
+     * 'Dirigir el turno' y 'Criterio y escalacion' se sembraron el 21-sep-2026
+     * y son literalmente el oficio: abrir el turno y repartir el personal el
+     * primero, qué decides tú y qué escalas el segundo. Un supervisor nuevo
+     * recibía los cuatro de siempre y ninguno de estos dos.
+     *
+     * Seis son ~3 h de contenido y la ruta de ingreso se piensa "para un par de
+     * días". Se aceptan los seis igual: lo que enseñan no es opcional para
+     * quien va a llevar un turno solo, y el orden de la lista es el orden en
+     * que se leen — 'Acceso y Roles' primero, 'Criterio y escalacion' al final,
+     * que es el que pide haber visto el resto.
+     */
+    SUPERVISOR: ['Acceso y Roles en Zendity', 'El Supervisor en Zendity', 'Dirigir el turno', 'Handover de Enfermeria', 'Protocolo de Respuesta a Caidas', 'Criterio y escala'],
+    //                                                        ↑ SIN la tilde final, y no es un descuido:
+    // `buscarCurso` usa `contains` con `mode: 'insensitive'`, que en Postgres
+    // ignora mayúsculas pero NO tildes. El título real es "Criterio y
+    // escalación"; el fragmento "Criterio y escalacion" no habría encontrado
+    // nada y se habría asignado en silencio un curso menos. Se corta antes de
+    // la vocal acentuada. Los demás fragmentos de este fichero no lo sufren
+    // porque los títulos viejos van sin tildes.
     DIRECTOR: ['Acceso y Roles en Zendity', 'El Director en Zendity'],
     ADMIN: ['Acceso y Roles en Zendity', 'El Administrador en Zendity'],
     CLEANING: ['Acceso y Roles en Zendity', 'Limpieza y Sanitizacion'],
@@ -195,10 +216,11 @@ export async function asignarRutaIngreso(opts: {
     try {
         const fragmentos = RUTA_INGRESO[opts.role] ?? RUTA_INGRESO.CAREGIVER;
         let creadas = 0;
+        const noEncontrados: string[] = [];
 
         for (const fragmento of fragmentos) {
             const curso = await buscarCurso(opts.hqId, fragmento);
-            if (!curso) continue;
+            if (!curso) { noEncontrados.push(fragmento); continue; }
 
             const existente = await prisma.academyAssignment.findFirst({
                 where: { userId: opts.userId, moduleCode: curso.id },
@@ -218,6 +240,36 @@ export async function asignarRutaIngreso(opts: {
                 },
             });
             creadas++;
+        }
+
+        /**
+         * UN CERO AQUÍ NO PUEDE SER SILENCIOSO.
+         *
+         * `buscarCurso` busca por fragmento de título DENTRO DE LA SEDE, y si
+         * no encuentra nada sigue adelante sin decir nada. Para un incidente
+         * eso está bien —no vale romper el flujo por un curso que falta—, pero
+         * para un alta significa que alguien entra a trabajar sin su formación
+         * y nadie se entera.
+         *
+         * Ya pasó, y no en un caso raro: la cuenta de dirección de Mayagüez se
+         * creó el 03-sep-2026 y el primer curso de esa sede no existió hasta el
+         * 11-sep, OCHO DÍAS DESPUÉS. La sede no tenía ni un curso, así que los
+         * seis fragmentos fallaron, se asignaron CERO y no lo supo nadie. Sigue
+         * con cero hoy.
+         *
+         * Y se va a repetir: abrir una sede nueva y crear a su director antes
+         * de sembrarle los cursos es exactamente el orden natural de hacerlo.
+         *
+         * No se lanza — un alta no se revierte porque falte formación — pero
+         * queda en el log con los nombres, y el llamador recibe la lista para
+         * poder decírselo a quien está dando el alta.
+         */
+        if (noEncontrados.length > 0) {
+            logError('academy.assign.onboarding.sinCurso', new Error(
+                `Sede ${opts.hqId}: no existen ${noEncontrados.length} de ${fragmentos.length} cursos de la ` +
+                `ruta de ${opts.role} — ${noEncontrados.join(' · ')}. ` +
+                `El empleado ${opts.userId} se queda sin esa formación.`,
+            ));
         }
 
         if (creadas > 0) {
