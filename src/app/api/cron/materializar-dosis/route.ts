@@ -60,37 +60,24 @@ export const revalidate = 0;
  * igual el resto del día. Red de seguridad, no duplicado.
  */
 /**
- * ⚠ DESPROGRAMADO EL 21-sep-2026, EL MISMO DÍA, ANTES DE SU PRIMERA CORRIDA.
+ * ⚠ ESTUVO DESPROGRAMADO UNAS HORAS EL 21-sep-2026, Y POR QUÉ IMPORTA SABERLO.
  *
- * La ruta se queda; la entrada de vercel.json se quitó. Motivo: una revisión
- * adversarial del cambio encontró que adelantar la creación de las filas a las
- * 04:00 APAGA EL eMAR DE TODAS LAS PANTALLAS DE "HOY".
+ * Al crearlo, una revisión adversarial encontró que adelantar la creación de
+ * las filas APAGABA el eMAR de todas las pantallas de "hoy": siete sitios
+ * acotaban el día con `createdAt >= todayStartAST()` —las 06:00 AST— y las
+ * filas entraban en esa ventana por TREINTA Y SIETE SEGUNDOS. Creadas a las
+ * 04:00 quedaban fuera el día entero. Medido: 271 filas visibles → 0.
  *
- * Siete sitios acotan el eMAR del día con `createdAt >= todayStartAST()`, y
- * `todayStartAST()` son las 06:00 AST. Las filas nacían a las 06:00:0x y
- * entraban en la ventana POR TREINTA Y SIETE SEGUNDOS. Creadas a las 04:00
- * quedan fuera el día entero — y nada vuelve a tocar `createdAt` después, ni el
- * upsert de la segunda pasada (`update: {}`) ni la firma (un `updateMany` que
- * no lo incluye).
+ * Se desprogramó el mismo día, antes de su primera corrida, y se reactivó
+ * cuando esas siete lecturas pasaron a anclarse a la FECHA DE LA DOSIS
+ * (src/lib/emar-dia.ts). Comprobado después del cambio: con el ancla nueva se
+ * ven las 271 del día **corra el cron a la hora que corra**.
  *
- * Medido simulando las filas reales: 270 de 273 visibles el 20-sep → 0.
- * 262 de 271 hoy → 0. Se quedarían en blanco la pizarra de la pared, el panel
- * del supervisor ("6 sin dar de 271" → "0 de 0"), facility-health y el portal
- * de la familia, que volvería al "—" que se arregló el 11-sep.
- *
- * O sea: el arreglo era peor que el fallo. Mejor romper el ritmo que romper
- * producción.
- *
- * QUÉ FALTA PARA REACTIVARLO: anclar esas siete lecturas al DÍA DE CALENDARIO
- * AST de `scheduledTime` (`fechaCalendarioAST()`), que es el mismo día con el
- * que `materializarDosisDelDia` construye la fila — lector y escritor usando la
- * misma definición de día. `createdAt` dejó de servir para esto el 15-sep, en
- * cuanto la fila pasó a nacer ANTES del acto; de hecho ya se pierden 3-9 filas
- * al día por esto, las que firma la tableta de madrugada. El `where` tiene que
- * llevar un OR para las filas sin `scheduledTime` (los PRN nunca lo llevan).
- *
- * Mientras tanto el pack de las 5:00 AM sigue naciendo tarde. Es el fallo
- * conocido y medido, y lleva así desde el 15-sep: una noche más no lo empeora.
+ * La lección, que es la que hay que conservar: la hora a la que se escribe y la
+ * ventana con la que se lee eran la misma cosa sin que nadie lo hubiera
+ * decidido. Mientras el lector se anclaba a `createdAt`, mover este cron —un
+ * minuto o dos horas— rompía cuatro pantallas. Ahora no: lector y escritor usan
+ * la misma definición de día.
  */
 export async function GET(req: Request) {
     const denied = requireCronSecret(req);

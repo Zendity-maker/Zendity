@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
 import { todayStartAST } from '@/lib/dates';
+import { eMARdeHoy } from '@/lib/emar-dia';
 import {
     resolveShareLevel,
     sanitizeClinical,
@@ -135,20 +136,36 @@ export async function GET(req: Request) {
         const [totalToday, omitsToday] = await Promise.all([
             prisma.medicationAdministration.count({
                 where: {
-                    // `scheduledTime` esta NULO en las 7.018 administraciones de
-                    // los ultimos 30 dias: el campo se diseño ("FASE eMAR
-                    // Integral") y nunca se llena. Filtrar solo por el devolvia
-                    // CERO filas siempre, asi que `medsOnTrack` se quedaba en
-                    // null todos los dias y la familia nunca veia el estado de
-                    // los medicamentos. `createdAt` siempre tiene valor.
+                    /**
+                     * ESTE FILTRO YA FALLÓ DOS VECES, EN SENTIDOS OPUESTOS.
+                     *
+                     * Primero acotaba solo por `scheduledTime`, que entonces
+                     * estaba nulo SIEMPRE: devolvía cero filas, `medsOnTrack`
+                     * se quedaba en null y la familia no veía nunca el estado
+                     * de los medicamentos.
+                     *
+                     * Se cambió a `createdAt`, que siempre tiene valor — y eso
+                     * fue correcto mientras la fila nacía al firmar. Dejó de
+                     * serlo el 15-sep, cuando el cron empezó a crearlas antes
+                     * del acto: desde entonces se pierde lo que la tableta
+                     * firma de madrugada.
+                     *
+                     * Ahora va por la FECHA DE LA DOSIS, que es el dato que
+                     * responde la pregunta ("¿cómo van los medicamentos de hoy
+                     * de mi madre?") y no depende de a qué hora corra un cron.
+                     * Y `scheduledTime` ya no es nulo: lo llena el cron desde
+                     * el 15-sep. Ver src/lib/emar-dia.ts.
+                     */
                     patientMedication: { patientId: resident.id },
-                    createdAt: { gte: clinicalDayStart },
+                    // Por la FECHA DE LA DOSIS. Ver src/lib/emar-dia.ts.
+                    ...eMARdeHoy(),
                 },
             }),
             prisma.medicationAdministration.count({
                 where: {
                     patientMedication: { patientId: resident.id },
-                    createdAt: { gte: clinicalDayStart },
+                    // Por la FECHA DE LA DOSIS. Ver src/lib/emar-dia.ts.
+                    ...eMARdeHoy(),
                     status: { in: ['OMITTED', 'MISSED', 'REFUSED'] },
                 },
             }),

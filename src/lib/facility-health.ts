@@ -49,6 +49,7 @@
 import { prisma } from '@/lib/prisma';
 import { todayStartAST } from '@/lib/dates';
 import { enrolledResidentsWhere } from '@/lib/billable-residents';
+import { eMARdeHoy } from '@/lib/emar-dia';
 
 export interface FacilityHealthBreakdown {
     /** Residentes matriculados (ACTIVE + TEMPORARY_LEAVE). 0 = no hay nada que medir. */
@@ -166,7 +167,8 @@ export async function calculateFacilityHealthScore(hqId: string): Promise<Facili
             where: {
                 patientMedication: { patient: { headquartersId: hqId } },
                 status: 'ADMINISTERED',
-                createdAt: { gte: todayStart },
+                // Por la FECHA DE LA DOSIS, no por la de escritura. Ver src/lib/emar-dia.ts.
+                ...eMARdeHoy(),
             },
         }),
         // Total de meds registrados hoy (administrados + omitidos)
@@ -174,7 +176,8 @@ export async function calculateFacilityHealthScore(hqId: string): Promise<Facili
             where: {
                 patientMedication: { patient: { headquartersId: hqId } },
                 status: { in: ['ADMINISTERED', 'OMITTED'] },
-                createdAt: { gte: todayStart },
+                // Por la FECHA DE LA DOSIS, no por la de escritura. Ver src/lib/emar-dia.ts.
+                ...eMARdeHoy(),
             },
         }),
     ]);

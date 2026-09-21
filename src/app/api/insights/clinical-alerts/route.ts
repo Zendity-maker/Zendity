@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { todayStartAST } from '@/lib/dates';
 import { aFahrenheit } from '@/lib/vitals-thresholds';
+import { eMARdeHoy } from '@/lib/emar-dia';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,7 +58,8 @@ export async function GET() {
             prisma.medicationAdministration.count({
                 where: {
                     status: 'OMITTED',
-                    createdAt: { gte: todayStart },
+                    // Por la FECHA DE LA DOSIS. Ver src/lib/emar-dia.ts.
+                    ...eMARdeHoy(),
                     patientMedication: { patient: { headquartersId: hqId } },
                 },
             }),

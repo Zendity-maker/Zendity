@@ -8,6 +8,7 @@ import { satisfaccion } from '@/lib/encuesta-familia';
 import { formacionDeEquipo } from '@/lib/formacion';
 import { enrolledResidentsWhere } from '@/lib/billable-residents';
 import { todayStartAST } from '@/lib/dates';
+import { eMARentre } from '@/lib/emar-dia';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -138,7 +139,8 @@ export async function GET(req: Request) {
                 by: ['status'],
                 where: {
                     patientMedication: { patient: { headquartersId: hqId } },
-                    createdAt: { gte: periodStart, lte: periodEnd },
+                    // Por la FECHA DE LA DOSIS. Ver src/lib/emar-dia.ts.
+                    ...eMARentre(periodStart, periodEnd, true),
                 },
                 _count: { _all: true },
             }),

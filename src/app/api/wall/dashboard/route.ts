@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { todayStartAST, fechaCalendarioAST } from '@/lib/dates';
 import { ULCERA_ABIERTA } from '@/lib/upp';
 import { requireWallViewer } from '@/lib/wall-auth';
+import { eMARdeHoy } from '@/lib/emar-dia';
 
 /**
  * LA PARED DEL PISO — lo que falta en este turno.
@@ -73,7 +74,10 @@ async function wallHandler(req: Request) {
         const [dosisDelDia, residentes, heridas, señalamientos, menu, hq] = await Promise.all([
             prisma.medicationAdministration.findMany({
                 where: {
-                    createdAt: { gte: inicioDelDia },
+                    // Por la FECHA DE LA DOSIS, no por la de escritura. El comentario de
+                    // arriba decía que la ronda de las 5:00 entra aunque se firme a las
+                    // 04:4x, y era falso desde el 15-sep. Ver src/lib/emar-dia.ts.
+                    ...eMARdeHoy(),
                     patientMedication: { patient: { headquartersId, status: 'ACTIVE' } },
                 },
                 select: {

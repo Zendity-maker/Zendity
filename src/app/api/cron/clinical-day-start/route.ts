@@ -5,6 +5,7 @@ import { todayStartAST } from '@/lib/dates';
 import OpenAI from 'openai';
 import { requireCronSecret } from '@/lib/cron-auth';
 import { aFahrenheit } from '@/lib/vitals-thresholds';
+import { eMARentre } from '@/lib/emar-dia';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -105,7 +106,10 @@ export async function GET(req: Request) {
             const omittedMeds = await prisma.medicationAdministration.findMany({
                 where: {
                     patientMedication: { patient: { id: { in: patientIds }, status: 'ACTIVE' } },
-                    createdAt: { gte: clinicalDayStart, lt: clinicalDayEnd },
+                    // Por la FECHA DE LA DOSIS. Con `createdAt` el prólogo perdía las
+                    // filas de su propia ventana en cuanto el cron cambiaba de hora, y
+                    // habría dicho "cero omisiones" todos los días. Ver src/lib/emar-dia.ts.
+                    ...eMARentre(clinicalDayStart, clinicalDayEnd),
                     status: { in: ['MISSED', 'REFUSED', 'OMITTED', 'HELD'] }
                 },
                 include: {

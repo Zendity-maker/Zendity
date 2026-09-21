@@ -7,6 +7,7 @@ import { authOptions } from '@/lib/auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { logError } from '@/lib/logger';
 import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
+import { eMARdeHoy } from '@/lib/emar-dia';
 
 const SUPERVISOR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
@@ -288,7 +289,8 @@ export async function GET(req: Request) {
                 by: ['status'],
                 where: {
                     patientMedication: { patient: { headquartersId: hqId, status: 'ACTIVE' } },
-                    createdAt: { gte: todayStart },
+                    // Por la FECHA DE LA DOSIS, no por la de escritura. Ver src/lib/emar-dia.ts.
+                    ...eMARdeHoy(),
                 },
                 _count: { status: true },
             }),
