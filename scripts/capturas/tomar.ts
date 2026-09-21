@@ -302,6 +302,79 @@ const TOMAS: Toma[] = [
     //   La recomendacion de Zendi con su motivo real ('El mes pasado atendiste 3 caidas') y el contador de formacion del ano 3/4 (1376x131).
     { nombre: "academy-cuadernillo-indice", ruta: '/capturas/academy-curso', ancho: 1100, alto: 900, esperar: "text=Plan de estudios", clics: ["button:has-text(\"Comenzar\") >> nth=0"] },
     //   Lo que pasa al pulsar Comenzar: la portada del cuadernillo a pantalla completa con la categoria, el titulo, el indice REAL de las cinco secciones con 
+    // ═══ ACADEMY — cursos de supervisor (21-sep-2026) ═══════════════════════
+    // Las cinco pantallas que los dos cursos nuevos —"Dirigir el turno" y
+    // "Criterio y escalacion"— necesitan y que hasta ahora no tenian foto.
+
+    // ── /care/supervisor/rounds — Rondas de Inspeccion
+    { nombre: "rondas-inspeccion-panel", ruta: '/capturas/supervisor-inspeccion', ancho: 1400, alto: 1320, esperar: 'div.bg-emerald-950\\/30' },
+    //   La pantalla entera de una ronda a medias: las tres rondas del turno con su hora (9:00, 12:30,
+    //   5:30), los dos pisos, y las cinco zonas del Piso 1 con su checklist. El numero verde en la
+    //   esquina de la Ronda 1 dice 3: son las zonas que YA tienen fila guardada, no criterios cumplidos.
+    //   `esperar` va por CLASE y no por texto A PROPOSITO: los pisos y zonas estan escritos a mano en
+    //   la pantalla y se pintan igual aunque el fixture no llegue. Esperar "text=Comedor" daria por
+    //   buena una foto con todo en gris, que es justo lo que la foto NO debe ensenar.
+    { nombre: "rondas-zona-firmada-y-pendiente", ruta: '/capturas/supervisor-inspeccion', ancho: 1400, alto: 1200, esperar: 'div.bg-emerald-950\\/30', recortar: 'div.space-y-3.mb-6:has(span:has-text("Pasillo Principal"))' },
+    //   Los dos estados de una zona en la misma foto: Habitaciones 1-10, Banos P1 y Comedor en verde
+    //   con su visto, y debajo Recepcion y Pasillo Principal en gris con su pastilla en 0/4 esperando.
+    //   OJO AL PIE: el visto verde solo dice que esa zona ya se mando en esta ronda. NO dice que los
+    //   cuatro criterios pasaran — "Firmar Ronda" manda las cinco zonas del piso, marcadas o no.
+    { nombre: "rondas-checklist-cuatro-criterios", ruta: '/capturas/supervisor-inspeccion', ancho: 1400, alto: 1200, esperar: 'div.bg-slate-800\\/50:has(span:has-text("Recepción")) button.bg-teal-500', recortar: 'div.bg-slate-800\\/50:has(span:has-text("Recepción"))', clics: ['div.bg-slate-800\\/50:has(span:has-text("Recepción")) button:has-text("LIMP")', 'div.bg-slate-800\\/50:has(span:has-text("Recepción")) button:has-text("SEGU")'] },
+    //   Una zona sin firmar por dentro, a medio marcar: LIMP, SEGU, RESI y EQUI se pulsan uno a uno y
+    //   la pastilla pasa de 0/4 gris a 2/4 ambar mientras falte alguno. Esto es lo que hay que hacer
+    //   ANTES de pulsar Firmar Ronda, porque firmar no comprueba nada de esto.
+    //   Los clics van acotados a la zona: "LIMP" aparece cinco veces y el script coge la primera.
+
+    // ── /coordinator/calls — Bitacora de llamadas a familiares
+    { nombre: "bitacora-lista", ruta: '/capturas/care-bitacora', ancho: 1100, alto: 1250, esperar: "text=registrado por", recortar: 'div.max-w-3xl' },
+    //   La bitacora entera: el boton Registrar, el conmutador Historial/Directorio y el dia completo de
+    //   contactos. En las cinco tarjetas se ven a la vez el familiar con su parentesco, si llamamos
+    //   nosotros o llamaron, la fecha y la hora con minutos, la caja azul de Nota y quien lo registro.
+    { nombre: "bitacora-tarjeta", ruta: '/capturas/care-bitacora', ancho: 1100, alto: 900, esperar: "text=registrado por", recortar: 'div.bg-white.rounded-2xl:has-text("Elena Figueroa")' },
+    //   Una tarjeta sola, ampliada para que la nota se lea. Es el modelo de nota que el curso ensena a
+    //   escribir: que se aviso y que quedo pendiente, sin dato clinico.
+    { nombre: "bitacora-sin-respuesta", ruta: '/capturas/care-bitacora', ancho: 1100, alto: 900, esperar: "text=No contestó", recortar: 'div.bg-white.rounded-2xl:has-text("Carmen Delgado")' },
+    //   La llamada que NO se contesto, registrada igual: sin minutos de duracion, y la nota dice para
+    //   que era y que se intenta otra vez. Es el caso que mas se deja sin apuntar — si no se registra,
+    //   el proximo turno repite la llamada sin saber que ya se intento.
+
+    // ── Resumen de Residente (el papel del traslado al hospital)
+    { nombre: "resumen-residente-modal", ruta: '/capturas/resumen-residente', ancho: 1100, alto: 900, esperar: "text=Documento oficial para paramédico y familiar", recortar: 'div.fixed > div.bg-white.rounded-2xl:has(h2:has-text("Resumen de Residente"))' },
+    //   El papel que el supervisor genera cuando un residente sale al hospital: la cabecera, el residente
+    //   con su edad, habitacion y dieta, las alergias en ROJO, el familiar con parentesco y telefono, y
+    //   el boton "Descargar PDF", que es la accion que el curso ensena. Lo que va al hospital es ese PDF.
+    { nombre: "resumen-residente-lo-que-no-lista", ruta: '/capturas/resumen-residente', ancho: 1100, alto: 900, esperar: "text=Documento oficial para paramédico y familiar", recortar: 'div.bg-white.rounded-xl.max-w-2xl:has(p:has-text("ALERGIAS"))' },
+    //   LA TRAMPA QUE EL CURSO TIENE QUE DECIR EN VOZ ALTA: las alergias SI salen escritas y el familiar
+    //   tambien, pero los diagnosticos salen como "3 condiciones" y los medicamentos como "5 activos" —
+    //   el numero, nunca la lista. Quien necesite los nombres tiene que pulsar "Descargar PDF".
+
+    // ── Briefing de inicio de turno (el overlay de briefingMode en /care)
+    { nombre: "briefing-relevo-anterior", ruta: '/capturas/care-briefing', ancho: 1400, alto: 1400, esperar: "text=Relevo de tu turno anterior", recortar: 'div.border-teal-500\\/40:has(h4:has-text("Relevo de tu turno anterior"))', clics: ['button:has-text("AZUL")'] },
+    //   El bloque teal que recibe a quien entra al turno: la hora a la que se cerro el relevo (05:52),
+    //   quien lo entrego (Yarelis Cruz), el texto de la noche cortado y el boton "Ver reporte completo".
+    //   Es lo que el curso pide leer ANTES de tocar nada, y el corte con "…" es parte de la leccion.
+    //   EL CLIC EN AZUL HACE FALTA: el overlay no se pinta al cargar, solo tras tocar un color. Y NO se
+    //   pulsa "Omitir Audio" — para cuando Playwright llegue el boton ya no esta y el clic fallaria.
+    { nombre: "briefing-resumen-visual", ruta: '/capturas/care-briefing', ancho: 1400, alto: 1200, esperar: "text=Relevo de tu turno anterior", clics: ['button:has-text("AZUL")'] },
+    //   La pantalla completa de bienvenida, para situar el bloque teal en lo que la cuidadora ve de
+    //   verdad: arriba el relevo de la noche, debajo el prologo ambar del cron de las 6:00, y los tres
+    //   contadores. Los contadores cuentan los MISMOS tres avisos que los dos textos: la foto sirve para
+    //   ensenar a contrastarlos en vez de creerse el numero solo.
+
+    // ── /care/reports/[id] — el reporte de cierre YA FIRMADO
+    { nombre: "reporte-turno-firmado", ruta: '/capturas/care-reporte/firmado', ancho: 1100, alto: 900, esperar: "text=Firmado por supervisor", recortar: 'div.bg-white.rounded-3xl.p-7:has(h1)' },
+    //   La entrega queda firmada con tu nombre y la hora, y eso SOLO se ve aqui: en el asistente de
+    //   cierre se firma y la pantalla se va. El encabezado del reporte guardado, con Marisol Vega, el
+    //   turno, la hora de cierre, la pastilla verde "Firmado por supervisor" y los colores que cubrio.
+    { nombre: "reporte-turno-cuerpo", ruta: '/capturas/care-reporte/firmado', ancho: 1100, alto: 900, esperar: "text=RESUMEN ZENDI", recortar: 'section.bg-white.rounded-3xl:has-text("RESUMEN ZENDI")' },
+    //   El cuerpo del relevo tal como se lee despues. Ensena para que sirve el "Queda pendiente": la
+    //   curacion del talon de la 208 que no se hizo, por que, y a quien se aviso. Lo que se escribe en
+    //   el cierre es exactamente lo que el supervisor lee al dia siguiente.
+    { nombre: "reporte-turno-sello-supervisor", ruta: '/capturas/care-reporte/firmado', ancho: 1100, alto: 900, esperar: "text=EL SUPERVISOR DEJÓ DICHO", recortar: 'section.bg-emerald-50.rounded-3xl' },
+    //   Lo que pasa despues de firmar: alguien lo leyo y contesto. "Firmado por Ana Rivera" con su hora,
+    //   media hora despues del cierre, y lo que el supervisor hace con cada pendiente.
+    //   LA FOTO NO ENSENA QUIEN ENTRA AL TURNO SIGUIENTE: la pantalla no lo pinta (incomingNurse es
+    //   null siempre). Que el pie del curso no lo prometa.
 ];
 
 async function main() {
