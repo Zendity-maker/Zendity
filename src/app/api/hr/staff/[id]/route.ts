@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { requireRole } from '@/lib/api-auth';
-import { datosAlta, datosBaja } from '@/lib/staff-status';
+import { registrarAlta, registrarBaja } from '@/lib/staff-status';
 
 export const dynamic = 'force-dynamic';
 
@@ -173,14 +173,28 @@ export async function PATCH(
             where: { userId: employeeId, date: { gte: new Date() } },
         });
 
+        let huerfanos = 0;
         await prisma.$transaction(async (tx) => {
             // Las dos banderas se mueven juntas — ver el invariante en
             // src/lib/staff-status.ts. Escribir solo una es lo que dejó a dos
             // cuidadoras "borradas pero activas" durante meses.
-            await tx.user.update({
-                where: { id: employeeId },
-                data: activar ? datosAlta() : datosBaja(),
-            });
+            //
+            // Y va por `registrarBaja`/`registrarAlta`, no por el update pelado:
+            // así queda entrada en la bitacoría de auditoría. Antes no la había
+            // —cero entradas sobre usuarios en toda la historia— y por eso la
+            // FECHA de una baja no estaba escrita en ningún sitio: `User` no
+            // tiene `updatedAt` ni `deletedAt`. Dentro de la misma transacción
+            // a propósito: una baja sin su rastro es media baja.
+            if (activar) {
+                await registrarAlta(tx, {
+                    userId: employeeId, hqId: target.headquartersId!, porQuien: auth.id,
+                });
+            } else {
+                const r = await registrarBaja(tx, {
+                    userId: employeeId, hqId: target.headquartersId!, porQuien: auth.id,
+                });
+                huerfanos = r.turnosFuturosHuerfanos;
+            }
             // Al dar de baja, la sesión abierta se cae en el acto. Sin esto
             // alguien ya autenticado sigue navegando hasta que expire.
             if (!activar) {
@@ -192,9 +206,18 @@ export async function PATCH(
             success: true,
             isActive: activar,
             futureShifts,
+            // `futureShifts` cuenta TODO lo futuro (incluidos los OFF y los
+            // borradores) y ya se devolvía antes. `turnosHuerfanos` es el dato
+            // accionable: turnos de TRABAJO en horario PUBLICADO que se quedan
+            // sin nadie. Joaneliz Rosario dejó cuatro y no se enteró nadie.
+            turnosHuerfanos: huerfanos,
             message: activar
                 ? `${target.name ?? 'El empleado'} fue reactivado.`
-                : `${target.name ?? 'El empleado'} quedó fuera del sistema.`,
+                : huerfanos > 0
+                    ? `${target.name ?? 'El empleado'} quedó fuera del sistema. ` +
+                      `Ojo: le quedan ${huerfanos} turno${huerfanos === 1 ? '' : 's'} de trabajo ` +
+                      `en el horario publicado que ahora no cubre nadie.`
+                    : `${target.name ?? 'El empleado'} quedó fuera del sistema.`,
         });
     } catch (error: any) {
         console.error('Error en baja/reactivación de empleado:', error);

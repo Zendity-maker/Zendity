@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { formacionDe } from '@/lib/formacion';
-import { datosAlta, datosBaja, estaDeBaja } from '@/lib/staff-status';
+import { estaDeBaja, registrarAlta, registrarBaja } from '@/lib/staff-status';
 import { asignarRutaIngreso, asignarRutaCertificacion, requiereCertificacion } from '@/lib/academy-assign';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
@@ -470,30 +470,44 @@ export async function PATCH(request: Request) {
         if (pinCode !== undefined && pinCode !== '') {
             updateData.pinCode = await bcrypt.hash(pinCode, 10);
         }
-        // La baja no es una bandera sola: el invariante del repo es
-        // isDeleted === !isActive (staff-status.ts:33-38), y el login mira LAS
-        // DOS. Escribiendo solo isDeleted, el botón "Restaurar" de
-        // /hr/staff (page.tsx:87) dejaba a la persona con isActive:false —
-        // seguía sin poder entrar y seguía contando como baja, aunque la fila
-        // ya se hubiera movido de pestaña.
-        if (isDeleted !== undefined) Object.assign(updateData, isDeleted ? datosBaja() : datosAlta());
+        // LA BAJA NO ES UNA BANDERA SUELTA, y tampoco un campo más del formulario.
+        //
+        // El invariante del repo es isDeleted === !isActive, y el login mira LAS
+        // DOS: escribiendo solo isDeleted, el botón "Restaurar" de /hr/staff
+        // (page.tsx:87) dejaba a la persona con isActive:false — seguía sin
+        // poder entrar y seguía contando como baja aunque su fila ya se hubiera
+        // movido de pestaña.
+        //
+        // Se saca del `updateData` y se aplica abajo con `registrarBaja` /
+        // `registrarAlta`, los mismos que usan los otros dos caminos, para que
+        // el cambio de estado y su entrada de auditoría vayan en la misma
+        // transacción. Ver el porqué en src/lib/staff-status.ts.
+        const cambiaEstado = isDeleted !== undefined;
         if (isShiftBlocked !== undefined) {
             updateData.isShiftBlocked = isShiftBlocked;
             if (isShiftBlocked) updateData.blockReason = "Management suspension";
             else updateData.blockReason = null;
         }
 
-        const updatedUser = await prisma.user.update({
-            where: { id },
-            data: updateData
+        const updatedUser = await prisma.$transaction(async (tx) => {
+            if (cambiaEstado) {
+                const p = { userId: id, hqId: objetivo.headquartersId!, porQuien: auth.id };
+                if (isDeleted) await registrarBaja(tx, p);
+                else await registrarAlta(tx, p);
+            }
+            return tx.user.update({ where: { id }, data: updateData });
         });
 
-        // Audit trail — non-fatal
+        // Audit trail — non-fatal.
+        //
+        // Si el cambio incluía dar de baja o reactivar, esa entrada YA la
+        // escribió `registrarBaja`/`registrarAlta` dentro de la transacción, y
+        // volver a escribirla aquí dejaría dos filas del mismo acto. Este
+        // `logAudit` se queda para lo demás —cambio de rol, de PIN, suspensión
+        // de turno— que no pasa por aquellos.
         const patchHqId = updatedUser.headquartersId || auth.headquartersId;
-        const auditAction = isShiftBlocked === true ? 'USER_BLOCKED'
-            : isDeleted === true ? 'USER_DELETED'
-            : 'USER_UPDATED';
-        await logAudit({
+        const auditAction = isShiftBlocked === true ? 'USER_BLOCKED' : 'USER_UPDATED';
+        if (!cambiaEstado) await logAudit({
             headquartersId: patchHqId,
             performedById: auth.id,
             action: auditAction,
@@ -537,12 +551,20 @@ export async function DELETE(request: Request) {
 
         // Misma baja que el botón del perfil — un solo concepto, un solo
         // helper. Ver el invariante en src/lib/staff-status.ts.
-        await prisma.user.update({
-            where: { id },
-            data: datosBaja(),
-        });
+        //
+        // Desde el 21-sep va por `registrarBaja`, que además escribe la entrada
+        // de auditoría y cuenta los turnos futuros que quedan sin dueño. Antes,
+        // cerrar una cuenta no dejaba rastro en ninguna parte y sus turnos
+        // seguían en el horario publicado contando como cubiertos.
+        const { turnosFuturosHuerfanos } = await prisma.$transaction(tx =>
+            registrarBaja(tx, {
+                userId: id,
+                hqId: userToDelete.headquartersId!,
+                porQuien: auth.id,
+            }),
+        );
 
-        return NextResponse.json({ success: true }, { status: 200 });
+        return NextResponse.json({ success: true, turnosHuerfanos: turnosFuturosHuerfanos }, { status: 200 });
 
     } catch (error: any) {
         console.error('API Error:', error);

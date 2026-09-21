@@ -208,9 +208,17 @@ export async function estadoOperativo(hqId: string): Promise<EstadoOperativo> {
     //     Eiby Caraballo...). Solo 7 son de personal vigente. Sin este filtro,
     //     arreglar el ancla cambiaba nombres futuros por nombres fantasma: HOY
     //     mismo, 21-sep, la unica linea bajo "ausencias de hoy" habria sido
-    //     Joaneliz Rosario, borrada desde hace meses. Es el anti-patron que ya
-    //     mordio en ulceras, riesgo de caidas, señales de personal y el
+    //     Joaneliz Rosario, cuya cuenta ya esta cerrada. Es el anti-patron que
+    //     ya mordio en ulceras, riesgo de caidas, señales de personal y el
     //     leaderboard del wall.
+    //
+    //     OJO: "ya no trabaja aqui" NO quiere decir "se fue hace tiempo". Una
+    //     version anterior de esta nota decia de Joaneliz "borrada desde hace
+    //     meses" y era falso: cerro su ultimo turno el 20-sep, el dia antes de
+    //     esta medicion, y todavia tiene un turno PAUTADO para el 27-sep. Las
+    //     bajas de esta semana se ven igual que las de mayo porque `User` no
+    //     guarda cuando se dieron: no hay `updatedAt` ni `deletedAt`, y cerrar
+    //     una cuenta no escribe nada en la bitacora de auditoria.
     //
     // Que el numero puede moverse: el 07-sep da 1 (Mariangelie Rivera, activa)
     // y el 06-jul y el 03-jul dan 1 (Neylianne Torres). Hoy da 0 porque de

@@ -188,11 +188,20 @@ export async function construirPantallaDireccion(hqId: string, hqNombre: string)
          * Los dos filtros de abajo son los mismos que le faltaban a la consulta
          * gemela de `estado-operativo.ts`, y aquí fallaban igual. Medido en
          * Cupey el 21-sep-2026: el panel pedía completar CUATRO motivos, y
-         * tres eran de Zuleyka Valcarcel (×2) y Joaneliz Rosario, ambas
-         * inactivas y borradas hace meses. Nadie puede anotar el motivo de una
-         * ausencia de quien ya no trabaja aquí: era trabajo imposible en la
-         * lista de pendientes del director. Queda una, Mariangelie Rivera, que
-         * es real y sí se puede completar. Mayagüez da 0 en los dos casos.
+         * tres eran de Zuleyka Valcarcel (×2) y Joaneliz Rosario, las dos ya
+         * inactivas y borradas. Nadie puede anotar el motivo de una ausencia de
+         * quien ya no trabaja aquí: era trabajo imposible en la lista de
+         * pendientes del director. Queda una, Mariangelie Rivera, que es real y
+         * sí se puede completar. Mayagüez da 0 en los dos casos.
+         *
+         * NO SON BAJAS VIEJAS, y una primera versión de este comentario decía
+         * que sí ("borradas hace meses"). Remedido: Zuleyka cerró su último
+         * turno el 19-sep y Joaneliz el 20-sep — las dos se dieron de baja esta
+         * misma semana. El filtro sigue siendo el correcto (hoy ya no están y
+         * el motivo no se les puede pedir), pero la razón no es la antigüedad:
+         * es que la cuenta está cerrada. Y `User` no tiene `updatedAt` ni
+         * `deletedAt`, así que la fecha de la baja hay que deducirla del último
+         * turno; en la bitácora de auditoría no queda rastro ninguno.
          *
          * `status: 'PUBLISHED'` no cambia el número hoy (las cuatro cuelgan de
          * horarios publicados), pero se pone igual: un borrador es un ensayo
