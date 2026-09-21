@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "schedule": "0 8 * * *",
+      "path": "/api/cron/materializar-dosis"
+    },
+    {
       "path": "/api/cron/clinical-day-start",
       "schedule": "0 10 * * *"
     },

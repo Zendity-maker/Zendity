@@ -191,17 +191,27 @@ export async function materializarDosisDelDia(): Promise<{ creadas: number; omit
     let noProgramables = 0;
 
     /**
-     * EL DÍA DE LA SEMANA, EN HORA DE PUERTO RICO.
+     * EL DÍA DE LA SEMANA, EN HORA DE PUERTO RICO — Y DEL DÍA DE CALENDARIO.
      *
      * `getDay()` a secas lee el reloj local, que en Vercel es UTC: entre las
      * 8 de la noche y la medianoche de aquí, UTC ya está en el día siguiente.
-     * El cron corre a las 6:01 AM así que hoy no muerde, pero un cron que
-     * depende de la hora a la que se le llama es un cron roto esperando.
+     * Un cron que depende de la hora a la que se le llama es un cron roto
+     * esperando — y este dejó de correr solo a las 6:01, así que ya muerde.
      *
-     * `todayStartAST()` devuelve el arranque del día clínico en UTC; su
-     * `getUTCDay()` es el día de la semana de aquí.
+     * ANTES SALÍA DE `todayStartAST()`, el arranque del DÍA CLÍNICO, que son
+     * las 6:00 AM. Y eso es correcto solo si el cron corre después de esa hora.
+     * Desde el 21-sep-2026 hay una pasada a las 04:00 AST —ver
+     * /api/cron/materializar-dosis y el porqué abajo— y a esa hora
+     * `todayStartAST()` todavía devuelve el día clínico de AYER: el alendronato
+     * semanal de los viernes no se habría materializado nunca.
+     *
+     * Lo correcto para materializar es el día de CALENDARIO de `ahora` en hora
+     * de aquí, porque `scheduleTimes` son horas de reloj de un día natural
+     * ("05:00 AM", "08:00 PM"), no posiciones dentro del día clínico. A las
+     * 6:01 las dos formas dan lo mismo; entre medianoche y las 6 no, y la
+     * buena es esta.
      */
-    const diaDeLaSemanaAST = todayStartAST().getUTCDay();
+    const diaDeLaSemanaAST = new Date(ahora.getTime() - 4 * 60 * 60 * 1000).getUTCDay();
 
     for (const pm of meds) {
         if (!pm.scheduleTimes) { omitidas++; continue; }
