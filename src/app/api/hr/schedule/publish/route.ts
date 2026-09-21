@@ -4,6 +4,7 @@ import { asignarPorPrimerTurnoDeNoche } from '@/lib/academy-assign';
 import sgMail from '@sendgrid/mail';
 import { emailLogoSrc } from '@/lib/email-logo';
 import { requireRole } from '@/lib/api-auth';
+import { VENTANA_AST, type ShiftT } from '@/lib/ventanas-de-turno';
 
 // Publicar horarios (y notificar al equipo por email) es operación de gestión.
 const MANAGE_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
@@ -77,6 +78,23 @@ const CARE_ROLES        = ['CAREGIVER', 'NURSE'];
 const SUPERVISOR_ROLES  = ['SUPERVISOR'];
 const NO_COLOR_ROLES    = ['CLEANING', 'ADMIN', 'DIRECTOR', 'INVESTOR'];
 
+/** ¿Estas dos pautas se pisan alguna hora? Ventanas de src/lib/ventanas-de-turno.ts. */
+function seSolapan(a: string, b: string): boolean {
+    const va = VENTANA_AST[a as ShiftT], vb = VENTANA_AST[b as ShiftT];
+    if (!va || !vb) return false;                       // OFF / SUPERVISOR_DAY: no aplica
+    const horas = (v: readonly [number, number]) => {
+        const out = new Set<number>();
+        for (let h = 0; h < 24; h++) {
+            const dentro = v[0] < v[1] ? (h >= v[0] && h < v[1]) : (h >= v[0] || h < v[1]);
+            if (dentro) out.add(h);
+        }
+        return out;
+    };
+    const ha = horas(va);
+    for (const h of horas(vb)) if (ha.has(h)) return true;
+    return false;
+}
+
 function formatDate(dateStr: string) {
     const d = new Date(dateStr);
     return d.toLocaleDateString('es-PR', { weekday: 'long', month: 'long', day: 'numeric' });
@@ -137,6 +155,72 @@ function runValidations(shifts: any[]): { errors: ValidationIssue[]; warnings: V
         }
     }
 
+    /**
+     * REGLA 4 — DOS TURNOS DE LA MISMA PERSONA QUE SE PISAN (error)
+     *
+     * Con las franjas de ocho horas esto casi no podía pasar: MORNING, EVENING
+     * y NIGHT no se solapan entre sí. Con los turnos de doce sí, y mucho: un
+     * FULL_DAY (06–18) y un EVENING (14–22) el mismo día se pisan CUATRO HORAS,
+     * y un FULL_NIGHT (18–06) con un EVENING se pisan otras cuatro.
+     *
+     * Nadie puede estar en dos sitios a la vez, así que un horario así no se
+     * publica: o es un error de tecleo o son horas que alguien va a reclamar.
+     * Es ERROR y no advertencia porque no hay lectura buena de un solape.
+     *
+     * Las horas salen de `src/lib/ventanas-de-turno.ts`, la misma tabla que usa
+     * la cobertura y el constructor. Antes había tres copias de esta regla.
+     */
+    const porPersonaYDia = new Map<string, any[]>();
+    for (const s of workShifts) {
+        const k = `${s.userId}|${new Date(s.date).toDateString()}`;
+        if (!porPersonaYDia.has(k)) porPersonaYDia.set(k, []);
+        porPersonaYDia.get(k)!.push(s);
+    }
+    for (const [, grupo] of porPersonaYDia) {
+        for (let i = 0; i < grupo.length; i++) {
+            for (let j = i + 1; j < grupo.length; j++) {
+                const a = grupo[i], b = grupo[j];
+                if (!seSolapan(a.shiftType, b.shiftType)) continue;
+                errors.push({
+                    type: 'TURNOS_SOLAPADOS',
+                    message: `${a.user?.name ?? 'Empleado'} tiene dos turnos que se pisan el ` +
+                        `${new Date(a.date).toLocaleDateString('es-PR')}: ` +
+                        `${SHIFT_LABELS[a.shiftType] ?? a.shiftType} y ${SHIFT_LABELS[b.shiftType] ?? b.shiftType}. ` +
+                        `Nadie puede estar en dos sitios a la vez.`,
+                    shift: { id: a.id, name: a.user?.name, date: a.date, shiftType: a.shiftType, otro: b.shiftType },
+                });
+            }
+        }
+    }
+
+    /**
+     * REGLA 5 — UN TURNO DE QUIEN YA NO TRABAJA AQUÍ (error)
+     *
+     * Publicar un horario con alguien de baja es publicar un hueco silencioso:
+     * esa persona no puede ni entrar a la aplicación, así que no va a venir, y
+     * el color se queda sin nadie sin que salte ninguna alarma. Medido el
+     * 21-sep-2026: cuatro turnos de trabajo de Joaneliz Rosario seguían en el
+     * horario publicado de esta semana después de cerrarle la cuenta.
+     *
+     * Se bloquea en vez de avisar porque el arreglo es de un clic —reasignar el
+     * turno— y el coste de no hacerlo es un turno sin cubrir.
+     */
+    for (const s of workShifts) {
+        // Un turno YA marcado ausente no bloquea: alguien se dio cuenta y lo
+        // dijo, y la cobertura ya cuenta con que ese hueco existe. Lo que se
+        // bloquea es el turno que todavía AFIRMA que está cubierto.
+        if (s.isAbsent) continue;
+        if (s.user && (s.user.isActive === false || s.user.isDeleted === true)) {
+            errors.push({
+                type: 'EMPLEADO_DE_BAJA',
+                message: `${s.user?.name ?? 'Empleado'} ya no trabaja aquí y tiene turno el ` +
+                    `${new Date(s.date).toLocaleDateString('es-PR')}. Reasígnalo antes de publicar: ` +
+                    `no puede entrar a la aplicación, así que ese grupo se quedaría sin nadie.`,
+                shift: { id: s.id, name: s.user?.name, date: s.date, shiftType: s.shiftType },
+            });
+        }
+    }
+
     // REGLA 3 — Mismo empleado, mismo día, colores distintos (advertencia)
     const byUserDate = new Map<string, any[]>();
     for (const s of workShifts) {
@@ -184,7 +268,7 @@ export async function POST(req: Request) {
         // ── PASO 1: Cargar shifts del borrador para validar ────────────────────
         const shiftsForValidation = await prisma.scheduledShift.findMany({
             where: { scheduleId },
-            include: { user: { select: { id: true, name: true, role: true } } },
+            include: { user: { select: { id: true, name: true, role: true, isActive: true, isDeleted: true } } },
         });
 
         const { errors, warnings } = runValidations(shiftsForValidation);

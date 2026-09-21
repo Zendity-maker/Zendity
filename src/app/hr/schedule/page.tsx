@@ -337,7 +337,23 @@ export default function ScheduleBuilderPage() {
             userName: chosen.name,
             date: date.toISOString().split('T')[0],
             shiftType: 'MORNING',
-            colorGroup: 'GREEN'
+            /**
+             * SIN COLOR, no 'GREEN'.
+             *
+             * Un turno nuevo nacía en el grupo Verde, y **el Verde no tiene ni
+             * un residente** — medido el 21-sep-2026, en las dos sedes: RED 11,
+             * BLUE 11, YELLOW 9, GREEN 0. O sea que cada turno que se añadía y
+             * no se tocaba dejaba a esa persona cuidando a nadie, mientras su
+             * color de verdad salía descubierto. Ya pasó 21 veces en las
+             * últimas 1.156 pautas.
+             *
+             * Y encima se colaba por la validación: `null` es un ERROR que
+             * bloquea la publicación para cuidadoras y enfermeras (REGLA 2 de
+             * api/hr/schedule/publish), mientras que un color real pasa aunque
+             * esté vacío. Dejarlo sin decidir hace que la pantalla lo pinte en
+             * ámbar y que publicar lo exija. Es la salida honesta.
+             */
+            colorGroup: null
         };
         setShifts(prev => [...prev, newShift]);
     };
@@ -1731,6 +1747,13 @@ export default function ScheduleBuilderPage() {
                                     onChange={e => updateShift(sh.tempId, 'userId', e.target.value)}
                                     className="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-2 font-medium text-slate-700 focus:outline-none focus:border-teal-500"
                                 >
+                                    {/* Si quien tiene el turno ya no está en plantilla, su opción
+                                        no existe y el navegador enseña la PRIMERA de la lista — o sea,
+                                        el turno parecería de otra persona. Se añade arriba, marcada,
+                                        para que se vea de quién es y se pueda mover. */}
+                                    {!staff.some(x => x.id === sh.userId) && (
+                                        <option value={sh.userId}>{sh.userName} · de baja</option>
+                                    )}
                                     {staff.map(s => (
                                         <option key={s.id} value={s.id}>
                                             {s.name}{s.role === 'CLEANING' ? ' · Limpieza' : s.role === 'SUPERVISOR' ? ' · Supervisor' : s.role === 'NURSE' ? ' · Enfermero/a' : ''}
