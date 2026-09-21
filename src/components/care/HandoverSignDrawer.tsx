@@ -199,17 +199,35 @@ export function HandoverSignDrawer({ handover, onClose, onSigned }: HandoverSign
                         </a>
                     </div>
 
-                    {/* Nota opcional */}
+                    {/*
+                        ESTE es el sitio donde el supervisor escribe de verdad: el
+                        cajón se abre desde Mission Control, que es donde firma sus
+                        5-12 relevos del día. Las otras dos cajas del mismo campo
+                        —/care/reports/[id] y /corporate/reports— exigen navegar
+                        hasta el reporte.
+
+                        Decía "Nota del supervisor (opcional)" y su ejemplo era
+                        "revisé los meds omitidos", que apunta a otra cosa: una nota
+                        SOBRE la revisión. Lo que este campo hace desde el
+                        20-sep-2026 es llegarle a quien abre el turno siguiente en
+                        ese color, dentro de su briefing de entrada.
+
+                        Escrito 1 vez en 1.151 relevos. Andrés: "nadie lo llena
+                        porque nadie sabe qué es y para qué es".
+                    */}
                     <div>
-                        <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wide mb-2">
-                            Nota del supervisor (opcional)
+                        <label className="block text-[13px] font-black text-slate-800 mb-1">
+                            Lo que le dejas dicho al turno que entra
                         </label>
+                        <p className="text-[11px] text-slate-500 mb-2 leading-snug">
+                            Quien abra el turno siguiente en este color lo lee al entrar, junto al relevo.
+                        </p>
                         <textarea
                             value={note}
                             onChange={(e) => setNote(e.target.value)}
                             rows={2}
                             maxLength={500}
-                            placeholder="Ej: revisé los meds omitidos, coordinado con turno entrante."
+                            placeholder="Ej.: vigilar a la 204 de madrugada, que anoche se levantó dos veces."
                             className="w-full text-sm border-2 border-slate-200 rounded-xl px-3 py-2 focus:border-[var(--color-zendity-teal)] outline-none resize-none"
                             disabled={submitting}
                         />

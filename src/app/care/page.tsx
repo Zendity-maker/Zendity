@@ -2598,8 +2598,15 @@ export default function ZendityCareTabletPage() {
                         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 flex gap-2 items-start w-full text-left">
                             <span className="text-base leading-none mt-0.5">📝</span>
                             <div>
+                                {/* Esto viene del HORARIO (ScheduledShift.notes, vía
+                                    /api/hr/schedule/my-color), no del relevo. Se
+                                    llamaba igual que la nota del relevo —"Nota del
+                                    supervisor"— y ahora que esa otra sí se pinta al
+                                    entrar (bloque "El supervisor dejó dicho" del
+                                    briefing), dos cosas distintas con el mismo nombre
+                                    en la misma pantalla se leen como una sola. */}
                                 <div className="text-xs font-semibold text-amber-800 uppercase tracking-wide">
-                                    Nota del supervisor para tu turno:
+                                    Nota de tu horario de hoy:
                                 </div>
                                 <div className="text-sm text-amber-700 mt-1">
                                     {shiftNotes}

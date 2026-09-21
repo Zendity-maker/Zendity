@@ -179,7 +179,7 @@ export default function ShiftLogPage() {
                     )}
                     {r.supervisorNote && (
                         <div className="mt-3">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Nota del supervisor</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">El supervisor dejó dicho</p>
                             <p className="text-sm text-slate-700 bg-white border border-slate-200 rounded-xl p-3">
                                 {r.supervisorNote}
                             </p>

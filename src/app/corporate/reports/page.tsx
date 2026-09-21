@@ -363,13 +363,21 @@ export default function CorporateReportsPage() {
                             )}
 
                             <div>
-                                <label className="block text-xs font-bold text-[#1F2D3A]/70 uppercase tracking-wide mb-1">
-                                    Nota del supervisor (opcional)
+                                {/* Mismo texto que la pantalla del piso
+                                    (src/app/care/reports/[id]/page.tsx): es la misma
+                                    caja y tiene que pedir lo mismo. Antes decía
+                                    "Comentarios o acciones requeridas", que no dice
+                                    para quién es ni cuándo se lee. */}
+                                <label className="block text-sm font-black text-[#1F2D3A] mb-1">
+                                    Lo que le dejas dicho al turno que entra
                                 </label>
+                                <p className="text-[12px] text-[#1F2D3A]/60 mb-2 leading-snug">
+                                    Quien abra el turno siguiente en este color lo lee al entrar, junto al relevo.
+                                </p>
                                 <textarea
                                     value={supervisorNote}
                                     onChange={(e) => setSupervisorNote(e.target.value)}
-                                    placeholder="Comentarios o acciones requeridas..."
+                                    placeholder="Ej.: vigilar a la 204 de madrugada, que anoche se levantó dos veces."
                                     rows={3}
                                     className="w-full border border-[#e7e5e4] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F6B78]/30 bg-white resize-none"
                                 />

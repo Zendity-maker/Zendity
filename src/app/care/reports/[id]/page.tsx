@@ -342,7 +342,7 @@ export default function ReportDetailPage() {
                                 </p>
                                 {report.supervisorNote && (
                                     <div className="mt-4 p-4 bg-white rounded-xl border border-emerald-200">
-                                        <p className="text-[11px] uppercase tracking-wider text-emerald-700 font-semibold mb-1">Nota del supervisor</p>
+                                        <p className="text-[11px] uppercase tracking-wider text-emerald-700 font-semibold mb-1">El supervisor dejó dicho</p>
                                         <p className="text-sm whitespace-pre-wrap" style={{ color: "#1F2D3A" }}>{report.supervisorNote}</p>
                                     </div>
                                 )}
@@ -352,18 +352,43 @@ export default function ReportDetailPage() {
                 ) : (
                     <section className="bg-white rounded-3xl p-7 shadow-sm border border-slate-200">
                         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider mb-4" style={{ color: "#0F6B78" }}>
-                            <PenSquare className="w-3.5 h-3.5" /> Firma del supervisor
+                            {/* El rótulo decía solo "Firma del supervisor", y debajo
+                                colgaba la nota como si fuera un trámite del firmado.
+                                La sección hace dos cosas y ahora las nombra las dos:
+                                lo que se deja dicho pesa tanto como la firma. */}
+                            <PenSquare className="w-3.5 h-3.5" /> Cierra este relevo — deja tu nota y firma
                         </div>
 
 
-                        <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "#1F2D3A" }}>
-                            Nota del supervisor (opcional)
+                        {/*
+                            ESTA CAJA SE LLAMABA "Nota del supervisor (opcional)".
+
+                            Se escribió 1 vez en 1.151 relevos. Andrés lo explicó así:
+                            "nadie lo llena porque nadie sabe qué es y para qué es".
+                            Tenía razón, y había una capa debajo: hasta el 20-sep-2026
+                            lo que se escribía aquí NO LLEGABA A NADIE. El campo no
+                            estaba en el select del briefing, así que solo se leía en
+                            tres pantallas de archivo que hay que ir a buscar. Nadie
+                            llena una caja que nadie lee.
+
+                            Ya llega (ver src/app/api/care/briefing/route.ts). Así que
+                            ahora la etiqueta puede decir la verdad: quién lo va a leer
+                            y cuándo. Y la explicación va FUERA del placeholder, porque
+                            un placeholder desaparece en cuanto escribes la primera
+                            letra — justo cuando todavía hace falta.
+                        */}
+                        <label className="block text-sm font-black mb-1" style={{ color: "#1F2D3A" }}>
+                            Lo que le dejas dicho al turno que entra
                         </label>
+                        <p className="text-[12px] mb-2 leading-snug" style={{ color: "#1F2D3A", opacity: 0.6 }}>
+                            Quien abra el turno siguiente en este color lo lee al entrar, junto al relevo.
+                            Es opcional, pero es el único sitio donde le puedes hablar directamente.
+                        </p>
                         <textarea
                             value={note}
                             onChange={e => setNote(e.target.value)}
                             rows={4}
-                            placeholder="Observaciones, seguimientos, recordatorios para el próximo turno…"
+                            placeholder="Ej.: vigilar a la 204 de madrugada, que anoche se levantó dos veces."
                             className="w-full text-sm rounded-2xl border border-slate-300 px-4 py-3 focus:outline-none focus:border-[#0F6B78] focus:ring-2 focus:ring-[#0F6B78]/20 resize-none"
                             style={{ color: "#1F2D3A", backgroundColor: "#fafaf9" }}
                             disabled={submitting || !!successMsg}
