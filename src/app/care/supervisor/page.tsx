@@ -984,11 +984,30 @@ export default function SupervisorMissionControlPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="font-black text-slate-800 text-sm">Rondas de Inspección</p>
-                            {/* Texto fijo: el "X/3 de hoy" salía de una consulta
-                                que corría cada 30 s para contar filas de hace dos
-                                meses. La función está dormida (ver
-                                funciones-dormidas.ts) y este enlace no se pinta. */}
-                            <p className="text-xs text-slate-500 font-medium">Checklist de 3 rondas por turno</p>
+                            {/*
+                              * VUELVE EL CONTADOR, 21-sep-2026, pero sin su vicio.
+                              *
+                              * El "X/3 de hoy" se quitó en agosto porque salía de una
+                              * consulta propia cada 30 segundos — y encima contaba filas
+                              * de hacía dos meses, porque la función estaba dormida.
+                              * Ahora el número viaja dentro de `live`, que el panel ya
+                              * refresca: cuesta una consulta por refresco en vez de una
+                              * cada medio minuto.
+                              *
+                              * Cuenta RONDAS COMPLETAS —las que tienen los dos pisos
+                              * firmados—, no empezadas. Ver el porqué en live/route.ts.
+                              *
+                              * Está aquí porque empiezan supervisores nuevos: ver "0 de 3"
+                              * al entrar es lo que convierte una pantalla en una rutina.
+                              */}
+                            {typeof liveData?.rondasCompletasHoy === 'number' ? (
+                                <p className={`text-xs font-bold ${liveData.rondasCompletasHoy === 3 ? 'text-teal-700' : 'text-amber-700'}`}>
+                                    {liveData.rondasCompletasHoy} de 3 rondas hoy
+                                    {liveData.rondasCompletasHoy < 3 && <span className="text-slate-500 font-medium"> · faltan {3 - liveData.rondasCompletasHoy}</span>}
+                                </p>
+                            ) : (
+                                <p className="text-xs text-slate-500 font-medium">Checklist de 3 rondas por turno</p>
+                            )}
                         </div>
                         <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-slate-700 group-hover:translate-x-1 transition-all" />
                     </Link>

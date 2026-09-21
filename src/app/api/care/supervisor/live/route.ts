@@ -7,7 +7,7 @@ import { authOptions } from '@/lib/auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { logError } from '@/lib/logger';
 import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
-import { eMARdeHoy } from '@/lib/emar-dia';
+import { eMARdeHoy, rangoDelDiaAST } from '@/lib/emar-dia';
 
 const SUPERVISOR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
@@ -771,9 +771,41 @@ export async function GET(req: Request) {
             penaltyApplied: v.penaltyApplied,
         }));
 
+        /**
+         * RONDAS DE INSPECCIÓN COMPLETADAS HOY, de 3.
+         *
+         * Va aquí y no en una consulta propia: el panel ya refresca, y el
+         * contador que esto alimenta se quitó en agosto precisamente porque
+         * corría una consulta cada 30 segundos. Colgarlo de lo que ya viaja
+         * cuesta una consulta al refresco en vez de una cada medio minuto.
+         *
+         * SE CUENTA UNA RONDA COMPLETA, NO UNA EMPEZADA. Una ronda cubre los
+         * DOS pisos —`handleSaveRound` manda las zonas de un piso a la vez—,
+         * así que firmar solo el Piso 1 no es la ronda hecha. Contar por "al
+         * menos una zona" habría dicho "3 de 3" con la mitad del edificio sin
+         * mirar, y un contador que dice que está todo hecho cuando no lo está
+         * es peor que no tener contador.
+         *
+         * Por día de calendario AST, que es como se piensa una ronda de las
+         * 9:00, las 12:30 y las 17:30.
+         */
+        const { desde: inicioDiaAST, hasta: finDiaAST } = rangoDelDiaAST();
+        const inspeccionesHoy = await prisma.zoneInspection.findMany({
+            where: { headquartersId: hqId, createdAt: { gte: inicioDiaAST, lt: finDiaAST } },
+            select: { roundType: true, floor: true },
+        });
+        const pisosPorRonda = new Map<string, Set<number>>();
+        for (const i of inspeccionesHoy) {
+            if (!pisosPorRonda.has(i.roundType)) pisosPorRonda.set(i.roundType, new Set());
+            pisosPorRonda.get(i.roundType)!.add(i.floor);
+        }
+        const rondasCompletasHoy = [...pisosPorRonda.values()].filter(p => p.size >= 2).length;
+
         return NextResponse.json({
             success: true,
             activeCaregivers: activeSessions.length,
+            /** Rondas de inspección con los dos pisos firmados hoy, de 3. */
+            rondasCompletasHoy,
             liveStats: {
                 baths: bathsToday,
                 meals: mealsToday.reduce((acc, curr) => ({ ...acc, [curr.mealType]: curr._count.mealType }), {}),

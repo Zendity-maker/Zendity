@@ -190,6 +190,8 @@ export interface LiveDataPayload {
     hqId: string;
     timestamp: string;
     activeCaregivers: number;
+    /** Rondas de inspección con los DOS pisos firmados hoy, de 3. */
+    rondasCompletasHoy?: number;
     liveStats: LiveStats;
     activeSessions: CaregiverSession[];
     // Turnos zombies (>12h sin cerrar, hasta 7 días atrás). Query separada
