@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { resolverHoraReal } from '@/lib/hora-real';
 import { format } from 'date-fns';
 import { todayStartAST, astDateTime } from '@/lib/dates';
 import { withPhiAccessLog } from '@/lib/phi-audit';
@@ -181,7 +182,7 @@ export async function POST(req: Request) {
         if (auth instanceof NextResponse) return auth;
 
         const body = await req.json();
-        const { patientMedicationId, status, notes, scheduledFor } = body;
+        const { patientMedicationId, status, notes, scheduledFor, administeredAt: horaDeclarada } = body;
         // El firmante SIEMPRE sale de la sesion, nunca del body.
         const nurseId = auth.id;
 
@@ -224,14 +225,49 @@ export async function POST(req: Request) {
          * cron— se crea suelta, como siempre.
          */
         const ahora = new Date();
-        const fila = await conciliarUna(patientMedicationId, scheduledFor, ahora);
+
+        /**
+         * LA HORA LA DECLARA QUIEN REGISTRA, Y NO SE INVENTA SOLA.
+         *
+         * Esta ruta clavaba `administeredAt = ahora` SIEMPRE, sin forma de
+         * decir a qué hora se administró de verdad. Es la pantalla de
+         * dirección, o sea el sitio desde el que se registra lo que ya pasó:
+         * el 21-sep-2026 eso dejó **51 dosis pautadas a las 8:00 AM diciendo
+         * que se dieron a las 17:0x**, después de que Andrés llamara por
+         * teléfono a las cuidadoras para confirmar que sí se habían dado. La
+         * hora del tecleo escrita como si fuera la del acto.
+         *
+         * `resolverHoraReal` aplica los mismos límites que el resto (hasta 19 h
+         * atrás, nada en el futuro). Sin hora declarada sigue siendo `ahora`,
+         * que es el comportamiento de siempre.
+         *
+         * Y PONE `administeredAt` SOLO SI SE ADMINISTRÓ. Antes lo escribía
+         * también para REFUSED y OMITTED — una hora de administración en una
+         * dosis que nadie administró.
+         */
+        const hora = resolverHoraReal(horaDeclarada, ahora);
+        if (!hora.ok) {
+            return NextResponse.json({ success: false, error: hora.error }, { status: 400 });
+        }
+
+        const fila = await conciliarUna(patientMedicationId, scheduledFor, hora.hora);
 
         const datos = {
             administeredById: nurseId,
             status: status, // ADMINISTERED | REFUSED | OMITTED
             notes: notes || null,
             scheduledFor: scheduledFor || null,
-            administeredAt: ahora,
+            administeredAt: status === 'ADMINISTERED' ? hora.hora : null,
+            /**
+             * DE DÓNDE VIENE ESTA FILA.
+             *
+             * Las 76 administraciones que esta ruta escribió en 30 días no
+             * llevan firma —ninguna, el 100%— y eso no es un descuido: aquí no
+             * hay dedo sobre una pantalla, lo que autentica es la sesión. Lo
+             * que faltaba era que la fila lo DIJERA, para que no se leyera como
+             * una firma junto a la cama que se perdió.
+             */
+            origen: 'EMAR_DIRECCION' as const,
         };
 
         const adminLog = fila

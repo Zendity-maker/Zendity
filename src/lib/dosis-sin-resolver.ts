@@ -523,6 +523,9 @@ export async function aplicarRespuestasDeCierre(
                  * el sitio que venía a cerrarlo.
                  */
                 scheduleTime: etiquetaAST(instante),
+                // Declarado al cerrar el turno, sobre el relevo que ella firma.
+                // Ya no hace falta deducirlo de la nota. Ver RegistroOrigen.
+                origen: 'CIERRE_DE_TURNO' as const,
             };
             if (sinNota.length > 0) {
                 const r = await tx.medicationAdministration.updateMany({
@@ -587,6 +590,7 @@ export async function aplicarRespuestasDeCierre(
                  * `ShiftHandover.justifications`, con la clave `meds:<ISO>`.
                  */
                 scheduleTime: etiquetaAST(instante),
+                origen: 'CIERRE_DE_TURNO' as const,
             };
             if (sinNota.length > 0) {
                 const r = await tx.medicationAdministration.updateMany({

@@ -1204,7 +1204,11 @@ model MedicationAdministration {
   scheduledTime  DateTime? // FASE eMAR Integral: Timestamp estricto de agenda
   scheduleTime   String? // Slot del pack ("8:00 AM", "12:00 PM") usado por el flujo de pack del tablet cuidador
   administeredAt DateTime? // Modificado a opcional porque PENDING no tiene adminAt
-  createdAt      DateTime  @default(now())
+
+  /// Por donde entro esta fila. Ver enum RegistroOrigen. Nulo = no consta,
+  /// que es el caso de todo lo anterior al 22-sep-2026.
+  origen    RegistroOrigen?
+  createdAt DateTime        @default(now())
 
   status          MedStatus @default(PENDING) // PENDING por defecto
   notes           String?
@@ -1239,6 +1243,29 @@ model MedicationAdministration {
 
   // Bloqueo Anti-Duplicidad de Cronjob
   @@unique([patientMedicationId, scheduledTime])
+}
+
+/// POR DONDE ENTRO UN REGISTRO CLINICO.
+///
+/// NULO EN TODO LO ANTERIOR AL 22-SEP-2026, Y SIN DEFAULT A PROPOSITO. Poner
+/// un default habria escrito una afirmacion en las 29.000 filas existentes —
+/// una tranquilizadora y falsa, porque nadie sabe por donde entro cada una. Un
+/// campo que no se lleno vale `null` y se lee como lo que es: no consta.
+///
+/// Existe porque sin el, una dosis tecleada desde una oficina cuatro horas
+/// despues es indistinguible de una firmada junto a la cama. El 21-sep-2026
+/// eso costo 51 administraciones con la hora equivocada y sin firma, y nadie
+/// podia saber mirando la fila que venian de otro sitio.
+enum RegistroOrigen {
+  /// Tableta del piso, firmada con el dedo en el momento.
+  TABLETA
+  /// Pantalla de direccion/enfermeria (/corporate/medical/emar). Sin firma
+  /// manuscrita: lo que autentica es la sesion.
+  EMAR_DIRECCION
+  /// Declarado por la cuidadora al cerrar su turno, sobre el relevo que firma.
+  CIERRE_DE_TURNO
+  /// Lo creo el cron de materializacion. No lo firmo nadie todavia.
+  CRON
 }
 
 enum MedStatus {

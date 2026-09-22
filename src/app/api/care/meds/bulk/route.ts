@@ -279,6 +279,8 @@ export async function POST(req: Request) {
             // El motivo del PRN va a su propio campo, no dentro de `notes`:
             // un campo se puede consultar, un texto libre no.
             prnMotivo: isPRN ? String(prnMotivo).trim().slice(0, 300) : null,
+            // Firmada con el dedo en la tableta del piso. Ver RegistroOrigen.
+            origen: 'TABLETA' as const,
         };
 
         let firmadas = 0;

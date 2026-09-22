@@ -829,8 +829,23 @@ export default function SupervisorMissionControlPage() {
     const nuevoEnElPayload = liveData as unknown as {
         dosisSinDar?: { sinDar: number; pendientes: number; dadas: number; totalDelDia: number };
         alertasFueraDeVentana?: number;
+        cierreDeTurno?: {
+            sinGarantizar: { quien: string; hora: string; cuantas: number }[];
+            declaradasAlCerrar: number;
+            relevosLeidos: number;
+        };
     } | null;
     const dosisSinDar = nuevoEnElPayload?.dosisSinDar;
+    /**
+     * LO QUE SE CONTESTÓ AL CERRAR TURNO.
+     *
+     * El endpoint lo devuelve desde el 22-sep-2026 y NINGUNA pantalla lo leía:
+     * "No puedo garantizarlo" —la respuesta que a propósito NO toca la dosis,
+     * porque no afirma que se dio ni que no— se guardaba donde nadie mira. Era
+     * media función: una duda honesta convertida en silencio, que es justo lo
+     * que el cierre vino a quitar.
+     */
+    const cierreDeTurno = nuevoEnElPayload?.cierreDeTurno;
     const teamScores = liveData?.teamScores || [];
     const handoversFeed = liveData?.handoversFeed || [];
     // Alertas clínicas abiertas que quedan FUERA de la ventana que se está
@@ -1973,6 +1988,44 @@ export default function SupervisorMissionControlPage() {
                                         <Badge variant="danger">{dosisSinDar.sinDar} sin dar</Badge>
                                     )}
                                 </div>
+
+                                {/*
+                                  * LO QUE ALGUIEN NO PUDO GARANTIZAR AL CERRAR.
+                                  *
+                                  * No es una falta y no se pinta como tal: es algo
+                                  * que hay que ir a preguntar. Solo aparece si lo
+                                  * hay — un recuadro vacío no informa.
+                                  */}
+                                {cierreDeTurno && cierreDeTurno.sinGarantizar.length > 0 && (
+                                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                                        <p className="text-[11px] font-black uppercase tracking-wide text-amber-800 mb-2">
+                                            Sin garantizar al cerrar turno
+                                        </p>
+                                        <ul className="space-y-1">
+                                            {cierreDeTurno.sinGarantizar.map((x, i) => (
+                                                <li key={i} className="text-xs font-semibold text-amber-900">
+                                                    {x.quien} · {x.cuantas} pack{x.cuantas === 1 ? '' : 's'} · cerró {x.hora}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                        <p className="text-[11px] font-medium text-amber-800/80 mt-2 leading-relaxed">
+                                            Dijeron que no podían asegurar si se dieron. No afirma que no se dieran —
+                                            hay que preguntarles.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/*
+                                  * Y cuánto del cumplimiento del día se firmó AL
+                                  * CERRAR y no a su hora. Si ese número crece, el
+                                  * problema no es el registro: es el turno.
+                                  */}
+                                {cierreDeTurno && cierreDeTurno.declaradasAlCerrar > 0 && (
+                                    <p className="text-[11px] font-medium text-slate-500">
+                                        <span className="font-bold text-slate-700">{cierreDeTurno.declaradasAlCerrar}</span>
+                                        {' '}dosis se declararon al cerrar turno, no a su hora.
+                                    </p>
+                                )}
 
                                 <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
                                     <p className="text-xs text-slate-500 font-medium leading-relaxed">

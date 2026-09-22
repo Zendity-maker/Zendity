@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import HoraDelRegistro from "@/components/care/HoraDelRegistro";
 import { useAuth } from '@/context/AuthContext';
 import Link from "next/link";
 import {
@@ -58,6 +59,17 @@ export default function EMARDashboardPage() {
     const [isActionModalOpen, setIsActionModalOpen] = useState(false);
     const [actionNotes, setActionNotes] = useState("");
     const [actionType, setActionType] = useState<"ADMINISTERED" | "REFUSED" | "OMITTED" | null>(null);
+    /**
+     * LA HORA A LA QUE SE ADMINISTRÓ DE VERDAD. `null` = ahora.
+     *
+     * Esta pantalla es desde donde dirección registra lo que YA pasó — casi
+     * siempre después de preguntar al piso. Hasta el 22-sep-2026 no tenía dónde
+     * decirlo y el servidor clavaba la hora del tecleo: el 21-sep eso dejó **51
+     * dosis pautadas a las 8:00 AM diciendo que se dieron a las 17:0x**, con la
+     * administración ya corroborada por teléfono. La hora del teclado escrita
+     * como si fuera la del acto.
+     */
+    const [horaRegistro, setHoraRegistro] = useState<Date | null>(null);
 
     /**
      * `franja` es la ronda concreta sobre la que se actúa, no la receta entera.
@@ -71,6 +83,10 @@ export default function EMARDashboardPage() {
     const openActionModal = (med: any, patientInfo: any, type: "ADMINISTERED" | "REFUSED" | "OMITTED", franja: string | null) => {
         setSelectedMed({ ...med, patientName: patientInfo.name, room: patientInfo.room, franja });
         setActionType(type);
+        // La hora NO se arrastra de la dosis anterior: dejar fijado
+        // "hace 2 h" y seguir registrando a otra persona seria peor
+        // que el problema original.
+        setHoraRegistro(null);
         setIsActionModalOpen(true);
     };
 
@@ -91,6 +107,9 @@ export default function EMARDashboardPage() {
                     // La franja concreta. Con ella el servidor reconstruye el
                     // instante exacto y firma sobre la fila que ya existe.
                     scheduledFor: selectedMed.franja ?? null,
+                    // La hora declarada. Sin ella el servidor usa `ahora`, que
+                    // es el comportamiento de siempre.
+                    administeredAt: horaRegistro?.toISOString(),
                 })
             });
 
@@ -116,6 +135,7 @@ export default function EMARDashboardPage() {
             alert("Error de conexión al servidor Zendity.");
         } finally {
             setIsActionModalOpen(false);
+            setHoraRegistro(null);
             setActionNotes("");
             setSelectedMed(null);
         }
@@ -426,6 +446,14 @@ export default function EMARDashboardPage() {
                                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-1">{selectedMed.route}  {selectedMed.time}</p>
                                 </div>
 
+                                {/* La hora real, solo donde tiene sentido: una dosis que
+                                    NO se dio no tiene hora de administración. */}
+                                {actionType === 'ADMINISTERED' && (
+                                    <div className="mb-6">
+                                        <HoraDelRegistro valor={horaRegistro} onChange={setHoraRegistro} />
+                                    </div>
+                                )}
+
                                 {actionType !== 'ADMINISTERED' && (
                                     <div className="mb-6">
                                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Justificación Médica (Obligatorio) </label>
@@ -449,7 +477,7 @@ export default function EMARDashboardPage() {
                                     Firmar con PIN Virtual
                                 </button>
                                 <button
-                                    onClick={() => { setIsActionModalOpen(false); setActionNotes(""); setSelectedMed(null); }}
+                                    onClick={() => { setIsActionModalOpen(false); setActionNotes(""); setSelectedMed(null); setHoraRegistro(null); }}
                                     className="w-full py-3 mt-2 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-colors"
                                 >
                                     Cancelar Operación

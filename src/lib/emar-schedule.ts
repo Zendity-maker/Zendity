@@ -276,6 +276,11 @@ export async function materializarDosisDelDia(): Promise<{ creadas: number; omit
                         // literal 'SYSTEM', un usuario que no existe, así que
                         // CADA create violaba la llave foránea y el catch de
                         // abajo se lo tragaba. Cinco meses creando cero dosis.
+                        //
+                        // `origen: CRON` dice que esta fila la creó la máquina y
+                        // no la tocó nadie todavía. Quien la firme despues lo
+                        // sobrescribe con el suyo. Ver RegistroOrigen.
+                        origen: 'CRON',
                     },
                 });
                 creadas++;
