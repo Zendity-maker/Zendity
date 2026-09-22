@@ -191,9 +191,32 @@ export async function GET(req: Request) {
         const avisos = franjas.map(f => ({
             id: f.id,
             type: 'MEDS_SIN_RESOLVER',
-            title: `Los medicamentos de las ${f.etiqueta} no quedaron registrados`,
-            description: `${f.dosis.length} dosis de ${new Set(f.dosis.map(d => d.patientId)).size} residente(s).`
-                + ' Si se dieron, se firman con la hora de la franja y queda guardado a qué hora lo escribiste.',
+            title: `El pack de las ${f.etiqueta} no quedó registrado`,
+            /**
+             * EL TEXTO DICE LO QUE EL CÓDIGO HACE, NI MÁS NI MENOS.
+             *
+             * La primera versión prometía "queda guardado a qué hora lo
+             * escribiste", y era falso: `createdAt` es la hora del CRON en el
+             * 90% de las filas del día, no la del tecleo, y el PDF del eMAR la
+             * rotula "Registrado". Prometer una trazabilidad que no existe
+             * dentro del aviso que pide honestidad es el peor sitio para el
+             * patrón de promete-y-no-entrega.
+             *
+             * Ahora sí hay rastro —una fila de `SystemAuditLog` por dosis, con
+             * `declaradoAt` y el relevo del que cuelga— así que el texto puede
+             * decirlo. Y dice "pack", que es como lo llama el piso y como ya lo
+             * llama la tableta ("Este pack era de las 8:00 AM"), no "franja",
+             * que es jerga nuestra.
+             */
+            description: (() => {
+                const residentes = Array.from(new Set(f.dosis.map(d => d.patientId)));
+                const quien = residentes.length === 1
+                    ? `de ${f.dosis[0].residente}`
+                    : `de ${residentes.length} residentes`;
+                return `${f.dosis.length} dosis ${quien}, sin registrar.`
+                    + ' Si dices que se dieron, quedan firmadas a tu nombre y con tu firma,'
+                    + ` a la hora del pack — y queda anotado aparte que lo declaraste al cerrar.`;
+            })(),
             respuestas: RESPUESTAS_DOSIS.map(r => ({
                 codigo: r.codigo,
                 etiqueta: r.etiqueta,

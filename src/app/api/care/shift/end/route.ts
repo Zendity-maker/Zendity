@@ -63,11 +63,79 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: "No tienes permiso para cerrar este turno" }, { status: 403 });
         }
 
+        const now = new Date();
+
+        /**
+         * UN CIERRE FORZADO NO PUEDE TIRAR A LA BASURA LO QUE ELLA YA CONTESTÓ.
+         *
+         * El camino de antes era un 400 seco: "Este turno ya fue finalizado".
+         * Escenario real —11 cierres forzados en 30 días—: la cuidadora
+         * responde los avisos de medicamentos, el supervisor le fuerza el
+         * cierre mientras ella firma, y su POST se estrella. Sus respuestas
+         * desaparecen, y con ellas la única constancia de que se le preguntó.
+         * Lo que la función existe para recoger, perdido por un estado que
+         * ella no controla.
+         *
+         * Ahora, si es la dueña del turno y trae respuestas de dosis, se
+         * aplican igual: "cierre tardío". Es seguro porque la escritura ya es
+         * idempotente y está acotada —solo toca filas PENDING/MISSED, solo
+         * dentro de la ventana de SU turno, y solo de SUS residentes— así que
+         * lo que el supervisor o cualquier otro ya hubiera resuelto cuenta
+         * como `yaResueltas` y no se pisa.
+         *
+         * El relevo NO se vuelve a crear: se cuelga del que ya existe.
+         */
         if (session.actualEndTime && !forceEnd) {
+            const jTardias = (handoverData?.justifications ?? {}) as Record<string, string>;
+            const traeDosis = Object.keys(jTardias).some(k => k.startsWith('meds:'));
+
+            if (isOwner && traeDosis) {
+                const tipoTardio = await resolverTurnoTrabajado(session.caregiverId, session.startTime);
+                const coloresTardios = await resolveColorGroupsForCaregiver(
+                    session.caregiverId, session.headquartersId, session.startTime,
+                );
+                const pacientesTardios = await resolvePatientsByColors(
+                    coloresTardios, session.headquartersId,
+                );
+                const ventanaTardia = ventanaDeDosisDelTurno({
+                    ponche: session.startTime,
+                    tipoDeTurno: tipoTardio,
+                    ahora: now,
+                    cierre: session.actualEndTime,
+                });
+                const dosisTardias = await prisma.$transaction(async (tx) => aplicarRespuestasDeCierre(tx as any, {
+                    justifications: jTardias,
+                    patientIds: pacientesTardios.map(p => p.id),
+                    desde: ventanaTardia.desde,
+                    hasta: ventanaTardia.hasta,
+                    caregiverId: session.caregiverId,
+                    caregiverName: session.caregiver?.name || 'Cuidador(a)',
+                    headquartersId: session.headquartersId,
+                    // El relevo que ya existe, si lo hay. Sin él la auditoría
+                    // sigue escribiéndose: lo que no puede es inventarse uno.
+                    shiftHandoverId: session.shiftHandoverId || '',
+                    // La firma del relevo no está disponible en este camino: el
+                    // relevo lo cerró otra persona. Se guarda sin firma antes
+                    // que perder la respuesta, y la auditoría dice por dónde
+                    // entró.
+                    firma: signature || '',
+                    ahora: now,
+                    etiquetaDeMotivo: etiquetaOmision,
+                    estadoDeMotivo: estadoParaOmision,
+                }));
+                console.log(`[shift/end] cierre tardio — respuestas de ${session.caregiver?.name}`
+                    + ` aplicadas sobre un turno ya cerrado: ${JSON.stringify(dosisTardias)}`);
+                return NextResponse.json({
+                    success: true,
+                    cierreTardio: true,
+                    dosisResueltas: dosisTardias,
+                    message: 'Tu turno ya lo había cerrado un supervisor, pero lo que contestaste'
+                        + ' sobre los medicamentos sí quedó guardado.',
+                });
+            }
+
             return NextResponse.json({ success: false, error: "Este turno ya fue finalizado" }, { status: 400 });
         }
-
-        const now = new Date();
         // El turno se etiqueta por lo que se TRABAJÓ, no por la hora de firmar.
         // Antes era `inferShiftType(now)` con `now` = instante del cierre, y como
         // cada turno se cierra en la frontera del siguiente, la etiqueta casi
@@ -125,6 +193,26 @@ export async function POST(req: Request) {
              * error rojo al final de un turno hace que la cuidadora lo repita —
              * que es exactamente lo que produce el duplicado.
              */
+            /**
+             * IDEMPOTENCIA POR LA SESIÓN, ANTES QUE POR LA HUELLA.
+             *
+             * `ShiftSession.shiftHandoverId` es `@unique`: si ya está puesto,
+             * este turno YA tiene su relevo y no hay nada que decidir. La
+             * guarda de huella de abajo —misma cuidadora, mismo tipo de turno,
+             * dos minutos— se queda como red para el caso en que la sesión aún
+             * no se hubiera enlazado, pero es aproximada por construcción: dos
+             * turnos distintos de la misma persona cerrados seguidos se
+             * confundirían entre sí.
+             */
+            if (session.shiftHandoverId) {
+                return NextResponse.json({
+                    success: true,
+                    duplicado: true,
+                    handoverId: session.shiftHandoverId,
+                    message: 'Tu turno ya fue cerrado. No se duplicó.',
+                });
+            }
+
             const dosMinutosAtras = new Date(Date.now() - 2 * 60 * 1000);
             const relevoReciente = await prisma.shiftHandover.findFirst({
                 where: {
@@ -228,6 +316,9 @@ export async function POST(req: Request) {
                     hasta: ventanaDosis.hasta,
                     caregiverId: session.caregiverId,
                     caregiverName: session.caregiver?.name || 'Cuidador(a)',
+                    headquartersId: session.headquartersId,
+                    // Ata cada dosis firmada al relevo del que cuelga su firma.
+                    shiftHandoverId: shiftHandover.id,
                     firma: signature,
                     ahora: now,
                     etiquetaDeMotivo: etiquetaOmision,

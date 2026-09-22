@@ -377,12 +377,16 @@ export async function aplicarRespuestasDeCierre(
             updateMany: (a: any) => Promise<{ count: number }>;
             update: (a: any) => Promise<any>;
         };
+        systemAuditLog: { createMany: (a: any) => Promise<{ count: number }> };
     },
     params: {
         justifications: Record<string, string>;
         patientIds: string[];
         caregiverId: string;
         caregiverName: string;
+        headquartersId: string;
+        /** El relevo del que cuelga esta firma. Ata la dosis a su documento. */
+        shiftHandoverId: string;
         firma: string;
         ahora: Date;
         /**
@@ -415,6 +419,21 @@ export async function aplicarRespuestasDeCierre(
     const out: ResultadoCierre = {
         firmadas: 0, omitidas: 0, sinGarantia: 0, yaResueltas: 0, fueraDeVentana: 0,
     };
+    /**
+     * EL RASTRO, QUE ES LO QUE HACE DEFENDIBLE UNA FIRMA RETROACTIVA.
+     *
+     * `MedicationAdministration` no tiene `updatedAt` ni historial de fila: sin
+     * esto, una dosis que pasó de MISSED a ADMINISTERED horas después es
+     * indistinguible de una firmada en su momento, y las métricas de omisión ya
+     * publicadas se mueven hacia atrás sin que nadie pueda decir quién ni
+     * cuándo.
+     *
+     * Va en `SystemAuditLog`, que ya existe, ya se usa en este mismo cierre
+     * para el relevo, y tiene índice por `(headquartersId, entityName,
+     * entityId)`. Una fila por dosis, escritas todas juntas al final para no
+     * añadir N viajes dentro de la transacción.
+     */
+    const auditoria: any[] = [];
     if (params.patientIds.length === 0) return out;
 
     for (const [clave, respuesta] of Object.entries(params.justifications || {})) {
@@ -472,7 +491,11 @@ export async function aplicarRespuestasDeCierre(
             },
             // `notes` va en el select porque hay que CONSERVARLO. Sin pedirlo,
             // un campo vuelve null y se lee igual que "no tenia nada".
-            select: { id: true, notes: true },
+            // `status` va en el select porque la auditoría tiene que decir DE
+            // QUÉ estado vino la fila. Un MISSED de hace horas que vuelve a
+            // ADMINISTERED mueve métricas ya publicadas, y sin el estado previo
+            // el rastro no permite reconstruir qué cambió.
+            select: { id: true, notes: true, status: true },
         });
         if (abiertas.length === 0) { out.yaResueltas++; continue; }
         // Las que ya traen nota se actualizan una por una para anteponerla; las
@@ -524,6 +547,23 @@ export async function aplicarRespuestasDeCierre(
                 });
                 out.firmadas++;
             }
+            for (const a of abiertas) {
+                auditoria.push({
+                    headquartersId: params.headquartersId,
+                    entityName: 'MedicationAdministration',
+                    entityId: a.id,
+                    action: 'MEDICATION_ADMINISTERED',
+                    performedById: params.caregiverId,
+                    payloadChanges: {
+                        de: a.status, a: 'ADMINISTERED',
+                        via: 'CIERRE_DE_TURNO',
+                        respuesta: 'SE_DIERON',
+                        instantePautado: instante.toISOString(),
+                        declaradoAt: params.ahora.toISOString(),
+                        shiftHandoverId: params.shiftHandoverId,
+                    },
+                });
+            }
             continue;
         }
 
@@ -562,9 +602,31 @@ export async function aplicarRespuestasDeCierre(
                 });
                 out.omitidas++;
             }
+            const estadoNuevo = params.estadoDeMotivo(codigo);
+            for (const a of abiertas) {
+                auditoria.push({
+                    headquartersId: params.headquartersId,
+                    entityName: 'MedicationAdministration',
+                    entityId: a.id,
+                    action: estadoNuevo === 'REFUSED' ? 'MEDICATION_REFUSED' : 'MEDICATION_MISSED',
+                    performedById: params.caregiverId,
+                    payloadChanges: {
+                        de: a.status, a: estadoNuevo,
+                        via: 'CIERRE_DE_TURNO',
+                        respuesta: respuesta,
+                        motivo: codigo,
+                        instantePautado: instante.toISOString(),
+                        declaradoAt: params.ahora.toISOString(),
+                        shiftHandoverId: params.shiftHandoverId,
+                    },
+                });
+            }
             continue;
         }
     }
 
+    if (auditoria.length > 0) {
+        await tx.systemAuditLog.createMany({ data: auditoria });
+    }
     return out;
 }
