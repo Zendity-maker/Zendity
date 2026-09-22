@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { eMARentre } from '@/lib/emar-dia';
 import { ULCERA_ABIERTA } from '@/lib/upp';
 import { esCuidadoDeFinal, lineaModalidad, etiquetaModalidad } from '@/lib/cuidado-final';
 import { generateObject, generateText } from 'ai';
@@ -62,7 +63,35 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             include: {
                 medication: { select: { name: true } },
                 administrations: {
-                    where: { administeredAt: { gte: thirtyDaysAgo } },
+                    /**
+                     * LA ADHERENCIA DE UN PLAN DE CUIDADO NO PUEDE SALIR
+                     * SIEMPRE REDONDA.
+                     *
+                     * Acotaba por `administeredAt >= 30d`, y ese campo SOLO
+                     * tiene valor cuando el estado es ADMINISTERED —
+                     * `meds/bulk` lo escribe asi a proposito. O sea que el
+                     * denominador eran las administradas y el numerador
+                     * tambien: **100% por construccion**, dentro del documento
+                     * que dirige el cuidado de la persona y que lee un
+                     * inspector.
+                     *
+                     * Es el antipatron 10 de CLAUDE.md, y estos dos
+                     * generadores de PAI sobrevivieron a la barrida del
+                     * 21-sep-2026 (commit 61db430c, 12 ficheros, ninguno de
+                     * ellos un PAI). Se destapo al anular seis dosis el 22-sep:
+                     * de pronto cinco medicamentos de Jose Ramon Garcia decian
+                     * 67% de adherencia, y el unico motivo eran las anuladas.
+                     * VOIDED no causo el fallo — encendio la luz.
+                     *
+                     * Ahora: la ventana por la FECHA DE LA DOSIS
+                     * (src/lib/emar-dia.ts) y el denominador explicito, que es
+                     * DOSIS_RESUELTAS. Deja fuera PENDING —una dosis que no ha
+                     * llegado a su hora no esta fallada— y VOIDED.
+                     */
+                    where: {
+                        ...eMARentre(thirtyDaysAgo, new Date()),
+                        status: { in: ['ADMINISTERED', 'MISSED', 'OMITTED', 'REFUSED', 'HELD'] },
+                    },
                     select: { status: true }
                 }
             }

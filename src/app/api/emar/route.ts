@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { todayStartAST, astDateTime } from '@/lib/dates';
 import { withPhiAccessLog } from '@/lib/phi-audit';
 import { requireRole } from '@/lib/api-auth';
-import { conciliarUna } from '@/lib/emar-conciliar';
+import { conciliarUna, instanteDeLaFranja } from '@/lib/emar-conciliar';
 
 /**
  * QUIEN PUEDE VER Y ESCRIBIR EL eMAR.
@@ -250,7 +250,19 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: hora.error }, { status: 400 });
         }
 
-        const fila = await conciliarUna(patientMedicationId, scheduledFor, hora.hora);
+        /**
+         * LA CONCILIACION VA CON `ahora`, NO CON LA HORA DECLARADA.
+         *
+         * `conciliarUna` usa ese instante para reconstruir QUE dosis es —
+         * `instanteDeLaFranja` toma su FECHA de calendario— y eso lo decide el
+         * dia en curso, no la hora que teclee quien registra. Al pasarle
+         * `hora.hora` (hasta 19 h atras) una franja de hoy se resolvia contra
+         * la del dia ANTERIOR: medido, las 114 franjas de hoy se iban al dia de
+         * ayer. Regresion introducida esta misma tarde al añadir la hora
+         * declarable; la hora declarada se queda donde debe, en
+         * `administeredAt`.
+         */
+        const fila = await conciliarUna(patientMedicationId, scheduledFor, ahora);
 
         const datos = {
             administeredById: nurseId,
@@ -270,9 +282,51 @@ export async function POST(req: Request) {
             origen: 'EMAR_DIRECCION' as const,
         };
 
+        /**
+         * SI YA ESTABA RESUELTA, SE DEVUELVE LA QUE HAY. NO SE CREA OTRA.
+         *
+         * Esta ruta creaba una fila suelta cuando la dosis ya estaba resuelta,
+         * porque `conciliarUna` devolvía `null` igual que si no existiera. Un
+         * doble toque, o una pantalla lenta, y quedaban dos filas por dosis —
+         * y la segunda, sin `scheduledTime`, invisible para el pack de la
+         * tableta, que horas después creaba una tercera. Es el mecanismo de las
+         * 6 dosis contadas dos veces del 21-sep.
+         *
+         * Éxito y no error, que es lo que pide CLAUDE.md: quien pulsó hizo lo
+         * correcto, y un rojo le hace intentarlo otra vez.
+         */
+        if (fila?.yaResuelta) {
+            const yaEstaba = await prisma.medicationAdministration.findUnique({ where: { id: fila.id } });
+            return NextResponse.json({
+                success: true,
+                adminLog: yaEstaba,
+                yaEstaba: true,
+                message: 'Esta dosis ya estaba registrada.',
+            });
+        }
+
         const adminLog = fila
             ? await prisma.medicationAdministration.update({ where: { id: fila.id }, data: datos })
-            : await prisma.medicationAdministration.create({ data: { patientMedicationId, ...datos } });
+            : await prisma.medicationAdministration.create({
+                data: {
+                    patientMedicationId,
+                    ...datos,
+                    /**
+                     * LA FILA NUEVA VA ATADA A SU FRANJA.
+                     *
+                     * Sin `scheduledTime` la fila queda fuera de la llave única
+                     * `(patientMedicationId, scheduledTime)` y es invisible para
+                     * `conciliarPack` y para `slotStatusToday` en la tableta: el
+                     * pack sigue saliendo abierto y la siguiente firma crea otra.
+                     * `/api/care/meds/bulk` ya lo hacía; ésta era la divergencia,
+                     * y es lo que dejó 12 filas sueltas el 21-sep.
+                     *
+                     * Solo llega aquí cuando NO existe ninguna fila para esa
+                     * franja, así que no puede chocar con la llave única.
+                     */
+                    scheduledTime: instanteDeLaFranja(scheduledFor, ahora),
+                },
+            });
 
         return NextResponse.json({ success: true, adminLog, conciliada: !!fila });
 

@@ -1968,6 +1968,76 @@ export default function SupervisorMissionControlPage() {
                             nacen a las 10:00:37 UTC, 37 segundos después del corte del
                             día clínico — la ventana es estrecha, pero el cron ya ha
                             fallado antes y ese día la tarjeta mentiría entera. */}
+                        {/*
+                          * FUERA DEL TERNARIO, A PROPOSITO.
+                          *
+                          * Estos dos bloques vivian dentro de
+                          * `dosisSinDar.totalDelDia > 0`, y esa condicion existe
+                          * para no pintar un 0 verde fabricado por ausencia de
+                          * datos — no dice nada sobre turnos huerfanos ni sobre
+                          * relevos. Metidos ahi se apagaban de madrugada, antes
+                          * de que el cron materialice las dosis, y en una sede
+                          * sin residentes no se pintarian nunca.
+                          */}
+                        {/*
+                          * Turnos que no cubre nadie porque quien los
+                          * tenia ya no esta. No es del piso resolverlo
+                          * —lo reasigna quien hace el horario— pero el
+                          * supervisor es quien se lo encuentra de frente
+                          * cuando llega el dia.
+                          */}
+                        {huerfanos && huerfanos.total > 0 && (
+                            <div className="bg-rose-50 border border-rose-200 rounded-xl p-4">
+                                <p className="text-[11px] font-black uppercase tracking-wide text-rose-800 mb-2">
+                                    {huerfanos.total} turno{huerfanos.total === 1 ? '' : 's'} sin nadie que lo cubra
+                                </p>
+                                <ul className="space-y-1">
+                                    {huerfanos.porPersona.map((p, i) => (
+                                        <li key={i} className="text-xs font-semibold text-rose-900">
+                                            {p.nombre} — {p.turnos.map(t =>
+                                                `${new Date(t.fecha).toLocaleDateString('es-PR', { timeZone: 'UTC', day: '2-digit', month: 'short' })} ${t.tipo}`
+                                            ).join(' · ')}
+                                        </li>
+                                    ))}
+                                </ul>
+                                <p className="text-[11px] font-medium text-rose-800/80 mt-2 leading-relaxed">
+                                    Están en el horario publicado a nombre de quien ya no trabaja aquí. Hay que reasignarlos.
+                                </p>
+                            </div>
+                        )}
+
+                        {cierreDeTurno && cierreDeTurno.sinGarantizar.length > 0 && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                                <p className="text-[11px] font-black uppercase tracking-wide text-amber-800 mb-2">
+                                    Sin garantizar al cerrar turno
+                                </p>
+                                <ul className="space-y-1">
+                                    {cierreDeTurno.sinGarantizar.map((x, i) => (
+                                        <li key={i} className="text-xs font-semibold text-amber-900">
+                                            {x.quien} · {x.cuantas} pack{x.cuantas === 1 ? '' : 's'} · cerró {x.hora}
+                                        </li>
+                                    ))}
+                                </ul>
+                                <p className="text-[11px] font-medium text-amber-800/80 mt-2 leading-relaxed">
+                                    Dijeron que no podían asegurar si se dieron. No afirma que no se dieran —
+                                    hay que preguntarles.
+                                </p>
+                            </div>
+                        )}
+
+                        {/*
+                          * Y cuánto del cumplimiento del día se firmó AL
+                          * CERRAR y no a su hora. Si ese número crece, el
+                          * problema no es el registro: es el turno.
+                          */}
+                        {cierreDeTurno && cierreDeTurno.declaradasAlCerrar > 0 && (
+                            <p className="text-[11px] font-medium text-slate-500">
+                                <span className="font-bold text-slate-700">{cierreDeTurno.declaradasAlCerrar}</span>
+                                {' '}dosis se declararon al cerrar turno, no a su hora.
+                            </p>
+                        )}
+
+
                         {dosisSinDar && dosisSinDar.totalDelDia > 0 ? (
                             <div className="space-y-5">
                                 <div className="flex items-end gap-3">
@@ -2005,64 +2075,6 @@ export default function SupervisorMissionControlPage() {
                                   * que hay que ir a preguntar. Solo aparece si lo
                                   * hay — un recuadro vacío no informa.
                                   */}
-                                {/*
-                                  * Turnos que no cubre nadie porque quien los
-                                  * tenia ya no esta. No es del piso resolverlo
-                                  * —lo reasigna quien hace el horario— pero el
-                                  * supervisor es quien se lo encuentra de frente
-                                  * cuando llega el dia.
-                                  */}
-                                {huerfanos && huerfanos.total > 0 && (
-                                    <div className="bg-rose-50 border border-rose-200 rounded-xl p-4">
-                                        <p className="text-[11px] font-black uppercase tracking-wide text-rose-800 mb-2">
-                                            {huerfanos.total} turno{huerfanos.total === 1 ? '' : 's'} sin nadie que lo cubra
-                                        </p>
-                                        <ul className="space-y-1">
-                                            {huerfanos.porPersona.map((p, i) => (
-                                                <li key={i} className="text-xs font-semibold text-rose-900">
-                                                    {p.nombre} — {p.turnos.map(t =>
-                                                        `${new Date(t.fecha).toLocaleDateString('es-PR', { timeZone: 'UTC', day: '2-digit', month: 'short' })} ${t.tipo}`
-                                                    ).join(' · ')}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                        <p className="text-[11px] font-medium text-rose-800/80 mt-2 leading-relaxed">
-                                            Están en el horario publicado a nombre de quien ya no trabaja aquí. Hay que reasignarlos.
-                                        </p>
-                                    </div>
-                                )}
-
-                                {cierreDeTurno && cierreDeTurno.sinGarantizar.length > 0 && (
-                                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                                        <p className="text-[11px] font-black uppercase tracking-wide text-amber-800 mb-2">
-                                            Sin garantizar al cerrar turno
-                                        </p>
-                                        <ul className="space-y-1">
-                                            {cierreDeTurno.sinGarantizar.map((x, i) => (
-                                                <li key={i} className="text-xs font-semibold text-amber-900">
-                                                    {x.quien} · {x.cuantas} pack{x.cuantas === 1 ? '' : 's'} · cerró {x.hora}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                        <p className="text-[11px] font-medium text-amber-800/80 mt-2 leading-relaxed">
-                                            Dijeron que no podían asegurar si se dieron. No afirma que no se dieran —
-                                            hay que preguntarles.
-                                        </p>
-                                    </div>
-                                )}
-
-                                {/*
-                                  * Y cuánto del cumplimiento del día se firmó AL
-                                  * CERRAR y no a su hora. Si ese número crece, el
-                                  * problema no es el registro: es el turno.
-                                  */}
-                                {cierreDeTurno && cierreDeTurno.declaradasAlCerrar > 0 && (
-                                    <p className="text-[11px] font-medium text-slate-500">
-                                        <span className="font-bold text-slate-700">{cierreDeTurno.declaradasAlCerrar}</span>
-                                        {' '}dosis se declararon al cerrar turno, no a su hora.
-                                    </p>
-                                )}
-
                                 <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
                                     <p className="text-xs text-slate-500 font-medium leading-relaxed">
                                         {dosisSinDar.sinDar === 0 ? (

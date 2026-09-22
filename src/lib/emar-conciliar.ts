@@ -53,6 +53,11 @@ export interface FilaProgramada {
     id: string;
     patientMedicationId: string;
     status: MedStatus;
+    /**
+     * La dosis existe y YA la resolvió alguien. Quien llama NO debe crear otra
+     * fila: debe devolver éxito con ésta. Ver el comentario de `conciliarUna`.
+     */
+    yaResuelta?: boolean;
 }
 
 export interface Conciliacion {
@@ -151,11 +156,26 @@ export async function conciliarUna(
     // 1. Con franja: búsqueda exacta.
     const scheduledTime = instanteDeLaFranja(franja, ahora);
     if (scheduledTime) {
+        /**
+         * TRES RESULTADOS, NO DOS: abierta, YA RESUELTA, o no hay.
+         *
+         * Devolvía `null` tanto cuando la dosis no existía como cuando ya la
+         * había resuelto alguien, y quien llama no puede distinguirlos: crea
+         * una fila nueva en los dos casos. Eso es el mecanismo exacto de las 6
+         * dosis contadas dos veces del 21-sep-2026, y seguía vivo después de
+         * anularlas — arreglar el dato sin arreglar la causa.
+         *
+         * `conciliarPack` ya distinguía los tres casos (`aFirmar`,
+         * `yaResueltos`, `sinFila`) desde el 15-sep. Esta era la divergencia.
+         */
         const fila = await prisma.medicationAdministration.findFirst({
-            where: { patientMedicationId, scheduledTime, status: { in: ABIERTOS } },
+            where: { patientMedicationId, scheduledTime },
             select: { id: true, patientMedicationId: true, status: true },
         });
-        return fila ?? null;
+        if (!fila) return null;
+        return ABIERTOS.includes(fila.status)
+            ? fila
+            : { ...fila, yaResuelta: true };
     }
 
     /**

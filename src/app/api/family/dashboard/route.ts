@@ -159,6 +159,16 @@ export async function GET(req: Request) {
                     patientMedication: { patientId: resident.id },
                     // Por la FECHA DE LA DOSIS. Ver src/lib/emar-dia.ts.
                     ...eMARdeHoy(),
+                    /**
+                     * Y SOLO LAS RESUELTAS — el gemelo de abajo ya lo hacia.
+                     *
+                     * Sin la lista, un dia cuyo unico registro fuera una fila
+                     * ANULADA (VOIDED, desde el 22-sep-2026) daria `totalToday`
+                     * mayor que cero y `omitsToday` cero, o sea "al dia" sobre
+                     * una dosis que nadie dio. Dos consultas gemelas y solo una
+                     * llevaba la lista: eso era el hueco.
+                     */
+                    status: { in: ['ADMINISTERED', 'MISSED', 'OMITTED', 'REFUSED', 'HELD'] },
                 },
             }),
             prisma.medicationAdministration.count({

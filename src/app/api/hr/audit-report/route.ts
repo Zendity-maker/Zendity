@@ -121,7 +121,19 @@ export async function GET(request: Request) {
         }
 
         // --- Meds ---
-        const medTotal = medAdmins.length;
+        /**
+         * EL DENOMINADOR SON LAS RESUELTAS, NO TODAS LAS FILAS.
+         *
+         * Era `.length`, que mete dentro dos cosas que no son fallo de nadie:
+         * las PENDING —una dosis que todavia no ha llegado a su hora— y, desde
+         * el 22-sep-2026, las VOIDED. Medido ese dia: Andres Flores bajaba de
+         * 100% a 93% por sus propias seis filas anuladas, o sea que se le
+         * penalizaba por haber corregido un duplicado.
+         *
+         * DOSIS_RESUELTAS de CLAUDE.md: lo que de verdad se resolvio.
+         */
+        const RESUELTAS = ['ADMINISTERED', 'MISSED', 'OMITTED', 'REFUSED', 'HELD'];
+        const medTotal = medAdmins.filter((m: any) => RESUELTAS.includes(m.status)).length;
         const administered = medAdmins.filter(m => m.status === 'ADMINISTERED').length;
         const missed = medAdmins.filter(m => m.status === 'MISSED').length;
         const refused = medAdmins.filter(m => m.status === 'REFUSED').length;

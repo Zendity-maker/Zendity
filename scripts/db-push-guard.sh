@@ -83,7 +83,7 @@ Fue lo que causó la pérdida del 20-may-2026.
 
 Si Prisma sugiere `--force-reset` es porque el schema está en drift.
 La solución correcta es:
-    npx prisma migrate dev --name <descripcion>
+    npm run db:migrate   (pasa por scripts/db-migrate-guard.sh)
 EOF
         exit 1
     fi
@@ -123,7 +123,7 @@ if [ "$is_prod" = true ] && [ "${ALLOW_PROD_PUSH:-}" != "YES_EXPLICIT" ]; then
    Antes:
      1. Snapshot reciente en Neon.
      2. Confirma con el dueño del proyecto (Andrés).
-     3. Considera migration formal: npx prisma migrate dev --name <desc>
+     3. Considera migration formal: npm run db:migrate (tiene su propio guard)
 
    Si NO querías tocar prod: revisa qué le pasaste a DATABASE_URL.
 EOF

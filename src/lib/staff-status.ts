@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { clinicalDayCalendarUTCRange } from '@/lib/dates';
 
 /**
  * Estado de un empleado — fuente única de verdad.
@@ -123,16 +124,32 @@ export async function turnosHuerfanos(hqId: string): Promise<{
     total: number;
     porPersona: { nombre: string; turnos: { fecha: Date; tipo: string }[] }[];
 }> {
-    const hoy = new Date();
-    hoy.setUTCHours(0, 0, 0, 0);
+    /**
+     * EL ANCLA CORRECTA PARA `ScheduledShift.date`.
+     *
+     * `new Date()` con `setUTCHours(0,0,0,0)` da medianoche del dia UTC, y el
+     * dia UTC adelanta al de Puerto Rico entre las 20:00 y las 23:59 AST: en
+     * esas cuatro horas el turno de MAÑANA ya se considera "de ayer" y
+     * desaparece de la lista. `clinicalDayCalendarUTCRange()` es la de las tres
+     * anclas que corresponde a este campo, que se persiste a medianoche UTC.
+     * Ver CLAUDE.md § "las tres anclas".
+     *
+     * Con cota superior explicita a proposito: CLAUDE.md pide gte+lt para que
+     * un fallo de ancla salga como un cero visible y no como la lista de otro
+     * dia. Aqui la cota de arriba es amplia —90 dias— porque lo que se busca
+     * es todo lo futuro, pero acotado sigue siendo mejor que abierto.
+     */
+    const { start: hoy } = clinicalDayCalendarUTCRange();
+    const tope = new Date(hoy.getTime() + 90 * 24 * 60 * 60 * 1000);
     const filas = await prisma.scheduledShift.findMany({
         where: {
-            date: { gte: hoy },
+            date: { gte: hoy, lt: tope },
             isAbsent: false,
             shiftType: { not: 'OFF' },
             schedule: { headquartersId: hqId, status: 'PUBLISHED' },
             // Quien ya no esta. Las dos banderas, que se mueven juntas.
-            user: { OR: [{ isActive: false }, { isDeleted: true }] },
+            // Y de ESTA sede: el horario y el empleado pueden divergir.
+            user: { headquartersId: hqId, OR: [{ isActive: false }, { isDeleted: true }] },
         },
         // El select lleva lo que se lee. Antipatron 9.
         select: {

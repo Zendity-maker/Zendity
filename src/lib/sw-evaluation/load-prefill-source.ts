@@ -102,7 +102,19 @@ export async function loadPrefillSource(
         porEstado.filter(r => estados.includes(r.status)).reduce((n, r) => n + r._count._all, 0);
     const totalResueltas = cuenta(DOSIS_RESUELTAS);
     const totalAdministered = porEstado.find(r => r.status === 'ADMINISTERED')?._count._all ?? 0;
-    const sinResolver = porEstado.reduce((n, r) => n + r._count._all, 0) - totalResueltas;
+    /**
+     * LO QUE DE VERDAD ESPERA A ALGUIEN, CONTADO Y NO RESTADO.
+     *
+     * Era `total - resueltas`, y calcular por resta significa que cualquier
+     * estado NUEVO entra automaticamente en "sin resolver". Al añadir VOIDED el
+     * 22-sep-2026 —una fila anulada por duplicada, que no espera a nadie— cinco
+     * dosis de Jose Ramon Garcia pasaron a contarse como pendientes en la
+     * evaluacion de la trabajadora social.
+     *
+     * `ABIERTOS` es la misma lista que usa src/lib/dosis-sin-resolver.ts.
+     */
+    const ABIERTOS = ['PENDING', 'MISSED'] as const;
+    const sinResolver = cuenta(ABIERTOS);
 
     /**
      * Sin dosis resueltas, `adherenceRate` es null: nunca un 100% de relleno

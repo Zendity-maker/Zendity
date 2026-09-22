@@ -191,7 +191,21 @@ export async function GET(req: Request) {
         // Meds
         const medsMap: Record<string, number> = {};
         medsByStatus.forEach(m => { medsMap[m.status] = m._count._all; });
-        const medsTotal = Object.values(medsMap).reduce((a, b) => a + b, 0);
+        /**
+         * EL CUMPLIMIENTO eMAR SE DIVIDE ENTRE LAS RESUELTAS.
+         *
+         * Sumaba TODOS los estados, y ahi dentro van dos que no son fallo de
+         * nadie: las PENDING —dosis que aun no han llegado a su hora— y, desde
+         * el 22-sep-2026, las VOIDED (filas anuladas por duplicadas). Las dos
+         * hinchan el denominador y bajan el cumplimiento del informe que lee
+         * direccion.
+         *
+         * DOSIS_RESUELTAS de CLAUDE.md.
+         */
+        const RESUELTAS_EMAR = ['ADMINISTERED', 'MISSED', 'OMITTED', 'REFUSED', 'HELD'];
+        const medsTotal = Object.entries(medsMap)
+            .filter(([estado]) => RESUELTAS_EMAR.includes(estado))
+            .reduce((a, [, n]) => a + (n as number), 0);
         const administered = medsMap['ADMINISTERED'] || 0;
         const compliancePct = medsTotal > 0 ? Math.round((administered / medsTotal) * 100) : 0;
 
