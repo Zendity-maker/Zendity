@@ -93,6 +93,23 @@ export async function GET(req: Request) {
                     take: 3,
                     select: { note: true },
                 },
+                /**
+                 * LA COMIDA, DE DONDE EL HOGAR LA REGISTRA DE VERDAD.
+                 *
+                 * Este cron era el ULTIMO lector de `DailyLog.foodIntake` sin
+                 * respaldo: `family/dashboard` ya se arreglo, este no. Y ese
+                 * campo no lo llena ningun control de la tableta — medido, no
+                 * existe ni un input para el en toda la pantalla de cuido.
+                 *
+                 * Lo que si se registra son las comidas, tres veces al dia por
+                 * residente. Mientras el digest leia el campo muerto, las
+                 * familias recibian "sin dato" sobre algo que el hogar habia
+                 * anotado esa misma manana.
+                 */
+                mealLogs: {
+                    where: { timeLogged: { gte: digestDate } },
+                    select: { quality: true },
+                },
             },
         });
 
@@ -107,7 +124,15 @@ export async function GET(req: Request) {
         async function processOne(p: typeof patients[0]): Promise<{ ok: boolean; patientId: string; error?: string }> {
             try {
                 const log = p.dailyLogs[0];
-                const foodPct = log?.foodIntake ?? null;
+                // Las mismas cuatro lineas que `family/dashboard`: se promedia
+                // la calidad de las comidas del dia y solo se cae a
+                // `foodIntake` como respaldo historico, para los dias
+                // anteriores a que existiera MealLog.
+                const pctDeCalidad = (q: string) =>
+                    q === 'ALL' ? 100 : q === 'HALF' ? 50 : q === 'LITTLE' ? 25 : 0;
+                const foodPct: number | null = p.mealLogs.length > 0
+                    ? Math.round(p.mealLogs.reduce((a, m) => a + pctDeCalidad(String(m.quality)), 0) / p.mealLogs.length)
+                    : (log?.foodIntake ?? null);
                 const foodBand = computeFoodBand(foodPct);
 
                 // Solo notas de estilo de vida — descarta las de alerta clínica via helper centralizado

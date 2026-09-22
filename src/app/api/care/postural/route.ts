@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { variantesDePosicion } from '@/lib/posicion-rotacion';
 import { ULCERA_ABIERTA } from '@/lib/upp';
 import { solapaConSinServicio } from '@/lib/ventanas-sin-servicio';
 import { resolverHoraReal } from '@/lib/hora-real';
@@ -61,6 +62,21 @@ export async function POST(req: Request) {
         const rotacionReciente = await prisma.posturalChangeLog.findFirst({
             where: {
                 patientId,
+                /**
+                 * POR LADO, IGUAL QUE `/api/care/rounds`.
+                 *
+                 * Las dos rutas escriben la MISMA tabla y hasta el 22-sep-2026
+                 * tenian guardas distintas: esta casaba cualquier rotacion de
+                 * la ventana —y se tragaba una correccion de decubito— y la
+                 * otra casaba la cadena exacta —y dejaba pasar el doble toque
+                 * que cruza superficies, porque la tira escribe "Izquierdo" y
+                 * este modal "IZQUIERDA". El mismo acto daba resultados
+                 * distintos segun por donde entrara.
+                 *
+                 * Ver src/lib/posicion-rotacion.ts: 329 duplicados atrapados y
+                 * 28 correcciones dejadas pasar, de los 357 pares de 30 dias.
+                 */
+                position: { in: variantesDePosicion(position) },
                 performedAt: {
                     gte: new Date(momento.getTime() - 2 * 60 * 1000),
                     lte: new Date(momento.getTime() + 2 * 60 * 1000),
