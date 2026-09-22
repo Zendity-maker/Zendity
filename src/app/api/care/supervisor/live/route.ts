@@ -801,11 +801,73 @@ export async function GET(req: Request) {
         }
         const rondasCompletasHoy = [...pisosPorRonda.values()].filter(p => p.size >= 2).length;
 
+        /**
+         * LO QUE SE CONTESTÓ AL CERRAR TURNO, Y SOBRE TODO LO QUE NO SE PUDO.
+         *
+         * El cierre de turno pregunta desde el 21-sep-2026 por las dosis que
+         * nadie resolvió, y guarda la respuesta en `ShiftHandover.justifications`.
+         * Una de las respuestas es "No puedo garantizarlo", que a propósito NO
+         * toca la dosis: no afirma que se dio ni que no.
+         *
+         * Esa respuesta necesitaba llegar a alguien. Sin esto se guardaba en un
+         * JSON que el reporte del relevo imprime en prosa y nadie cuenta — o
+         * sea, una duda honesta convertida en silencio, que es justo lo que el
+         * cierre vino a quitar. Aquí sale como número y como lista corta para
+         * el panel del supervisor, que es quien puede ir a mirarlo.
+         *
+         * El ancla es `createdAt` del relevo, que siempre tiene valor. Ver
+         * CLAUDE.md § "la fecha por la que filtras está nula justo donde
+         * importa".
+         */
+        const relevosDeHoy = await prisma.shiftHandover.findMany({
+            where: { headquartersId: hqId, createdAt: { gte: todayStart } },
+            // El select lleva lo que se lee. Antipatrón #9.
+            select: {
+                id: true,
+                createdAt: true,
+                justifications: true,
+                outgoingNurse: { select: { name: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+        const sinGarantizar: { quien: string; hora: string; cuantas: number }[] = [];
+        let dosisDeclaradasAlCerrar = 0;
+        for (const r of relevosDeHoy) {
+            const j = (r.justifications && typeof r.justifications === 'object')
+                ? r.justifications as Record<string, string>
+                : {};
+            const claves = Object.entries(j).filter(([k]) => k.startsWith('meds:'));
+            if (claves.length === 0) continue;
+            dosisDeclaradasAlCerrar += claves.filter(([, v]) => v === 'SE_DIERON').length;
+            const dudas = claves.filter(([, v]) => v === 'NO_PUEDO_GARANTIZAR').length;
+            if (dudas > 0) {
+                sinGarantizar.push({
+                    quien: r.outgoingNurse?.name?.trim() || 'Cuidador(a)',
+                    hora: r.createdAt.toLocaleTimeString('es-PR', {
+                        timeZone: 'America/Puerto_Rico', hour: 'numeric', minute: '2-digit', hour12: true,
+                    }),
+                    cuantas: dudas,
+                });
+            }
+        }
+
         return NextResponse.json({
             success: true,
             activeCaregivers: activeSessions.length,
             /** Rondas de inspección con los dos pisos firmados hoy, de 3. */
             rondasCompletasHoy,
+            /**
+             * Del cierre de turno. `sinGarantizar` es una lista corta de
+             * "alguien dijo que no podía asegurarlo": no es una falta, es algo
+             * que hay que ir a preguntar. `declaradasAlCerrar` deja ver cuánto
+             * del cumplimiento del día se firmó en el cierre y no en su hora —
+             * si ese número crece, el problema no es el registro, es el turno.
+             */
+            cierreDeTurno: {
+                sinGarantizar,
+                declaradasAlCerrar: dosisDeclaradasAlCerrar,
+                relevosLeidos: relevosDeHoy.length,
+            },
             liveStats: {
                 baths: bathsToday,
                 meals: mealsToday.reduce((acc, curr) => ({ ...acc, [curr.mealType]: curr._count.mealType }), {}),

@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import { prisma } from '@/lib/prisma';
 import { clinicalDay } from '@/lib/dates';
 import { compatibleShiftTypesAt } from '@/lib/shift-coverage';
+import { etiquetaOmision } from '@/lib/omision-medicamento';
 
 /**
  * Lógica compartida entre:
@@ -438,7 +439,13 @@ export type ShiftPatient = { id: string; name: string; colorGroup: string; roomN
 export async function buildZendiSummary(params: {
     caregiverName: string;
     shiftType: ShiftT;
-    patients: { name: string; colorGroup: string; roomNumber: string | null }[];
+    /**
+     * `id` hace falta para traducir las claves `meds:<ISO>|<patientId>` de las
+     * justificaciones a un nombre. Sin pedirlo en el tipo, el campo llegaba
+     * pero era invisible — la version de campo-que-no-pediste del antipatron 9,
+     * en TypeScript en vez de en un `select`.
+     */
+    patients: { id?: string; name: string; colorGroup: string; roomNumber: string | null }[];
     activity: ShiftActivity;
     justifications: Record<string, string>;
     /** Fecha del turno. Sin esto, GPT inventaba un encabezado "Fecha:" con un
@@ -478,8 +485,51 @@ export async function buildZendiSummary(params: {
             `  · ${a.patientName}: ${a.notes}${a.reportadoPor ? ` (lo reportó ${a.reportadoPor})` : ''}`).join('\n')
         : '  · ninguno';
 
+    /**
+     * LAS RESPUESTAS DEL CIERRE, EN CASTELLANO Y NO EN CLAVES.
+     *
+     * Esta linea llevaba `${id}: ${r}` literal, y con el cableado de las dosis
+     * (21-sep-2026) las claves pasaron a ser
+     * `meds:2026-09-22T12:00:00.000Z|<uuid del residente>`. O sea que el
+     * reporte que la cuidadora LEE Y FIRMA —y que el supervisor abre en
+     * /corporate/reports— habria impreso un ISO y un UUID crudos, y de paso
+     * habria metido un identificador de residente en un documento clinico.
+     *
+     * Aqui se traducen: la hora del pack en hora de Puerto Rico, el nombre del
+     * residente desde `patients`, y la etiqueta del motivo desde
+     * src/lib/omision-medicamento.ts. Lo que no sea una clave de medicamentos
+     * se deja como estaba.
+     */
+    const nombrePorId = new Map(patients.filter(p => p.id).map(p => [p.id as string, p.name]));
+    const legible = (clave: string, respuesta: string): string => {
+        if (!clave.startsWith('meds:')) return `  · ${clave}: ${respuesta}`;
+        const resto = clave.slice('meds:'.length);
+        const corte = resto.indexOf('|');
+        const iso = corte >= 0 ? resto.slice(0, corte) : resto;
+        const patientId = corte >= 0 ? resto.slice(corte + 1) : null;
+        const d = new Date(iso);
+        const hora = isNaN(d.getTime())
+            ? iso
+            : d.toLocaleTimeString('es-PR', {
+                timeZone: 'America/Puerto_Rico', hour: 'numeric', minute: '2-digit', hour12: true,
+            });
+        const quien = patientId ? (nombrePorId.get(patientId) || 'un residente') : 'todos';
+        let dice: string;
+        if (respuesta === 'SE_DIERON') {
+            dice = 'se dieron (declarado al cerrar el turno)';
+        } else if (respuesta === 'NO_PUEDO_GARANTIZAR') {
+            dice = 'no se pudo garantizar';
+        } else if (respuesta.startsWith('NO_SE_DIERON:')) {
+            const etiqueta = etiquetaOmision(respuesta.slice('NO_SE_DIERON:'.length));
+            dice = `no se dieron${etiqueta ? ` — ${etiqueta}` : ''}`;
+        } else {
+            dice = respuesta;
+        }
+        return `  · Medicamentos de las ${hora} — ${quien}: ${dice}`;
+    };
+
     const justLines = Object.keys(justifications).length > 0
-        ? Object.entries(justifications).map(([id, r]) => `  · ${id}: ${r}`).join('\n')
+        ? Object.entries(justifications).map(([id, r]) => legible(id, r)).join('\n')
         : '  · ninguna';
 
     // El relevo empieza por lo que hay que MIRAR, no por el recuento.
