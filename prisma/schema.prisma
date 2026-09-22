@@ -1248,6 +1248,31 @@ enum MedStatus {
   REFUSED
   OMITTED
   HELD
+
+  /// ANULADA: esta fila registra un acto que YA esta registrado en otra.
+  ///
+  /// No es un estado clinico — no dice nada sobre el residente. Dice que la
+  /// fila sobra: la misma dosis se escribio dos veces por dos caminos
+  /// distintos.
+  ///
+  /// EXISTE PORQUE BORRAR NO ES UNA OPCION. El 21-sep-2026 seis dosis
+  /// quedaron contadas dos veces (Jose Ramon Garcia x5, Loida Correa x1):
+  /// direccion las registro por una ruta que escribe `scheduledTime` nulo, esa
+  /// fila resulto invisible para `conciliarPack`, y horas despues una
+  /// cuidadora firmo el mismo pack y se creo la segunda. Hacia falta poder
+  /// retirar una de cada par sin borrar un registro clinico ni mentir sobre lo
+  /// que paso: OMITTED diria que no se dio, y se dio.
+  ///
+  /// NINGUN CONTEO LA INCLUYE, y eso es automatico: todas las metricas del
+  /// repo usan listas explicitas —`DOSIS_RESUELTAS` y las variantes de
+  /// ['ADMINISTERED','MISSED','REFUSED','OMITTED']— asi que una VOIDED sale
+  /// del numerador Y del denominador sin tocar nada. Comprobado sitio por
+  /// sitio antes de añadirla; el unico que restaba en vez de contar era el PDF
+  /// del eMAR, y se ajusto.
+  ///
+  /// Quien anula deja rastro en `SystemAuditLog` con action VOIDED, que es el
+  /// precedente que ya usan los tickets del supervisor.
+  VOIDED
 }
 
 // =======================

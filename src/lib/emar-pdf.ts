@@ -147,14 +147,19 @@ export function generarEmarPDF(m: EmarMeta): ArrayBuffer {
     const cuenta = new Map<string, number>();
     for (const d of m.dosis) cuenta.set(d.estado, (cuenta.get(d.estado) ?? 0) + 1);
     const admin = cuenta.get('ADMINISTERED') ?? 0;
-    const resto = m.dosis.length - admin;
+    // Las anuladas no son "resto": son filas que sobran, la misma dosis escrita
+    // dos veces. Restarlas del total las habria pintado como no administradas.
+    // Ver MedStatus.VOIDED en prisma/schema.prisma.
+    const anuladas = cuenta.get('VOIDED') ?? 0;
+    const totalReal = m.dosis.length - anuladas;
+    const resto = totalReal - admin;
 
     setFill(ZEBRA); setDraw(LINE);
     doc.rect(M, y, W - 2 * M, 11, 'FD');
     setText(INK);
     doc.setFont('helvetica', 'bold').setFontSize(9);
-    doc.text(`${m.dosis.length} dosis en el período`, M + 4, y + 7);
-    let x = M + 4 + doc.getTextWidth(`${m.dosis.length} dosis en el período`) + 8;
+    doc.text(`${totalReal} dosis en el período`, M + 4, y + 7);
+    let x = M + 4 + doc.getTextWidth(`${totalReal} dosis en el período`) + 8;
     setText(OK); doc.setFontSize(8.5);
     doc.text(`${admin} administradas`, x, y + 7);
     x += doc.getTextWidth(`${admin} administradas`) + 8;

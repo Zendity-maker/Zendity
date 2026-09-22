@@ -271,6 +271,14 @@ function slotInShift(minutes: number, shift: string): boolean {
  *     activos de Cupey sin una sola administracion, entre ellos Warfarin con
  *     107 dias. Ver src/lib/receta.ts.
  */
+/**
+ * Cuanto ANTES de su hora se puede empezar a firmar un pack.
+ *
+ * Ni cero —el reparto empieza antes de la hora en punto— ni libre, que es lo
+ * que permitio firmar el pack de las 20:00 a las 14:12 del 21-sep-2026.
+ */
+const MARGEN_ANTES_MIN = 30;
+
 function groupMedsByScheduleTime(medications: any[]) {
     const shift = getCurrentShift();
     const ahora = new Date();
@@ -307,7 +315,7 @@ function groupMedsByScheduleTime(medications: any[]) {
      * 05:59 no se ofrece ninguno — y a esa hora tampoco hay ninguno que ofrecer.
      */
     const puedeHaberAtrasados = ahora.getHours() >= 6;
-    const groups: Record<string, { slotMinutes: number; meds: any[]; atrasado: boolean }> = {};
+    const groups: Record<string, { slotMinutes: number; meds: any[]; atrasado: boolean; todaviaNoToca: boolean }> = {};
     medications.forEach(m => {
         if (!m.scheduleTimes) return;
         if (!tocaHoy(m)) return;
@@ -315,18 +323,50 @@ function groupMedsByScheduleTime(medications: any[]) {
         times.forEach((t: string) => {
             const min = parseTimeToMinutes(t);
             if (min < 0) return;
+            /**
+             * UN PACK NO SE OFRECE ANTES DE SU HORA.
+             *
+             * `slotInShift` dice si la franja pertenece a este turno, y con eso
+             * solo la tableta ofrecia TODOS los packs del turno desde que el
+             * turno abria. O sea que a las 2 de la tarde ya se podia firmar el
+             * pack de las 8 de la noche.
+             *
+             * No es teorico. Medido el 21-sep-2026: **23 dosis firmadas antes
+             * de su hora**, 18 de ellas del pack de las 20:00 firmadas a las
+             * 14:12 —Risperidone, Metformin, Trazodone— y 3 del de las 17:00
+             * firmadas a las 14:13, entre ellas la Lantus de Maria M. Melendez.
+             * Cinco horas y cuarenta minutos antes.
+             *
+             * Una dosis firmada antes de darse no es un error de registro: es
+             * un expediente que afirma un acto que todavia no ocurrio, y si
+             * luego no se da, nadie se entera nunca — la fila ya dice
+             * ADMINISTERED y ningun barrido la mira.
+             *
+             * MARGEN de 30 minutos, y no cero: en el piso se empieza a repartir
+             * antes de la hora en punto, y bloquear hasta el minuto exacto
+             * empujaria a firmar despues "de memoria", que es el problema
+             * contrario y el que costo las 62 horas falsas del mismo dia.
+             *
+             * El pack no desaparece: sale como el de "de antes", desactivado,
+             * diciendo a que hora se abre. Esconderlo haria que se buscara por
+             * otro camino.
+             */
             const enTurno = slotInShift(min, shift);
             const atrasado = !enTurno && puedeHaberAtrasados && min < ahoraMin;
             if (!enTurno && !atrasado) return;
+            // Cruza medianoche (turno de noche): el slot de las 00:30 visto a
+            // las 22:10 tiene `min` menor que `ahoraMin` y no es futuro.
+            const cruzaMedianoche = shift === 'NIGHT' && min < 360 && ahoraMin >= 1320;
+            const todaviaNoToca = enTurno && !cruzaMedianoche && min > ahoraMin + MARGEN_ANTES_MIN;
             const label = formatSlotLabel(min);
-            if (!groups[label]) groups[label] = { slotMinutes: min, meds: [], atrasado };
+            if (!groups[label]) groups[label] = { slotMinutes: min, meds: [], atrasado, todaviaNoToca };
             // Evitar duplicar el mismo med en el mismo slot (si CSV repetido)
             if (!groups[label].meds.find((x: any) => x.id === m.id)) {
                 groups[label].meds.push(m);
             }
         });
     });
-    const entries = Object.entries(groups).map(([label, v]) => ({ label, slotMinutes: v.slotMinutes, meds: v.meds, atrasado: v.atrasado }));
+    const entries = Object.entries(groups).map(([label, v]) => ({ label, slotMinutes: v.slotMinutes, meds: v.meds, atrasado: v.atrasado, todaviaNoToca: v.todaviaNoToca }));
     // Los atrasados van DESPUÉS de los del turno: lo que toca ahora es el
     // trabajo, lo de antes es la corrección. Pero van, que es el punto.
     entries.sort((a, b) => {
@@ -5276,7 +5316,11 @@ export default function ZendityCareTabletPage() {
                             // Flujo de packs: agrupar meds por slot del turno, resolver pack activo.
                             // Los mismos que sembraron la hora, no un recalculo.
                             const packs = packsDelPaciente;
-                            const activePackIdx = packs.findIndex(p => !isPackComplete(p));
+                            // El pack activo es el primero SIN COMPLETAR que ya se
+                            // puede firmar. Los que todavia no tocan se ven en la
+                            // lista pero no se abren: firmar el de las 20:00 a las
+                            // 14:12 es lo que costo 23 dosis afirmadas antes de darse.
+                            const activePackIdx = packs.findIndex(p => !isPackComplete(p) && !(p as any).todaviaNoToca);
                             const activePack = activePackIdx >= 0 ? packs[activePackIdx] : null;
                             const totalPacks = packs.length;
                             const completedPacks = packs.filter(p => isPackComplete(p));
