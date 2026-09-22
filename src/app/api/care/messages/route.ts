@@ -100,7 +100,18 @@ export async function GET(req: Request) {
              * 16, y la cuota mensual y la fecha de nacimiento en los 17.
              */
             include: {
-                patient: { select: { id: true, name: true, roomNumber: true, colorGroup: true } },
+                /**
+                 * `status` VA EN EL SELECT PORQUE LA PANTALLA TIENE QUE DECIRLO.
+                 *
+                 * Los hilos de residentes fallecidos o en salida temporal se
+                 * quedan en la bandeja a propósito —ver el comentario de
+                 * arriba— pero hasta ahora salían exactamente igual que los
+                 * demás. Medido el 22-sep-2026: el hilo de Fernando González
+                 * Delgado pedía respuesta sin que nada dijera que había
+                 * fallecido. Quien abre esa conversación tiene derecho a
+                 * saberlo ANTES de escribir.
+                 */
+                patient: { select: { id: true, name: true, roomNumber: true, colorGroup: true, status: true } },
             },
             orderBy: { createdAt: 'desc' },
             /**

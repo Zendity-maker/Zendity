@@ -69,6 +69,22 @@ function isSameDay(a: string, b: string): boolean {
 export default function FamilyMessagesPanel({ open, onClose, onPendientesChange }: Props) {
     const [conversations, setConversations] = useState<any[]>([]);
     const [selected, setSelected] = useState<any | null>(null);
+    /**
+     * LA CONVERSACIÓN ABIERTA, LEÍDA SIEMPRE AL DÍA.
+     *
+     * El intervalo de abajo se crea UNA VEZ, cuando el panel se abre, y captura
+     * el `loadConversations` de ese render — donde `selected` vale `null`,
+     * porque el panel siempre abre en la lista. Así que el `if (selected)` del
+     * refresco era falso para siempre y **la conversación que tienes abierta
+     * nunca recibía mensajes nuevos**: había que cerrarla y volver a entrar
+     * para ver una respuesta.
+     *
+     * Es el fallo espejo del que tenía el buzón de enfermería, que en vez de no
+     * refrescar re-abría el hilo cerrado. La misma causa —leer estado desde una
+     * closure vieja— con dos síntomas opuestos.
+     */
+    const selectedRef = useRef<any | null>(null);
+    useEffect(() => { selectedRef.current = selected; }, [selected]);
     const [reply, setReply] = useState("");
     const [loading, setLoading] = useState(false);
     const [sending, setSending] = useState(false);
@@ -86,8 +102,10 @@ export default function FamilyMessagesPanel({ open, onClose, onPendientesChange 
                 setConversations(data.conversations);
                 const pendientes: number = data.conversations.filter((c: any) => c.pendiente).length;
                 onPendientesChange(pendientes);
-                if (selected) {
-                    const updated = data.conversations.find((c: any) => c.patientId === selected.patientId);
+                // Por el ref, no por el estado capturado. Ver arriba.
+                const abierta = selectedRef.current;
+                if (abierta) {
+                    const updated = data.conversations.find((c: any) => c.patientId === abierta.patientId);
                     if (updated) setSelected(updated);
                 }
             }

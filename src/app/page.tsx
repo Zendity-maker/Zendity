@@ -79,6 +79,22 @@ export default function InsightsDashboard() {
   const [showInbox, setShowInbox] = useState(false);
   const [inboxThreads, setInboxThreads] = useState<any[]>([]);
   const [activeThread, setActiveThread] = useState<any>(null);
+  /**
+   * EL HILO ABIERTO, LEÍDO SIEMPRE AL DÍA.
+   *
+   * `fetchMessages` re-abría el hilo que se acababa de cerrar. El botón de
+   * volver hacía `setActiveThread(null)` y acto seguido `fetchMessages()`, pero
+   * esa función es la CLOSURE del render en curso: dentro de ella
+   * `activeThread` sigue valiendo el hilo viejo, porque el estado de React aún
+   * no se ha actualizado. Encontraba el hilo, hacía `setActiveThread(updated)`
+   * y lo volvía a abrir. No era intermitente — no se podía salir NUNCA.
+   *
+   * Con el ref, `fetchMessages` lee el valor actual y no el que tenía cuando
+   * se creó. Arregla también cualquier otro camino que cierre el hilo mientras
+   * hay una petición en vuelo.
+   */
+  const activeThreadRef = useRef<any>(null);
+  useEffect(() => { activeThreadRef.current = activeThread; }, [activeThread]);
   const [replyContent, setReplyContent] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
 
@@ -215,8 +231,10 @@ export default function InsightsDashboard() {
       const data = await res.json();
       if (data.success) {
         setInboxThreads(data.threads);
-        if (activeThread) {
-          const updated = data.threads.find((t: any) => t.patient.id === activeThread.patient.id);
+        // Por el ref, no por el estado capturado en la closure. Ver arriba.
+        const abierto = activeThreadRef.current;
+        if (abierto) {
+          const updated = data.threads.find((t: any) => t.patient.id === abierto.patient.id);
           if (updated) setActiveThread(updated);
         }
       }
@@ -225,11 +243,20 @@ export default function InsightsDashboard() {
     }
   };
 
-  // Abrir un hilo = leerlo. Antes los mensajes solo se marcaban leídos al
-  // RESPONDER, así que el badge de la Sala quedaba encendido para siempre
-  // aunque el hilo ya estuviera visto. Optimista en local + PATCH al server.
+  /**
+   * ABRIR UN HILO LO MARCA LEÍDO — PERO NO APAGA EL BADGE, Y ESO ES A PROPÓSITO.
+   *
+   * `isRead` sigue sirviendo para saber si alguien miró el mensaje. Lo que ya
+   * no hace es mover el contador: desde que el badge cuenta SIN CONTESTAR, solo
+   * lo apaga una respuesta. Fue una decisión, no un descuido — antes se apagaba
+   * al abrir y quedaban familias esperando.
+   *
+   * Por eso este método ya NO pone `unreadCount: 0` en local. Lo hacía, y era
+   * una mentira que duraba hasta el siguiente refresco: el badge desaparecía al
+   * abrir y reaparecía doce segundos después, que es exactamente lo que hace
+   * pensar que algo está roto.
+   */
   const markThreadRead = async (patientId: string) => {
-    setInboxThreads(prev => prev.map(t => t.patient.id === patientId ? { ...t, unreadCount: 0 } : t));
     try {
       await fetch('/api/corporate/family-messages', {
         method: 'PATCH',
@@ -888,7 +915,15 @@ export default function InsightsDashboard() {
                 <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
                   <MessageSquare className="w-5 h-5 text-teal-600" /> Sala de Enfermería
                 </h3>
+                {/* Se dice una vez, en la cabecera, para no repetirlo en cada
+                    hilo: el contador se apaga al CONTESTAR, no al abrir. Sin
+                    esta frase el badge parece un "no leídos" averiado. */}
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Family Link</p>
+                {inboxThreads.some((t: any) => t.unreadCount > 0) && (
+                  <p className="text-[11px] font-semibold text-slate-500 mt-1.5 normal-case tracking-normal">
+                    El contador se apaga cuando contestas, no al abrir.
+                  </p>
+                )}
               </div>
               <button onClick={() => setShowInbox(false)} className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-200 rounded-full transition-colors">
                 <X className="w-5 h-5" />
@@ -908,10 +943,41 @@ export default function InsightsDashboard() {
                       <div key={idx} onClick={() => { setActiveThread(thread); markThreadRead(thread.patient.id).then(fetchMessages); }} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-teal-400 hover:shadow-md cursor-pointer transition-all flex justify-between items-center group">
                         <div>
                           <h4 className="font-bold text-slate-800 text-sm group-hover:text-teal-600">{thread.patient.name}</h4>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Cuarto {thread.patient.room}</p>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">
+                            Cuarto {thread.patient.room}
+                            {/* El hilo de un residente fallecido o fuera se queda
+                                en la bandeja a propósito —se sigue contestando a
+                                su familia— pero hay que saberlo ANTES de escribir. */}
+                            {thread.patient.status === 'DECEASED' && (
+                              <span className="ml-2 normal-case text-slate-600 font-semibold">· falleció</span>
+                            )}
+                            {thread.patient.status === 'TEMPORARY_LEAVE' && (
+                              <span className="ml-2 normal-case text-slate-600 font-semibold">· fuera del hogar</span>
+                            )}
+                            {thread.patient.status === 'DISCHARGED' && (
+                              <span className="ml-2 normal-case text-slate-600 font-semibold">· dado de alta</span>
+                            )}
+                          </p>
                         </div>
+                        {/*
+                          * "SIN CONTESTAR", NO "NUEVOS".
+                          *
+                          * El contador no cuenta mensajes sin abrir: cuenta
+                          * mensajes de la familia que nadie ha respondido — la
+                          * API lo dice literal («ya no cuenta sin abrir: cuenta
+                          * sin contestar»), y fue una decisión deliberada
+                          * porque antes se apagaba al abrir y quedaban familias
+                          * sin respuesta.
+                          *
+                          * Pero decía "Nuevos", así que parecía un contador de
+                          * no leídos que estaba roto: se abría el hilo, no se
+                          * apagaba, y no había forma de saber por qué. Medido
+                          * el 22-sep-2026: 95 de los 105 mensajes están
+                          * marcados como leídos y aun así había 4 hilos con
+                          * badge — Nydia L. Ortiz con 4, y ninguno sin leer.
+                          */}
                         {thread.unreadCount > 0 ? (
-                          <span className="bg-rose-500 text-white font-black text-[10px] px-2.5 py-1 rounded-full">{thread.unreadCount} Nuevos</span>
+                          <span className="bg-rose-500 text-white font-black text-[10px] px-2.5 py-1 rounded-full whitespace-nowrap">{thread.unreadCount} sin contestar</span>
                         ) : (
                           <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-teal-500 transition-colors" />
                         )}
@@ -923,7 +989,9 @@ export default function InsightsDashboard() {
                 <div className="flex flex-col h-full bg-slate-50/50 overflow-hidden relative">
                   {/* Hilo Específico Header */}
                   <div className="p-3 px-4 bg-white border-b border-slate-200 flex items-center gap-3 sticky top-0 z-10 shadow-sm">
-                    <button onClick={() => { setActiveThread(null); fetchMessages(); }} className="text-slate-500 hover:text-slate-800 font-bold p-1 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors">
+                    {/* Sin `fetchMessages()` detrás: el ref ya evita que se
+                        reabra, y el polling refresca la lista solo. */}
+                    <button onClick={() => setActiveThread(null)} className="text-slate-500 hover:text-slate-800 font-bold p-1 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors">
                       <ArrowRight className="w-4 h-4 rotate-180" />
                     </button>
                     <span className="font-black text-slate-800 text-sm">{activeThread.patient.name}</span>
