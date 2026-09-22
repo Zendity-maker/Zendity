@@ -12,6 +12,7 @@ import { es } from "date-fns/locale";
 import EmergencyPdfButton from "@/components/medical/patient/EmergencyPdfButton";
 import ZendiMomentsWidget from "@/components/care/zendi/ZendiMomentsWidget";
 import MyObservationsWidget from "@/components/care/MyObservationsWidget";
+import { esOrdenDeObservacion } from "@/lib/observacion-vitales";
 import ZendiCameraEnhancer from "@/components/care/ZendiCameraEnhancer";
 import SignatureCanvas from "react-signature-canvas";
 import HoraDelRegistro from '@/components/care/HoraDelRegistro';
@@ -4233,12 +4234,15 @@ export default function ZendityCareTabletPage() {
                                                         const expiresAt = new Date(order.expiresAt);
                                                         const minsLeft = Math.round((expiresAt.getTime() - Date.now()) / 60000);
                                                         const expired = minsLeft <= 0;
-                                                        const urgent = !expired && minsLeft < 30;
+                                                        // La revisión de observación son 45 min, no 4 h: a los 30
+                                                        // ya va por la mitad. Urge desde el principio.
+                                                        const esRevision = esOrdenDeObservacion(order.reason);
+                                                        const urgent = !expired && (esRevision || minsLeft < 30);
                                                         const hh = Math.floor(minsLeft / 60);
                                                         const mm = minsLeft % 60;
                                                         const label = expired
-                                                            ? 'Ventana vencida'
-                                                            : `Vence en ${hh > 0 ? `${hh}h ${mm}m` : `${mm}m`}`;
+                                                            ? (esRevision ? 'Revisión vencida' : 'Ventana vencida')
+                                                            : `${esRevision ? 'Revisión en ' : 'Vence en '}${hh > 0 ? `${hh}h ${mm}m` : `${mm}m`}`;
                                                         return (
                                                             <span className={`inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider rounded-full px-2 py-1 whitespace-nowrap ${
                                                                 expired
@@ -4458,7 +4462,15 @@ export default function ZendityCareTabletPage() {
                                         const expiresAt = new Date(order.expiresAt);
                                         const minsLeft = Math.round((expiresAt.getTime() - Date.now()) / 60000);
                                         const expired = minsLeft <= 0;
-                                        const urgent = !expired && minsLeft < 30;
+                                        /**
+                                         * La franja decía «Vitales de entrada» pasara lo que pasara,
+                                         * porque era lo único que existía. La revisión de observación
+                                         * de 45 min usa la misma orden y NO es lo mismo: es la que el
+                                         * sistema prometió en voz alta cuando unos vitales salieron
+                                         * críticos. Se nombra por lo que es.
+                                         */
+                                        const esRevision = esOrdenDeObservacion(order.reason);
+                                        const urgent = !expired && (esRevision || minsLeft < 30);
                                         const hh = Math.floor(Math.max(minsLeft, 0) / 60);
                                         const mm = Math.max(minsLeft, 0) % 60;
                                         const countdown = hh > 0 ? `${hh}h ${mm}m` : `${mm}m`;
@@ -4470,7 +4482,9 @@ export default function ZendityCareTabletPage() {
                                                 <p className={`text-[11px] font-semibold leading-tight flex-1 ${
                                                     expired ? 'text-[#991b1b]' : urgent ? 'text-[#92400e]' : 'text-[#155e75]'
                                                 }`}>
-                                                    Vitales de entrada · {expired ? `Ventana vencida hace ${Math.abs(minsLeft)} min` : `Vence en ${countdown}`}
+                                                    {esRevision ? 'Revisión de observación' : 'Vitales de entrada'} · {expired
+                                                        ? `${esRevision ? 'Vencida' : 'Ventana vencida'} hace ${Math.abs(minsLeft)} min`
+                                                        : `${esRevision ? 'Vuelve a tomarlos en ' : 'Vence en '}${countdown}`}
                                                 </p>
                                             </div>
                                         );

@@ -5,6 +5,7 @@ import { todayStartAST } from '@/lib/dates';
 import { applyScoreEvent } from '@/lib/score-event';
 import { PENALTY_GRACE_MS } from '@/lib/vitals-window';
 import { sinServicio } from '@/lib/ventanas-sin-servicio';
+import { MOTIVO_OBSERVACION, OBSERVACION_MIN, esOrdenDeObservacion } from '@/lib/observacion-vitales';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,8 +70,16 @@ export async function GET(req: Request) {
 
         let reminded = 0;
         for (const order of dueOrders) {
-            const title = "Vitales por vencer (20 min)";
-            const msg = `La ventana de vitales de ${order.patient.name} vence a las ${order.expiresAt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Puerto_Rico' })}. Tómalos cuanto antes.`;
+            // La misma tabla lleva dos obligaciones distintas desde el
+            // 22-sep-2026: la ventana de entrada al turno (4 h) y la revisión
+            // del protocolo de observación (45 min). Llamarlas igual en el
+            // aviso haría que la urgente se leyera como la rutinaria.
+            const esRevision = esOrdenDeObservacion(order.reason);
+            const hora = order.expiresAt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Puerto_Rico' });
+            const title = esRevision ? "Revisión de observación por vencer" : "Vitales por vencer (20 min)";
+            const msg = esRevision
+                ? `La revisión de ${order.patient.name} vence a las ${hora}. Vuelve a tomarle los vitales.`
+                : `La ventana de vitales de ${order.patient.name} vence a las ${hora}. Tómalos cuanto antes.`;
 
             if (order.caregiverId) {
                 await notifyUser(order.caregiverId, { type: 'EMAR_ALERT', title, message: msg, link: '/care/vitals' });
@@ -83,6 +92,77 @@ export async function GET(req: Request) {
                 data: { reminderSentAt: now }
             });
             reminded++;
+        }
+
+        /**
+         * ── A-bis. LA REVISIÓN DE 45 MINUTOS QUE VENCIÓ SIN HACERSE ──
+         *
+         * Esto es lo que no existía. Hasta el 22-sep-2026 el protocolo de
+         * observación le anunciaba a la cuidadora una revisión obligatoria y
+         * después no la vigilaba nadie: de 578 anunciadas, 46 se hicieron
+         * dentro del plazo (8 %) y 8 no se hicieron nunca. Ese mismo día, a
+         * las 18:11, había tres vencidas y sin revisar —171, 75 y 71 minutos—
+         * y ni una sola pantalla lo decía.
+         *
+         * Se escribe EXPIRED antes de avisar, y por eso el aviso sale UNA vez:
+         * en la pasada siguiente la orden ya no está PENDING y no vuelve a
+         * entrar. Es la misma idempotencia que da el compare-and-swap del
+         * cierre de turno, sin necesidad de una bandera nueva.
+         *
+         * NO hay penalidad, ni aquí ni en el bloque C —que filtra
+         * `autoCreated: true` y deja estas fuera por construcción—. Avisar de
+         * que falta una revisión es información; cobrarla enseñaría a no
+         * registrar los vitales que la disparan.
+         */
+        const revisionesVencidas = await prisma.vitalsOrder.findMany({
+            where: {
+                status: 'PENDING',
+                reason: MOTIVO_OBSERVACION,
+                completedAt: null,
+                expiresAt: { lt: now },
+            },
+            include: {
+                patient: { select: { name: true, status: true } },
+                caregiver: { select: { id: true, name: true, isActive: true, isDeleted: true } },
+            },
+        });
+        let revisionesEscaladas = 0;
+        let revisionesSinAvisar = 0;
+        for (const o of revisionesVencidas) {
+            // Primero se cierra la puerta, luego se avisa.
+            await prisma.vitalsOrder.update({
+                where: { id: o.id },
+                data: { status: 'EXPIRED' },
+            });
+
+            /**
+             * A quien ya no está no se le pide trabajo. Una revisión vencida
+             * de alguien dado de alta o fallecido se vence igual —el dato
+             * queda— pero no manda a nadie a buscarlo.
+             */
+            if (o.patient.status !== 'ACTIVE') { revisionesSinAvisar++; continue; }
+
+            const vencidaHace = Math.round((now.getTime() - o.expiresAt.getTime()) / 60000);
+            // Sin cifras ni hallazgo clínico en el cuerpo — regla 7.
+            const msg = `Se tomaron vitales fuera de rango y la revisión de los ${OBSERVACION_MIN} min`
+                + ` venció hace ${vencidaHace} min sin volver a tomarlos.`;
+
+            await notifyRoles(o.headquartersId, ['SUPERVISOR', 'NURSE', 'DIRECTOR'], {
+                type: 'EMAR_ALERT',
+                title: `Revisión de observación vencida — ${o.patient.name}`,
+                message: msg,
+                link: '/care/supervisor',
+            });
+            // Y a quien la tenía asignada, si sigue trabajando aquí.
+            if (o.caregiverId && o.caregiver?.isActive && !o.caregiver.isDeleted) {
+                await notifyUser(o.caregiverId, {
+                    type: 'EMAR_ALERT',
+                    title: `Revisión pendiente — ${o.patient.name}`,
+                    message: msg,
+                    link: '/care',
+                });
+            }
+            revisionesEscaladas++;
         }
 
         // ── B. Cleanup: PENDING cuyo expiresAt ya pasó → EXPIRED ──
@@ -217,6 +297,10 @@ export async function GET(req: Request) {
             expired: expired.count,
             penalized,
             penaltiesSkippedByCap,
+            // Sin topes silenciosos: si hubo revisiones que no avisaron a
+            // nadie, se dice cuántas y no se confunden con cero.
+            revisionesEscaladas,
+            revisionesSinAvisar,
         });
     } catch (error: any) {
         console.error("vitals-reminder cron error:", error);

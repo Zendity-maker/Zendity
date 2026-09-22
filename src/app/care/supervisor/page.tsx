@@ -838,6 +838,17 @@ export default function SupervisorMissionControlPage() {
             total: number;
             porPersona: { nombre: string; turnos: { fecha: string; tipo: string }[] }[];
         };
+        observacionesAbiertas?: {
+            id: string;
+            patientId: string;
+            patientName: string;
+            colorGroup: string | null;
+            caregiverName: string | null;
+            desde: string;
+            venceA: string;
+            minutosRestantes: number;
+        }[];
+        observacionPlazoMin?: number;
     } | null;
     const dosisSinDar = nuevoEnElPayload?.dosisSinDar;
     /**
@@ -855,6 +866,17 @@ export default function SupervisorMissionControlPage() {
      * salta una vez; esto lo deja a la vista hasta que se reasignen.
      */
     const huerfanos = nuevoEnElPayload?.turnosHuerfanos;
+    /**
+     * REVISIONES DE OBSERVACIÓN TODAVÍA ABIERTAS.
+     *
+     * Cuando unos vitales cruzan el umbral de LLAMAR, la tableta le dice a la
+     * cuidadora que hay una revisión obligatoria en 45 minutos. Hasta el
+     * 22-sep-2026 esa frase no tenía nada detrás: 578 revisiones anunciadas,
+     * 46 hechas dentro del plazo, 0 cerradas, y ninguna pantalla donde se
+     * viera. Esta es esa pantalla.
+     */
+    const observaciones = nuevoEnElPayload?.observacionesAbiertas ?? [];
+    const observacionPlazo = nuevoEnElPayload?.observacionPlazoMin ?? 45;
     const teamScores = liveData?.teamScores || [];
     const handoversFeed = liveData?.handoversFeed || [];
     // Alertas clínicas abiertas que quedan FUERA de la ventana que se está
@@ -1986,6 +2008,48 @@ export default function SupervisorMissionControlPage() {
                           * supervisor es quien se lo encuentra de frente
                           * cuando llega el dia.
                           */}
+                        {/*
+                          * LA REVISIÓN QUE EL SISTEMA PROMETIÓ EN VOZ ALTA.
+                          *
+                          * Va la primera de este bloque porque es la única que
+                          * habla de alguien que está mal AHORA. Las vencidas en
+                          * rojo, las que siguen corriendo en ámbar — y no se
+                          * pinta nada cuando no hay ninguna, que es lo normal.
+                          */}
+                        {observaciones.length > 0 && (() => {
+                            const vencidas = observaciones.filter(o => o.minutosRestantes <= 0);
+                            const hayVencidas = vencidas.length > 0;
+                            return (
+                                <div className={`rounded-xl p-4 border ${hayVencidas ? 'bg-rose-50 border-rose-300' : 'bg-amber-50 border-amber-200'}`}>
+                                    <p className={`text-[11px] font-black uppercase tracking-wide mb-2 ${hayVencidas ? 'text-rose-800' : 'text-amber-800'}`}>
+                                        {hayVencidas
+                                            ? `${vencidas.length} revisión${vencidas.length === 1 ? '' : 'es'} de observación VENCIDA${vencidas.length === 1 ? '' : 'S'}`
+                                            : `${observaciones.length} residente${observaciones.length === 1 ? '' : 's'} en observación`}
+                                    </p>
+                                    <ul className="space-y-1">
+                                        {observaciones.map(o => {
+                                            const m = o.minutosRestantes;
+                                            const vencida = m <= 0;
+                                            return (
+                                                <li key={o.id} className={`text-xs font-semibold ${vencida ? 'text-rose-900' : 'text-amber-900'}`}>
+                                                    {o.patientName}
+                                                    {' — '}
+                                                    {vencida
+                                                        ? `vencida hace ${Math.abs(m)} min`
+                                                        : `quedan ${m} min`}
+                                                    {o.caregiverName ? ` · ${o.caregiverName}` : ''}
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                    <p className={`text-[11px] font-medium mt-2 leading-relaxed ${hayVencidas ? 'text-rose-800/80' : 'text-amber-800/80'}`}>
+                                        Sus vitales salieron fuera de rango y Zéndity anunció una revisión a los {observacionPlazo} minutos.
+                                        Se cierra sola en cuanto alguien vuelva a tomarle los vitales.
+                                    </p>
+                                </div>
+                            );
+                        })()}
+
                         {huerfanos && huerfanos.total > 0 && (
                             <div className="bg-rose-50 border border-rose-200 rounded-xl p-4">
                                 <p className="text-[11px] font-black uppercase tracking-wide text-rose-800 mb-2">

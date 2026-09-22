@@ -11,6 +11,13 @@ import { applyScoreEvent } from '@/lib/score-event';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
+import {
+    MOTIVO_OBSERVACION,
+    OBSERVACION_MIN,
+    abrirObservacion,
+    cerrarObservacionesAbiertas,
+} from '@/lib/observacion-vitales';
+import { notifyRoles } from '@/lib/notifications';
 
 // SOCIAL_WORKER lee vitales del residente (read-only). NO entra a POST.
 const ALLOWED_GET_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE', 'SOCIAL_WORKER'];
@@ -194,7 +201,10 @@ export async function POST(req: Request) {
         // Tenant check: el paciente debe estar en la sede del invocador
         const patientCheck = await prisma.patient.findFirst({
             where: { id: patientId, headquartersId: invokerHqId },
-            select: { id: true }
+            // El nombre se PIDE aquí porque se usa abajo en el aviso a
+            // supervisión. Un campo que no está en el select vuelve null en
+            // todas las filas y se lee igual que "no tiene" — regla 9.
+            select: { id: true, name: true }
         });
         if (!patientCheck) {
             return NextResponse.json({ success: false, error: "Residente no encontrado en tu sede" }, { status: 404 });
@@ -215,6 +225,14 @@ export async function POST(req: Request) {
             //
             // Ahora también cerramos las EXPIRED recientes. Se acota a la ventana
             // más la gracia para no cerrar una orden de anteayer con la toma de hoy.
+            //
+            // Y NO entran aquí las revisiones de observación de 45 min. Esas
+            // son otra obligación, con otro plazo, y se cierran aparte más
+            // abajo — sin justificación de 20 caracteres y sin penalidad. Si
+            // cayeran en esta rama, una revisión registrada a los 50 minutos
+            // quedaría BLOQUEADA hasta que la cuidadora escribiera un párrafo,
+            // justo sobre el residente que el sistema marcó como crítico.
+            // Ver src/lib/observacion-vitales.ts.
             const bordeCierre = new Date(Date.now() - (VITALS_WINDOW_MS + PENALTY_GRACE_MS));
             const pendingOrder = await prisma.vitalsOrder.findFirst({
                 where: {
@@ -222,6 +240,7 @@ export async function POST(req: Request) {
                     status: { in: ['PENDING', 'EXPIRED'] },
                     completedAt: null,
                     orderedAt: { gte: bordeCierre },
+                    reason: { not: MOTIVO_OBSERVACION },
                 },
                 orderBy: { orderedAt: 'desc' },
                 select: { id: true, expiresAt: true, status: true }
@@ -384,21 +403,83 @@ export async function POST(req: Request) {
                 }
             }
 
+            /**
+             * ESTA TOMA CIERRA LA REVISIÓN QUE HUBIERA ABIERTA.
+             *
+             * Va ANTES de abrir la nueva, para no cerrar la que se acaba de
+             * crear. Y va fuera del `if (isCritical)` a propósito: unos vitales
+             * normales también son la revisión — de hecho son el mejor
+             * desenlace posible de una.
+             */
+            const revision = await cerrarObservacionesAbiertas(prisma, {
+                patientId,
+                ahora: new Date(),
+                // Los cinco que mira `evaluarVitales`. Peso y glucosa no
+                // cierran una revisión porque no la pueden contestar.
+                tieneSignosEvaluables: [sys, dia, hr, temp, spo2].some(v => v !== null),
+            });
+
             if (isCritical) {
-                // Auto-queue 45-min observation SLA
-                await prisma.healthAppointment.create({
-                    data: {
-                        patientId,
-                        type: "OBSERVATION",
-                        title: "Toma de Vitales (Observación Continua)",
-                        appointmentDate: new Date(Date.now() + 45 * 60 * 1000)
-                    }
+                /**
+                 * LA REVISIÓN DE 45 MINUTOS, AHORA CON QUIEN LA VIGILE.
+                 *
+                 * Hasta el 22-sep-2026 esto escribía una fila en
+                 * `HealthAppointment` que no leía nadie: 578 creadas, 0
+                 * cerradas, 46 revisadas a tiempo (8 %). Ver
+                 * src/lib/observacion-vitales.ts para la medición completa.
+                 */
+                const obs = await abrirObservacion(prisma, {
+                    patientId,
+                    headquartersId: invokerHqId,
+                    invokerId,
+                    ahora: new Date(),
                 });
+                const horaLimite = obs.expiresAt.toLocaleTimeString('es-ES', {
+                    hour: '2-digit', minute: '2-digit', timeZone: 'America/Puerto_Rico',
+                });
+
+                /**
+                 * Y SUPERVISIÓN SE ENTERA SOLA.
+                 *
+                 * Antes el sistema detectaba el valor crítico y le pedía a la
+                 * cuidadora que fuera a buscar a alguien: no salía un solo
+                 * aviso de esta ruta. Si no hay nadie en el pasillo, la alerta
+                 * se queda en la tableta.
+                 *
+                 * El cuerpo no lleva cifras ni hallazgo clínico — regla 7. Dice
+                 * qué pasó y a qué hora vence; el detalle está en el expediente,
+                 * detrás de la sesión.
+                 */
+                const avisados = await notifyRoles(invokerHqId, ['SUPERVISOR', 'NURSE', 'DIRECTOR'], {
+                    type: 'EMAR_ALERT',
+                    title: `Vitales fuera de rango — ${(patientCheck.name || '').trim()}`,
+                    message: `En protocolo de observación. La revisión vence a las ${horaLimite}.`
+                        + ` Lo registró ${auth.name ?? 'personal'}.`,
+                    link: '/care/supervisor',
+                }, invokerId);
+
+                /**
+                 * SE DICE LO QUE DE VERDAD PASÓ CON EL AVISO.
+                 *
+                 * `notifyRoles` devuelve a cuánta gente llegó, y devuelve 0
+                 * también cuando falla. Escribir "avisé a supervisión" sin
+                 * mirar ese número sería cambiar una mentira por otra: si no
+                 * hay ninguna cuenta de supervisión o enfermería activa en la
+                 * sede, nadie se enteró, y quien tiene la tableta delante es la
+                 * única que puede ir a buscar a alguien. Hay que decírselo.
+                 */
+                const quienSabe = avisados > 0
+                    ? 'Supervisión y enfermería ya tienen el aviso.'
+                    : 'OJO: el aviso no le llegó a nadie — ve a buscar a supervisión tú.';
+
                 return NextResponse.json({
                     success: true,
                     criticalAlert: true,
                     hallazgos,
-                    message: `${criticalMessage} Avisa al supervisor. Zendity colocó al residente bajo protocolo de observación: hay una revisión obligatoria en 45 minutos.`
+                    avisados,
+                    revisionCerrada: revision.cerradas > 0,
+                    message: `${criticalMessage} ${quienSabe} Queda una revisión obligatoria antes de las ${horaLimite}`
+                        + ` — te aparece en la tarjeta del residente con la cuenta atrás.`
                 });
             }
 
@@ -412,7 +493,28 @@ export async function POST(req: Request) {
                     criticalAlert: false,
                     aviso: true,
                     hallazgos,
+                    revisionCerrada: revision.cerradas > 0,
                     message: `${hallazgos.map(x => x.mensaje).join(' ')} Queda anotado para el reporte de enfermería.`
+                        + (revision.cerradas > 0 ? ' Con esto queda cerrada la revisión de observación.' : '')
+                });
+            }
+
+            /**
+             * Y SI ESTA TOMA CERRÓ UNA REVISIÓN, SE LE DICE.
+             *
+             * Es la mitad que faltaba de la promesa: la tableta le anunció a
+             * alguien que había una revisión obligatoria, y hasta hoy nadie le
+             * decía nunca que se había cumplido. Un reloj que empieza delante
+             * de ti y no para nunca deja de ser un reloj.
+             */
+            if (revision.cerradas > 0) {
+                return NextResponse.json({
+                    success: true,
+                    criticalAlert: false,
+                    revisionCerrada: true,
+                    message: revision.huboTarde
+                        ? `Registrado. Queda cerrada la revisión de observación — pasaron más de ${OBSERVACION_MIN} minutos, y queda anotado tal cual.`
+                        : 'Registrado. Queda cerrada la revisión de observación, dentro del plazo.',
                 });
             }
         } else if (type === 'LOG') {

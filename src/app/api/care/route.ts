@@ -277,7 +277,14 @@ export async function GET(req: Request) {
                 },
                 vitalsOrders: {
                     where: { status: 'PENDING' },
-                    orderBy: { orderedAt: 'desc' },
+                    // Por PLAZO, no por antigüedad. Con una revisión de
+                    // observación de 45 min abierta junto a la ventana de
+                    // entrada de 4 h, `orderedAt: desc` acertaba por accidente
+                    // —la revisión siempre es más nueva— pero fallaba al revés:
+                    // una ventana de entrada a punto de vencer quedaba tapada
+                    // por una revisión recién abierta. El que vence antes es el
+                    // que hay que enseñar.
+                    orderBy: { expiresAt: 'asc' },
                     take: 1,
                     select: { id: true, expiresAt: true, reason: true, orderedAt: true }
                 }

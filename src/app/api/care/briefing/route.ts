@@ -97,6 +97,21 @@ export async function POST(req: Request) {
                     healthAppointments: {
                         where: {
                             appointmentDate: { gte: todayStart, lt: todayEnd },
+                            // Ya resuelta no se anuncia. El campo existía desde
+                            // siempre y nadie lo miraba ni lo escribía.
+                            resolved: false,
+                            /**
+                             * Y NUNCA las de tipo OBSERVATION.
+                             *
+                             * Eran las revisiones de 45 minutos del protocolo de
+                             * vitales críticos, y este briefing —que se da a la
+                             * mañana SIGUIENTE— las recitaba como «hay una
+                             * OBSERVATION programada», en inglés y horas después
+                             * de vencido el plazo. 578 creadas, ninguna cerrada.
+                             * Hoy esa revisión es una VitalsOrder con cuenta
+                             * atrás en la tarjeta: ver src/lib/observacion-vitales.ts.
+                             */
+                            type: { not: 'OBSERVATION' },
                         },
                     },
                 },

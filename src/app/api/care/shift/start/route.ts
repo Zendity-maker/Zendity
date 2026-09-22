@@ -350,12 +350,20 @@ export async function POST(req: Request) {
                 const inicioVentana = new Date(now.getTime() - VITALS_WINDOW_MS);
 
                 // Evitar duplicados: órdenes PENDING del mismo residente dentro de la ventana
+                //
+                // `autoCreated: true` acota el dedup a las ventanas de ENTRADA,
+                // que es lo único que puede duplicar a otra ventana de entrada.
+                // Sin ese filtro, una revisión de observación de 45 min abierta
+                // sobre un residente dejaba al turno entrante SIN su ventana de
+                // vitales para esa persona — y en silencio, porque la orden que
+                // lo bloqueaba existía de verdad. Ver src/lib/observacion-vitales.ts.
                 const patientIds = assigned.map(p => p.id);
                 const recentPending = await prisma.vitalsOrder.findMany({
                     where: {
                         headquartersId,
                         patientId: { in: patientIds },
                         status: 'PENDING',
+                        autoCreated: true,
                         orderedAt: { gte: inicioVentana }
                     },
                     select: { patientId: true }

@@ -9,6 +9,7 @@ import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { logError } from '@/lib/logger';
 import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
 import { eMARdeHoy, rangoDelDiaAST } from '@/lib/emar-dia';
+import { MOTIVO_OBSERVACION, OBSERVACION_MIN } from '@/lib/observacion-vitales';
 
 const SUPERVISOR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
@@ -820,6 +821,53 @@ export async function GET(req: Request) {
          * CLAUDE.md § "la fecha por la que filtras está nula justo donde
          * importa".
          */
+        /**
+         * LAS REVISIONES DE OBSERVACIÓN QUE SIGUEN ABIERTAS.
+         *
+         * No entran en `vitalsOrdersToday` —que filtra `autoCreated: true`, o
+         * sea solo las ventanas de entrada al turno— y es a propósito:
+         * mezclarlas ahí inflaría las estadísticas de cada cuidadora con una
+         * obligación que no es suya.
+         *
+         * Aquí van solas porque son otra cosa: alguien tomó unos vitales
+         * críticos, Zéndity anunció en voz alta una revisión obligatoria, y
+         * esta lista es la única pantalla donde consta si se hizo. Antes del
+         * 22-sep-2026 no existía ninguna: 578 revisiones anunciadas, 46
+         * hechas a tiempo, 0 cerradas.
+         *
+         * Se filtra a residente ACTIVO porque es una lista de trabajo
+         * pendiente — regla 10 de CLAUDE.md. Y se acota a 24 h: una revisión
+         * de anteayer ya no es una tarea, es historia.
+         */
+        const revisionesAbiertas = await prisma.vitalsOrder.findMany({
+            where: {
+                headquartersId: hqId,
+                reason: MOTIVO_OBSERVACION,
+                completedAt: null,
+                status: { in: ['PENDING', 'EXPIRED'] },
+                orderedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+                patient: { status: 'ACTIVE' },
+            },
+            select: {
+                id: true,
+                orderedAt: true,
+                expiresAt: true,
+                patient: { select: { id: true, name: true, colorGroup: true } },
+                caregiver: { select: { id: true, name: true } },
+            },
+            orderBy: { expiresAt: 'asc' },
+        });
+        const observacionesAbiertas = revisionesAbiertas.map(o => ({
+            id: o.id,
+            patientId: o.patient.id,
+            patientName: o.patient.name,
+            colorGroup: o.patient.colorGroup,
+            caregiverName: o.caregiver?.name ?? null,
+            desde: o.orderedAt,
+            venceA: o.expiresAt,
+            minutosRestantes: Math.round((o.expiresAt.getTime() - Date.now()) / 60000),
+        }));
+
         const relevosDeHoy = await prisma.shiftHandover.findMany({
             where: { headquartersId: hqId, createdAt: { gte: todayStart } },
             // El select lleva lo que se lee. Antipatrón #9.
@@ -863,6 +911,12 @@ export async function GET(req: Request) {
         return NextResponse.json({
             success: true,
             turnosHuerfanos: huerfanos,
+            /**
+             * Revisiones del protocolo de observación todavía sin cerrar.
+             * `minutosRestantes` en negativo = vencida hace ese rato.
+             */
+            observacionesAbiertas,
+            observacionPlazoMin: OBSERVACION_MIN,
             activeCaregivers: activeSessions.length,
             /** Rondas de inspección con los dos pisos firmados hoy, de 3. */
             rondasCompletasHoy,
