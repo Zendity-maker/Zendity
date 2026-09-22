@@ -218,8 +218,31 @@ export async function resolveColorGroupsForCaregiver(
     const { start: diaDeLaPauta, end: diaSiguiente } =
         scheduledShiftDateRangeForShiftStart(shiftStart);
 
+    /**
+     * LAS DOS GUARDAS QUE CLAUDE.md EXIGE PARA TODA CONSULTA A ScheduledShift.
+     *
+     * Un horario en BORRADOR es un ensayo del constructor: sus colores no son
+     * hechos. Y una pauta marcada ausente dice justamente que esa persona NO
+     * estuvo. `shift-coverage`, `cuidadora-a-cargo` y `uncovered-colors` ya las
+     * llevan; esta era la divergencia.
+     *
+     * Se ponen AHORA porque el riesgo cambió de categoría: hasta el 21-sep-2026
+     * este color solo etiquetaba un reporte, y desde el cableado del cierre de
+     * dosis decide **qué dosis se pueden firmar** — un color sacado de un
+     * borrador pondría dosis de otro grupo a nombre de quien no las dio.
+     *
+     * Medido antes de tocarlo: 59 de 729 turnos históricos usaron un color de
+     * borrador, y sobre los turnos vivos de hoy el cambio mueve **cero**
+     * resultados. Un cambio de regla que hoy no cambia ningún número es el más
+     * barato que se puede hacer, y el más caro de posponer.
+     */
     const scheduledShifts = await prisma.scheduledShift.findMany({
-        where: { userId: caregiverId, date: { gte: diaDeLaPauta, lt: diaSiguiente } },
+        where: {
+            userId: caregiverId,
+            date: { gte: diaDeLaPauta, lt: diaSiguiente },
+            isAbsent: false,
+            schedule: { status: 'PUBLISHED', headquartersId: hqId },
+        },
         include: { colorAssignments: true },
     });
 

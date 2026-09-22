@@ -673,32 +673,53 @@ export default function ZendityCareTabletPage() {
      * la consulta y dejaria firmar antes de saber si falta algo.
      */
     const [avisosCierre, setAvisosCierre] = useState<any[] | null>(null);
+    /**
+     * TRES ESTADOS, NO DOS — Y EL TERCERO SE LE OLVIDO AL AUTOR.
+     *
+     * La primera version tenia `null` (consultando) y `[]` (nada pendiente), y
+     * dejaba el fallo dentro del `null`. Consecuencia: si el GET fallaba, el
+     * bloqueador "Un momento — el cierre se abre en cuanto se sepa" no se
+     * quitaba NUNCA, y el cierre es la unica puerta de salida de esa pantalla.
+     * La cuidadora quedaba encerrada al final de su turno por un fallo de red.
+     *
+     * Ahora el fallo es su propio estado y no bloquea: sale como aviso de un
+     * boton con reintento, y si decide cerrar igual queda escrito en el relevo
+     * que no se pudo comprobar. Bloquearla por un dato que no es suyo seria
+     * castigarla; decir "no falta nada" sin haberlo mirado seria mentir.
+     */
+    const [falloAvisos, setFalloAvisos] = useState(false);
     const [avisosResolubles, setAvisosResolubles] = useState(true);
+    const [reintentoAvisos, setReintentoAvisos] = useState(0);
+    /** Lo que quedo anotado en medicamentos, para la pantalla de entregado. */
+    const [dosisDelCierre, setDosisDelCierre] = useState<any | null>(null);
 
     useEffect(() => {
         if (modalType !== 'SHIFT_CLOSURE_WIZARD' || !activeSession?.id) {
             setAvisosCierre(null);
+            setFalloAvisos(false);
+            setAvisosResolubles(true);
             return;
         }
         let vivo = true;
         setAvisosCierre(null);
+        setFalloAvisos(false);
+        setAvisosResolubles(true);
         (async () => {
             try {
                 const res = await fetch(`/api/care/shift/pendientes?shiftSessionId=${activeSession.id}`);
                 const data = await res.json();
                 if (!vivo) return;
-                // Si la consulta falla NO se pasa `[]`: eso diria "no falta
-                // nada" sobre algo que no se pudo mirar. Se deja en null, que
-                // mantiene el cierre bloqueado, y el wizard lo dice.
-                if (!data.success) return;
+                // Un fallo NO se convierte en `[]`: eso afirmaria "no falta
+                // nada" sobre algo que no se pudo mirar.
+                if (!data.success) { setFalloAvisos(true); return; }
                 setAvisosCierre(data.avisos || []);
                 setAvisosResolubles(data.contexto?.resoluble !== false);
             } catch {
-                // Igual: null, no [].
+                if (vivo) setFalloAvisos(true);
             }
         })();
         return () => { vivo = false; };
-    }, [modalType, activeSession?.id]);
+    }, [modalType, activeSession?.id, reintentoAvisos]);
 
     /**
      * El pack activo, a nivel de componente. Lo recalcula la vista de meds mas
@@ -2649,9 +2670,43 @@ export default function ZendityCareTabletPage() {
                     <p className="text-slate-500 font-medium mb-2 leading-relaxed">
                         Tu reporte de cierre fue guardado y firmado. Zendi protegió tus registros para auditoría.
                     </p>
-                    <p className="text-slate-400 text-sm font-medium mb-8">
+                    <p className="text-slate-400 text-sm font-medium mb-6">
                         Ya no necesitas hacer nada más. Tu turno está completo.
                     </p>
+
+                    {/* Lo que quedó anotado en medicamentos. Si no se preguntó
+                        nada, no se pinta: un recuadro de ceros no informa. */}
+                    {dosisDelCierre && (dosisDelCierre.firmadas || dosisDelCierre.omitidas
+                        || dosisDelCierre.sinGarantia || dosisDelCierre.yaResueltas) ? (
+                        <div className="text-left bg-slate-50 border border-slate-200 rounded-2xl p-5 mb-8">
+                            <p className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-3">
+                                Lo que quedó anotado en medicamentos
+                            </p>
+                            <ul className="space-y-1.5 text-sm font-semibold text-slate-700">
+                                {dosisDelCierre.firmadas > 0 && (
+                                    <li>{dosisDelCierre.firmadas} dosis firmadas a tu nombre</li>
+                                )}
+                                {dosisDelCierre.omitidas > 0 && (
+                                    <li>{dosisDelCierre.omitidas} dosis anotadas como no dadas</li>
+                                )}
+                                {dosisDelCierre.sinGarantia > 0 && (
+                                    <li className="text-slate-500">
+                                        {dosisDelCierre.sinGarantia} quedaron sin garantizar — el supervisor las verá
+                                    </li>
+                                )}
+                                {dosisDelCierre.yaResueltas > 0 && (
+                                    <li className="text-slate-500">
+                                        {dosisDelCierre.yaResueltas} ya las había resuelto alguien
+                                    </li>
+                                )}
+                                {dosisDelCierre.fueraDeVentana > 0 && (
+                                    <li className="text-amber-700">
+                                        {dosisDelCierre.fueraDeVentana} no eran de este turno y no se tocaron
+                                    </li>
+                                )}
+                            </ul>
+                        </div>
+                    ) : null}
                     <button
                         onClick={() => { setShiftDeliveredScreen(false); logout(); }}
                         className="w-full py-4 bg-teal-600 hover:bg-teal-700 text-white font-black text-lg rounded-2xl transition-colors"
@@ -5847,8 +5902,34 @@ export default function ZendityCareTabletPage() {
                  * relevo sin cerrar si se cae la red a la mitad — y la firma
                  * seria de ningun documento.
                  */
-                onResolveWarning={async () => true}
-                warnings={avisosCierre ?? []}
+                onResolveWarning={async (id, respuesta) => {
+                    // "Volver a intentar" es la unica respuesta que hace algo en
+                    // el cliente: relanza la consulta. Las demas solo quedan en
+                    // `justifications` y las aplica /end.
+                    if (id === 'fallo-consulta:medicamentos' && respuesta === 'REINTENTAR') {
+                        setFalloAvisos(false);
+                        setReintentoAvisos(n => n + 1);
+                    }
+                    return true;
+                }}
+                warnings={
+                    falloAvisos
+                        ? [{
+                            // El id NO empieza por `meds:`, que es el prefijo que
+                            // el escritor aplica: esto no toca ninguna dosis.
+                            id: 'fallo-consulta:medicamentos',
+                            type: 'FALLO_CONSULTA',
+                            title: 'No se pudo comprobar si quedaron medicamentos sin registrar',
+                            description: 'Puedes cerrar tu turno igual. Queda anotado que no se'
+                                + ' pudo comprobar, para que lo vea el supervisor — no es algo'
+                                + ' que tengas que resolver tú.',
+                            respuestas: [
+                                { codigo: 'REINTENTAR', etiqueta: 'Volver a intentar', ayuda: 'Comprobar otra vez', principal: true },
+                                { codigo: 'CERRAR_SIN_COMPROBAR', etiqueta: 'Cerrar sin comprobar', ayuda: 'Queda anotado en el relevo' },
+                            ],
+                        }]
+                        : (avisosCierre ?? [])
+                }
                 /**
                  * MIENTRAS NO SE SEPA, BLOQUEA — Y NO COMO AVISO.
                  *
@@ -5900,15 +5981,11 @@ export default function ZendityCareTabletPage() {
                         // Lo que paso con las dosis que acaba de garantizar. Un
                         // cierre que contesta solo "listo" sobre 45 dosis
                         // firmadas es el mismo silencio de antes con mejor cara.
-                        const d = (await res.json().catch(() => null))?.dosisResueltas;
-                        if (d && (d.firmadas || d.omitidas || d.sinGarantia || d.yaResueltas)) {
-                            const partes = [];
-                            if (d.firmadas) partes.push(`${d.firmadas} firmada(s)`);
-                            if (d.omitidas) partes.push(`${d.omitidas} anotada(s) como no dada(s)`);
-                            if (d.sinGarantia) partes.push(`${d.sinGarantia} franja(s) sin garantizar`);
-                            if (d.yaResueltas) partes.push(`${d.yaResueltas} franja(s) ya las habia resuelto alguien`);
-                            avisoOk(`Medicamentos: ${partes.join(' · ')}.`);
-                        }
+                        // Va por ESTADO a la pantalla de "Turno Entregado", no
+                        // por toast: esa pantalla es un `return` temprano que
+                        // desmonta el resto, asi que el toast no se pintaba
+                        // nunca. Ella cerraba sin ver que paso con sus dosis.
+                        setDosisDelCierre((await res.json().catch(() => null))?.dosisResueltas ?? null);
                         setModalType(null);
                         setShiftDeliveredScreen(true);
                         return true;

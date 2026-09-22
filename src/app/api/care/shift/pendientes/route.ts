@@ -6,8 +6,9 @@ import { todayStartAST } from '@/lib/dates';
 import {
     resolveColorGroupsForCaregiver,
     resolvePatientsByColors,
+    resolverTurnoTrabajado,
 } from '@/lib/shift-closure-report';
-import { dosisSinResolverDelTurno, RESPUESTAS_DOSIS } from '@/lib/dosis-sin-resolver';
+import { dosisSinResolverDelTurno, RESPUESTAS_DOSIS, ventanaDeDosisDelTurno } from '@/lib/dosis-sin-resolver';
 import { MOTIVOS_OMISION } from '@/lib/omision-medicamento';
 
 export const dynamic = 'force-dynamic';
@@ -91,24 +92,41 @@ export async function GET(req: Request) {
         }
 
         const ahora = new Date();
-        // El recorte del día clínico SOLO para resolver colores, que es lo que
-        // hacen /preview y /end — así la lista de residentes es idéntica a la
-        // que verá el reporte y el cierre. Ver el prólogo.
-        const shiftStart = session.startTime < todayStartAST() ? todayStartAST() : session.startTime;
 
+        /**
+         * EL PONCHE REAL, NO EL RECORTADO AL DÍA CLÍNICO.
+         *
+         * `/preview` y `/end` resuelven el color con
+         * `session.startTime < todayStartAST() ? todayStartAST() : ...`, y para
+         * el reporte está bien. Aquí sería el fallo de "las tres anclas" de
+         * CLAUDE.md: un turno de noche ponchado a las 22:02 queda recortado a
+         * las 6 AM del día SIGUIENTE, y `resolveColorGroupsForCaregiver` le
+         * encuentra la pauta de mañana — otro color.
+         *
+         * Medido sobre los turnos de noche de 30 días: 4 recibirían el aviso de
+         * un grupo que no cuidaron (y el botón destacado es "Sí, se dieron", o
+         * sea firma sobre dosis ajenas) y 6 saldrían sin color teniendo pauta,
+         * culpando a la falta de datos de un error de fecha.
+         */
         const colorGroups = await resolveColorGroupsForCaregiver(
-            session.caregiverId, session.headquartersId, shiftStart,
+            session.caregiverId, session.headquartersId, session.startTime,
         );
         const patients = await resolvePatientsByColors(colorGroups, session.headquartersId);
 
+        // El turno que se TRABAJÓ, no la hora de cerrar: es lo que decide desde
+        // qué hora empieza la ventana. Mismo resolutor que usa /preview.
+        const tipoDeTurno = await resolverTurnoTrabajado(session.caregiverId, session.startTime);
+        const ventana = ventanaDeDosisDelTurno({
+            ponche: session.startTime,
+            tipoDeTurno,
+            ahora,
+            cierre: session.actualEndTime,
+        });
+
         const franjas = await dosisSinResolverDelTurno({
             patientIds: patients.map(p => p.id),
-            // El ponche REAL, no el recortado: el turno de noche tiene a su
-            // cargo franjas anteriores a las 6 AM.
-            desde: session.startTime,
-            hasta: session.actualEndTime && session.actualEndTime < ahora
-                ? session.actualEndTime
-                : ahora,
+            desde: ventana.desde,
+            hasta: ventana.hasta,
         });
 
         /**
@@ -188,7 +206,37 @@ export async function GET(req: Request) {
                 principal: r.efecto === 'FIRMAR',
             })),
             motivos: MOTIVOS_OMISION.map(m => ({ codigo: m.codigo, etiqueta: m.etiqueta })),
-            detalle: f.dosis.map(d => `${d.residente} — ${d.medicamento}`),
+            /**
+             * AGRUPADO POR RESIDENTE, Y NO ES SOLO PRESENTACIÓN.
+             *
+             * Antes era una línea por dosis: para el pack de las 8:00, 47
+             * líneas en una mirilla con scroll donde el nombre de Milagros
+             * salía once veces seguidas. Pero el problema de fondo era peor que
+             * la mirilla: con una sola respuesta por franja, **un toque afirma
+             * un hecho clínico sobre hasta diez residentes a la vez**, y el
+             * motivo único escribe sobre todos la misma razón. Una de ellas
+             * rehusó, otra estaba en el hospital, y el registro diría lo mismo
+             * de las dos — la mentira que esta función vino a evitar, en la
+             * dirección contraria.
+             *
+             * Por eso la unidad de la afirmación es el residente. La tarjeta
+             * sigue siendo una por franja —el conteo medido es 1 a 3 tarjetas
+             * por turno— y "Todas se dieron" resuelve el caso normal en un
+             * toque; quien necesita separar, separa. Coste medido de la
+             * granularidad: 8 filas en la peor tarjeta del mes y +27 respuestas
+             * en 30 días para todo el hogar.
+             */
+            porResidente: Array.from(
+                f.dosis.reduce((m, d) => {
+                    if (!m.has(d.patientId)) {
+                        m.set(d.patientId, { patientId: d.patientId, residente: d.residente, medicamentos: [] as string[] });
+                    }
+                    m.get(d.patientId)!.medicamentos.push(d.medicamento);
+                    return m;
+                }, new Map<string, { patientId: string; residente: string; medicamentos: string[] }>()).values(),
+            )
+                .map(r => ({ ...r, dosis: r.medicamentos.length }))
+                .sort((a, b) => b.dosis - a.dosis || a.residente.localeCompare(b.residente, 'es')),
         }));
 
         return NextResponse.json({
@@ -201,8 +249,10 @@ export async function GET(req: Request) {
             contexto: {
                 colorGroups,
                 residentes: patients.length,
-                desde: session.startTime.toISOString(),
-                hasta: ahora.toISOString(),
+                desde: ventana.desde.toISOString(),
+                hasta: ventana.hasta.toISOString(),
+                ponche: session.startTime.toISOString(),
+                turno: tipoDeTurno,
                 // Sin colores resueltos no hay residentes, y entonces la lista
                 // vacía no significa que no falte nada.
                 resoluble: colorGroups.length > 0,

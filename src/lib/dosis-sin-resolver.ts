@@ -64,6 +64,87 @@ import { prisma } from '@/lib/prisma';
 /** Estados que significan "esta dosis todavía espera a alguien". */
 const ABIERTOS = ['PENDING', 'MISSED'] as const;
 
+/**
+ * LA VENTANA DEL TURNO — Y POR QUÉ NO EMPIEZA EN EL PONCHE.
+ *
+ * La primera versión de esto anclaba en `session.startTime`, y perdía en
+ * silencio justo el caso que vino a resolver. Medido dosis por dosis sobre las
+ * 163 abiertas de 30 días: **23 (14%) se quedaban fuera sólo por el ponche
+ * tarde**, en cinco días distintos.
+ *
+ *   · 16-sep, pack de las 8:00 — las tres cuidadoras ponchan 08:53, 08:55 y
+ *     08:58. Diez dosis fuera por 53 minutos.
+ *   · 19-sep, **pack de las 5:00** — Joaneliz poncha 05:57 y Caridad 05:59.
+ *     Seis dosis fuera por 57 minutos, y es el pack que ya tiene su propia
+ *     entrada en la memoria del proyecto por nacer tarde y barrerse pronto.
+ *   · 21-sep — Joselyn poncha 09:40; cuatro dosis de las 8:00 de Dwight
+ *     Santiago, fuera.
+ *
+ * Nadie poncha antes de que empiece su turno, y las dosis se pautan a la hora
+ * del turno, no a la hora en que llegó quien lo cubre. Así que la ventana
+ * arranca en el **inicio del turno**, y el ponche sólo la adelanta si fue
+ * todavía más temprano. Eso conserva el motivo por el que no se usaba el
+ * recorte del día clínico —el turno de noche tiene a su cargo las 20:00 y las
+ * 05:00— y recupera las 23.
+ *
+ * La cota de arriba sigue siendo el cierre: una dosis cuya hora no ha llegado
+ * no se le puede reclamar a nadie, y sin ella el cierre de las 08:05 reclamaría
+ * el pack de las 8:00 PM.
+ */
+export function ventanaDeDosisDelTurno(params: {
+    ponche: Date;
+    /** MORNING | EVENING | NIGHT | FULL_DAY | FULL_NIGHT. Otro → sólo el ponche. */
+    tipoDeTurno: string | null | undefined;
+    ahora: Date;
+    cierre?: Date | null;
+}): { desde: Date; hasta: Date } {
+    const { ponche, tipoDeTurno, ahora, cierre } = params;
+
+    // AST es UTC-4 todo el año: Puerto Rico no cambia la hora.
+    const VENTANA: Record<string, readonly [number, number]> = {
+        MORNING: [6, 14], EVENING: [14, 22], NIGHT: [22, 6],
+        FULL_DAY: [6, 18], FULL_NIGHT: [18, 6],
+    };
+    const v = tipoDeTurno ? VENTANA[tipoDeTurno] : undefined;
+
+    /** La hora AST `h` sobre la fecha de calendario AST de `ref`, como instante. */
+    const astSobre = (ref: Date, h: number) => {
+        const pared = new Date(ref.getTime() - 4 * 60 * 60 * 1000);
+        return new Date(Date.UTC(
+            pared.getUTCFullYear(), pared.getUTCMonth(), pared.getUTCDate(), h + 4, 0, 0, 0,
+        ));
+    };
+
+    let desde = ponche;
+    let finDelTurno: Date | null = null;
+    if (v) {
+        // Para un turno de noche ponchado a las 22:08 del 21, el inicio son las
+        // 22:00 del 21 — no las del 22.
+        const inicio = astSobre(ponche, v[0]);
+        if (inicio < desde) desde = inicio;
+        finDelTurno = astSobre(ponche, v[1]);
+        // NIGHT [22,6] y FULL_NIGHT [18,6] cruzan medianoche: el fin es del día
+        // siguiente al del inicio.
+        if (finDelTurno <= inicio) finDelTurno = new Date(finDelTurno.getTime() + 24 * 60 * 60 * 1000);
+    }
+
+    /**
+     * LA COTA DE ARRIBA ES LA MÁS PRONTA DE TRES, Y LAS TRES HACEN FALTA.
+     *
+     *   · `ahora` — una dosis cuya hora no ha llegado no se le reclama a nadie.
+     *   · el cierre — si ya cerró, lo posterior no es suyo.
+     *   · **el fin de su turno** — esta faltaba, y la añadió la medición: al
+     *     mover el inicio a las 06:00, una cuidadora de mañana que cierra a las
+     *     14:08 empezaba a recibir la franja de las **2:00 PM**, que es del
+     *     turno de tarde. Medido: aparecía en cuatro turnos de 30 días. Pedirle
+     *     cuentas de una franja que no es suya es la otra mitad del error que
+     *     este fichero persigue — no basta con no callar; hay que no acusar.
+     */
+    let hasta = cierre && cierre < ahora ? cierre : ahora;
+    if (finDelTurno && finDelTurno < hasta) hasta = finDelTurno;
+    return { desde, hasta };
+}
+
 export interface DosisAbierta {
     /** id de la fila MedicationAdministration — es lo que se va a firmar. */
     id: string;
@@ -218,6 +299,13 @@ export interface ResultadoCierre {
     sinGarantia: number;
     /** Ya las había resuelto alguien entre que se mostró el aviso y el cierre. */
     yaResueltas: number;
+    /**
+     * Claves cuyo instante NO cae en la ventana de este turno. No es un error
+     * del que responde: pasa cuando el supervisor fuerza el cierre a media
+     * respuesta y la tableta conserva las claves del turno anterior. Se cuentan
+     * para que se vean en vez de aplicarse.
+     */
+    fueraDeVentana: number;
 }
 
 /**
@@ -266,16 +354,28 @@ export interface ResultadoCierre {
  * La procedencia va en `notes`, que es texto libre, porque no hay dónde más:
  * `MedicationAdministration` no tiene `updatedAt` ni campo de origen, y
  * `createdAt` dejó de significar "cuándo se registró" el 15-sep-2026 (es la
- * hora del cron en el 90% de las filas del día). Queda recuperable de verdad en
- * `ShiftHandover.justifications`, que es JSON consultable y guarda la respuesta
- * por instante. Un campo de origen y el código del motivo piden cambio de
- * schema y van aparte.
+ * hora del cron en el 90% de las filas del día).
+ *
+ * Y ojo con lo que este comentario decía antes: que la respuesta "queda
+ * recuperable de verdad en `ShiftHandover.justifications`, que es JSON
+ * consultable". Consultable lo es, pero **NADIE LA CONSULTA**: `justifications`
+ * no tiene ni un lector en todo el repo. O sea que "No puedo garantizarlo" se
+ * guardaba donde nadie mira, y este comentario afirmaba una recuperación que no
+ * existe — el patrón de promete-y-no-entrega, dentro de la documentación del
+ * fichero que vino a cerrarlo.
+ *
+ * Lo que SÍ llega hoy a una persona es el conteo: `ResultadoCierre` vuelve al
+ * cierre y se pinta en la pantalla de "Turno Entregado". Falta que el panel del
+ * supervisor lea `sinGarantia` con su detalle, y eso está pendiente a
+ * propósito, dicho y no disimulado. Un campo de origen y el código del motivo
+ * piden cambio de schema y van aparte.
  */
 export async function aplicarRespuestasDeCierre(
     tx: {
         medicationAdministration: {
             findMany: (a: any) => Promise<any[]>;
             updateMany: (a: any) => Promise<{ count: number }>;
+            update: (a: any) => Promise<any>;
         };
     },
     params: {
@@ -285,20 +385,72 @@ export async function aplicarRespuestasDeCierre(
         caregiverName: string;
         firma: string;
         ahora: Date;
+        /**
+         * LA VENTANA DEL TURNO. NO ES OPCIONAL, Y ESTE ES EL PORQUÉ.
+         *
+         * La clave del aviso (`meds:<ISO>`) la elige el CLIENTE, y sin esta
+         * ventana el servidor la aceptaba tal cual. Medido: 93 dosis viejas
+         * quedaban firmables en un solo POST.
+         *
+         * El camino no es teórico. Una cuidadora responde tres avisos, el
+         * supervisor le fuerza el cierre antes de que firme (11 veces en 30
+         * días), su POST falla, vuelve a ponchar sin recargar la tableta — y
+         * `justifications` conserva las claves del turno anterior. Al cerrar el
+         * turno nuevo se aplicarían sin volver a mostrarse: administraciones
+         * fechadas hace días, con la firma de hoy, sin error y sin aviso.
+         *
+         * Y la puerta estaba abierta a mano: un POST a /api/care/shift/end con
+         * las claves que se quisieran. El prólogo de este fichero decía "nunca
+         * se cree al cliente qué filas son" y la desconfianza estaba a medias:
+         * el ámbito de residentes sí se recalculaba, el de tiempo no.
+         */
+        desde: Date;
+        hasta: Date;
         /** Traducción código → etiqueta, para la nota. Inyectada para no acoplar. */
         etiquetaDeMotivo: (codigo: string) => string | null;
         /** Código → PENDING/REFUSED/HELD/OMITTED. Inyectada por lo mismo. */
         estadoDeMotivo: (codigo: string) => 'REFUSED' | 'HELD' | 'OMITTED';
     },
 ): Promise<ResultadoCierre> {
-    const out: ResultadoCierre = { firmadas: 0, omitidas: 0, sinGarantia: 0, yaResueltas: 0 };
+    const out: ResultadoCierre = {
+        firmadas: 0, omitidas: 0, sinGarantia: 0, yaResueltas: 0, fueraDeVentana: 0,
+    };
     if (params.patientIds.length === 0) return out;
 
     for (const [clave, respuesta] of Object.entries(params.justifications || {})) {
         if (!clave.startsWith('meds:')) continue;
-        const iso = clave.slice('meds:'.length);
+        /**
+         * `meds:<ISO>` o `meds:<ISO>|<patientId>`.
+         *
+         * La forma con residente es la que manda la tableta desde que la unidad
+         * de la afirmación es el residente y no la franja: una rehusó, otra
+         * estaba en el hospital, y con una sola respuesta por franja el
+         * expediente decía lo mismo de las dos.
+         *
+         * La forma sin residente se conserva porque es la que resuelve "todas
+         * se dieron" cuando no hay nada que separar, y porque no hay datos
+         * viejos que migrar: `ShiftHandover.justifications` estaba vacío en los
+         * 294 relevos de 30 días.
+         */
+        const resto = clave.slice('meds:'.length);
+        const corte = resto.indexOf('|');
+        const iso = corte >= 0 ? resto.slice(0, corte) : resto;
+        const soloResidente = corte >= 0 ? resto.slice(corte + 1) : null;
+        // Un residente que no esté en el ámbito resuelto no se toca. Sin esto,
+        // la clave del cliente elegiría a quién firmar.
+        if (soloResidente && !params.patientIds.includes(soloResidente)) {
+            out.fueraDeVentana++;
+            continue;
+        }
         const instante = new Date(iso);
         if (isNaN(instante.getTime())) continue;
+        // La ventana del turno, antes de tocar nada. Ver el comentario de
+        // `desde`/`hasta` arriba: sin esto una clave rancia firma dosis de
+        // hace días.
+        if (instante < params.desde || instante >= params.hasta) {
+            out.fueraDeVentana++;
+            continue;
+        }
 
         // "No puedo garantizarlo" NO toca la dosis, y eso es el punto: no
         // afirma que se dio ni que no. Queda en `justifications` y en el
@@ -313,31 +465,65 @@ export async function aplicarRespuestasDeCierre(
                 scheduledTime: instante,
                 status: { in: ABIERTOS as unknown as string[] },
                 patientMedication: {
-                    patientId: { in: params.patientIds },
+                    patientId: soloResidente ? soloResidente : { in: params.patientIds },
                     isActive: true,
                     status: 'ACTIVE',
                 },
             },
-            select: { id: true },
+            // `notes` va en el select porque hay que CONSERVARLO. Sin pedirlo,
+            // un campo vuelve null y se lee igual que "no tenia nada".
+            select: { id: true, notes: true },
         });
         if (abiertas.length === 0) { out.yaResueltas++; continue; }
-        const ids = abiertas.map(a => a.id);
+        // Las que ya traen nota se actualizan una por una para anteponerla; las
+        // demas —la inmensa mayoria— van en un solo updateMany.
+        const conNota = abiertas.filter(a => a.notes && String(a.notes).trim());
+        const sinNota = abiertas.filter(a => !(a.notes && String(a.notes).trim()));
         const sello = `Confirmado al cerrar turno (${params.caregiverName},`
             + ` ${params.ahora.toISOString()}).`;
 
         if (respuesta === 'SE_DIERON') {
-            const r = await tx.medicationAdministration.updateMany({
-                where: { id: { in: ids } },
-                data: {
-                    status: 'ADMINISTERED',
-                    administeredById: params.caregiverId,
-                    // El instante pautado de la propia dosis. Ver el prólogo.
-                    administeredAt: instante,
-                    signatureBase64: params.firma,
-                    notes: sello,
-                },
-            });
-            out.firmadas += r.count;
+            const comun = {
+                status: 'ADMINISTERED',
+                administeredById: params.caregiverId,
+                // El instante pautado de la propia dosis. Ver el prólogo.
+                administeredAt: instante,
+                signatureBase64: params.firma,
+                /**
+                 * LA ETIQUETA DEL SLOT, QUE SE HABÍA QUEDADO SIN ESCRIBIR.
+                 *
+                 * `slotStatusToday` en la tableta casa por este campo de TEXTO
+                 * (care/page.tsx:248). Sin él, el pack que ella acaba de firmar
+                 * le sigue apareciendo ABIERTO al turno siguiente — y la
+                 * segunda firma crea fila nueva encima. Es el mecanismo exacto
+                 * de las 6 dosis duplicadas del 21-sep, reintroducido por mí en
+                 * el sitio que venía a cerrarlo.
+                 */
+                scheduleTime: etiquetaAST(instante),
+            };
+            if (sinNota.length > 0) {
+                const r = await tx.medicationAdministration.updateMany({
+                    // `status` va en el where, no solo en el findMany: así es un
+                    // compare-and-swap y la carrera de milisegundos con quien
+                    // firme a la vez se convierte en un conteo honesto en vez de
+                    // en una firma que pisa otra.
+                    where: { id: { in: sinNota.map(a => a.id) }, status: { in: ABIERTOS as unknown as string[] } },
+                    data: { ...comun, notes: sello },
+                });
+                out.firmadas += r.count;
+            }
+            // La nota que ya estaba NO se pisa. Las que alcanza este camino son
+            // justo las exculpatorias —"no hubo ventana para firmarla"— y
+            // reemplazarlas por "Confirmado al cerrar turno" borraría la
+            // explicación de por qué la dosis era infirmable. No hay `updatedAt`
+            // ni historial de la fila: lo que se pisa aquí no vuelve.
+            for (const a of conNota) {
+                await tx.medicationAdministration.update({
+                    where: { id: a.id },
+                    data: { ...comun, notes: `${String(a.notes).trim()} · ${sello}` },
+                });
+                out.firmadas++;
+            }
             continue;
         }
 
@@ -348,17 +534,34 @@ export async function aplicarRespuestasDeCierre(
             // defecto: eso escribiría una omisión que nadie declaró. Se deja la
             // dosis como está y cuenta como sin garantía.
             if (!etiqueta) { out.sinGarantia++; continue; }
-            const r = await tx.medicationAdministration.updateMany({
-                where: { id: { in: ids } },
-                data: {
-                    status: params.estadoDeMotivo(codigo),
-                    administeredById: params.caregiverId,
-                    // No se administró: no hay hora de administración.
-                    administeredAt: null,
-                    notes: `Omitido: ${etiqueta}. ${sello}`,
-                },
-            });
-            out.omitidas += r.count;
+            const comun = {
+                status: params.estadoDeMotivo(codigo),
+                // No se administró: no hay hora de administración.
+                administeredAt: null,
+                /**
+                 * `administeredById` NO SE TOCA — es "quién la dio", y aquí
+                 * nadie la dio. Escribir su nombre en una dosis no administrada
+                 * la deja indistinguible de una que sí, y el precedente del
+                 * propio schema es `prnEfectoPorId`: quien responde puede no ser
+                 * quien administró. Quién declaró la omisión queda en
+                 * `ShiftHandover.justifications`, con la clave `meds:<ISO>`.
+                 */
+                scheduleTime: etiquetaAST(instante),
+            };
+            if (sinNota.length > 0) {
+                const r = await tx.medicationAdministration.updateMany({
+                    where: { id: { in: sinNota.map(a => a.id) }, status: { in: ABIERTOS as unknown as string[] } },
+                    data: { ...comun, notes: `Omitido: ${etiqueta}. ${sello}` },
+                });
+                out.omitidas += r.count;
+            }
+            for (const a of conNota) {
+                await tx.medicationAdministration.update({
+                    where: { id: a.id },
+                    data: { ...comun, notes: `${String(a.notes).trim()} · Omitido: ${etiqueta}. ${sello}` },
+                });
+                out.omitidas++;
+            }
             continue;
         }
     }

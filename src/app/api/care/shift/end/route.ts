@@ -12,7 +12,7 @@ import {
     collectShiftActivity,
     buildZendiSummary,
 } from '@/lib/shift-closure-report';
-import { aplicarRespuestasDeCierre } from '@/lib/dosis-sin-resolver';
+import { aplicarRespuestasDeCierre, ventanaDeDosisDelTurno } from '@/lib/dosis-sin-resolver';
 import { etiquetaOmision, estadoParaOmision } from '@/lib/omision-medicamento';
 
 export const dynamic = 'force-dynamic';
@@ -146,6 +146,35 @@ export async function POST(req: Request) {
                 });
             }
 
+            /**
+             * EL AMBITO DE LAS DOSIS SE RESUELVE APARTE DEL DEL REPORTE.
+             *
+             * `colorGroups`/`patients` de arriba usan `shiftStart`, que esta
+             * recortado a `todayStartAST()` (las 6 AM). Para el reporte esta
+             * bien. Para las dosis es un fallo de los que CLAUDE.md llama "las
+             * tres anclas": en un turno de noche ponchado a las 22:02, el
+             * recorte lleva la fecha al dia siguiente y
+             * `resolveColorGroupsForCaregiver` encuentra la pauta de MAÑANA —
+             * otro color. Medido: 4 turnos de noche recibirian el aviso de un
+             * grupo que no cuidaron, y 6 saldrian sin color teniendo pauta.
+             *
+             * Con el ponche REAL el ambito es el mismo que le mostro
+             * /api/care/shift/pendientes, que es la unica forma de que firme lo
+             * que vio.
+             */
+            const coloresDeLasDosis = await resolveColorGroupsForCaregiver(
+                session.caregiverId, session.headquartersId, session.startTime,
+            );
+            const pacientesDeLasDosis = await resolvePatientsByColors(
+                coloresDeLasDosis, session.headquartersId,
+            );
+            const ventanaDosis = ventanaDeDosisDelTurno({
+                ponche: session.startTime,
+                tipoDeTurno: shiftTypeDraft,
+                ahora: now,
+                cierre: session.actualEndTime,
+            });
+
             const [handover, closedSession, dosisResueltas] = await prisma.$transaction(async (tx) => {
                 // Flujo nuevo: cuidador firma → supervisor firma directo.
                 // Sin paso de "senior confirma" (eliminado).
@@ -186,10 +215,17 @@ export async function POST(req: Request) {
                  */
                 const dosis = await aplicarRespuestasDeCierre(tx as any, {
                     justifications,
-                    // Los mismos residentes que resolvio el cierre. Nunca ids de
-                    // fila venidos del cliente: permitiria firmar la dosis de
-                    // cualquier residente de la casa.
-                    patientIds: patients.map(p => p.id),
+                    // Los mismos residentes que le MOSTRO el aviso, no los del
+                    // reporte. Ver `pacientesDeLasDosis` arriba: el reporte
+                    // resuelve el color con el inicio recortado al dia clinico y
+                    // eso, en un turno de noche, trae la pauta del dia
+                    // SIGUIENTE. Firmar sobre ese conjunto ponia dosis de otro
+                    // grupo de color a nombre de quien no las dio.
+                    patientIds: pacientesDeLasDosis.map(p => p.id),
+                    // La ventana, que es lo que impide que una clave rancia del
+                    // turno anterior firme dosis de hace dias.
+                    desde: ventanaDosis.desde,
+                    hasta: ventanaDosis.hasta,
                     caregiverId: session.caregiverId,
                     caregiverName: session.caregiver?.name || 'Cuidador(a)',
                     firma: signature,

@@ -37,6 +37,18 @@ export interface ClosureWarning {
     motivos?: { codigo: string; etiqueta: string }[];
     /** Detalle desplegable: que dosis exactamente, para que no firme a ciegas. */
     detalle?: string[];
+    /**
+     * EL DESGLOSE POR RESIDENTE, QUE ES LA UNIDAD DE LA AFIRMACION.
+     *
+     * Con una sola respuesta por franja, un toque afirma un hecho clinico sobre
+     * hasta diez residentes, y el motivo unico escribe sobre todos la misma
+     * razon: una rehuso, otra estaba en el hospital, y el expediente diria lo
+     * mismo de las dos.
+     *
+     * "Todas se dieron" sigue resolviendo el caso normal en un toque. Quien
+     * necesita separar, separa.
+     */
+    porResidente?: { patientId: string; residente: string; dosis: number; medicamentos: string[] }[];
 }
 
 export interface HardBlocker {
@@ -82,6 +94,12 @@ export default function ShiftClosureWizard({
     const [pidiendoMotivo, setPidiendoMotivo] = useState<string | null>(null);
     /** Avisos con el detalle de dosis desplegado. */
     const [detalleAbierto, setDetalleAbierto] = useState<Record<string, boolean>>({});
+    /** Avisos desglosados residente por residente. */
+    const [desglosado, setDesglosado] = useState<Record<string, boolean>>({});
+    /** Respuesta por fila: clave `${warn.id}|${patientId}`. */
+    const [porFila, setPorFila] = useState<Record<string, string>>({});
+    /** Fila que ya dijo "no se dio" y espera el motivo. */
+    const [motivoDeFila, setMotivoDeFila] = useState<string | null>(null);
 
     // Reporte Zendi (generado server-side por /api/care/shift/preview)
     const [zendiSummary, setZendiSummary] = useState<string>("");
@@ -124,6 +142,9 @@ export default function ShiftClosureWizard({
     useEffect(() => {
         setActiveWarnings(warnings);
         setPidiendoMotivo(null);
+        setDesglosado({});
+        setPorFila({});
+        setMotivoDeFila(null);
     }, [warnings]);
 
     const isBlocked = hardBlockers.length > 0 || activeWarnings.length > 0;
@@ -187,6 +208,35 @@ export default function ShiftClosureWizard({
         setJustifications({ ...justifications, [warningId]: resolution });
         setActiveWarnings(prev => prev.filter(w => w.id !== warningId));
         await onResolveWarning(warningId, resolution);
+    };
+
+    /**
+     * Resuelve el aviso con UNA respuesta por residente.
+     *
+     * Las claves van `${warn.id}|${patientId}` y cada una se aplica solo a las
+     * dosis de ese residente. Ver src/lib/dosis-sin-resolver.ts.
+     */
+    const resolverPorResidente = async (warn: ClosureWarning, respuestas: Record<string, string>) => {
+        const nuevas: Record<string, string> = { ...justifications };
+        for (const [patientId, r] of Object.entries(respuestas)) {
+            nuevas[`${warn.id}|${patientId}`] = r;
+        }
+        setJustifications(nuevas);
+        setActiveWarnings(prev => prev.filter(w => w.id !== warn.id));
+        setMotivoDeFila(null);
+        await onResolveWarning(warn.id, 'POR_RESIDENTE');
+    };
+
+    /** Todas las filas de este aviso con la misma respuesta, en un toque. */
+    const resolverTodas = async (warn: ClosureWarning, codigo: string) => {
+        if (!warn.porResidente || warn.porResidente.length === 0) {
+            await handleQuickResolve(warn.id, codigo);
+            return;
+        }
+        await resolverPorResidente(
+            warn,
+            Object.fromEntries(warn.porResidente.map(r => [r.patientId, codigo])),
+        );
     };
 
     const canSign = hasReadReport && !isBlocked && !isGenerating && zendiSummary.length > 0;
@@ -326,7 +376,8 @@ export default function ShiftClosureWizard({
                                                 <p className="font-black text-slate-900 text-2xl leading-tight mb-2">{warn.title}</p>
                                                 <p className="text-base text-slate-500 font-medium">{warn.description}</p>
                                             </div>
-                                            {warn.detalle && warn.detalle.length > 0 && (
+                                            {((warn.detalle && warn.detalle.length > 0)
+                                                || (warn.porResidente && warn.porResidente.length > 0)) && (
                                                 <div className="-mt-4">
                                                     <button
                                                         onClick={() => setDetalleAbierto(d => ({ ...d, [warn.id]: !d[warn.id] }))}
@@ -334,13 +385,26 @@ export default function ShiftClosureWizard({
                                                     >
                                                         {detalleAbierto[warn.id]
                                                             ? 'Ocultar el detalle'
-                                                            : `Ver las ${warn.detalle.length} dosis`}
+                                                            : warn.porResidente && warn.porResidente.length > 0
+                                                                ? `Ver el detalle · ${warn.porResidente.length} residente${warn.porResidente.length === 1 ? '' : 's'}`
+                                                                : `Ver las ${(warn.detalle || []).length} dosis`}
                                                     </button>
                                                     {detalleAbierto[warn.id] && (
-                                                        <ul className="mt-3 max-h-56 overflow-y-auto rounded-2xl bg-slate-50 border border-slate-200 divide-y divide-slate-200">
-                                                            {warn.detalle.map((d, i) => (
-                                                                <li key={i} className="px-4 py-2.5 text-sm font-medium text-slate-700">{d}</li>
-                                                            ))}
+                                                        /* Por residente, no por dosis: en el pack de
+                                                           las 8:00 la lista por dosis repetia el
+                                                           nombre de Milagros once veces seguidas
+                                                           dentro de una mirilla con scroll. */
+                                                        <ul className="mt-3 max-h-72 overflow-y-auto rounded-2xl bg-slate-50 border border-slate-200 divide-y divide-slate-200">
+                                                            {warn.porResidente && warn.porResidente.length > 0
+                                                                ? warn.porResidente.map(r => (
+                                                                    <li key={r.patientId} className="px-4 py-3">
+                                                                        <p className="text-sm font-bold text-slate-800">{r.residente} · {r.dosis} dosis</p>
+                                                                        <p className="text-xs font-medium text-slate-500 line-clamp-2">{r.medicamentos.join(', ')}</p>
+                                                                    </li>
+                                                                ))
+                                                                : (warn.detalle || []).map((d, i) => (
+                                                                    <li key={i} className="px-4 py-2.5 text-sm font-medium text-slate-700">{d}</li>
+                                                                ))}
                                                         </ul>
                                                     )}
                                                 </div>
@@ -354,57 +418,148 @@ export default function ShiftClosureWizard({
                                               * solo entonces por que. Un medicamento no se puede
                                               * responder con los tres botones de una tarea.
                                               */}
+                                            {/*
+                                              * DOS NIVELES: LA FRANJA Y EL RESIDENTE.
+                                              *
+                                              * Arriba, el caso normal en un toque. Si hace falta
+                                              * separar —una rehuso, otra estaba en el hospital— se
+                                              * desglosa y cada residente lleva su propia respuesta.
+                                              *
+                                              * Los botones van APILADOS, no en tres columnas.
+                                              * Medido en la tableta del piso: "No puedo
+                                              * garantizarlo" necesita 109px de ancho y tenia 64, asi
+                                              * que el texto se salia del boton.
+                                              */}
                                             {warn.respuestas && warn.respuestas.length > 0 ? (
                                                 <div className="flex flex-col gap-3">
-                                                    {pidiendoMotivo === warn.id && warn.motivos && warn.motivos.length > 0 ? (
+                                                    {desglosado[warn.id] && warn.porResidente && warn.porResidente.length > 0 ? (
                                                         <>
                                                             <div className="flex items-center justify-between border-t border-slate-100 pt-5">
-                                                                <p className="text-xs text-slate-500 font-semibold">¿Por qué no se dieron?</p>
+                                                                <p className="text-xs text-slate-500 font-semibold">Uno por uno. Falta{Object.keys(porFila).filter(k => k.startsWith(warn.id + '|')).length === warn.porResidente.length ? 'n 0' : `n ${warn.porResidente.length - Object.keys(porFila).filter(k => k.startsWith(warn.id + '|')).length}`}</p>
                                                                 <button
-                                                                    onClick={() => setPidiendoMotivo(null)}
+                                                                    onClick={() => { setDesglosado(d => ({ ...d, [warn.id]: false })); setMotivoDeFila(null); }}
                                                                     className="text-xs font-bold text-slate-500 underline hover:text-slate-700"
                                                                 >
                                                                     Volver
                                                                 </button>
                                                             </div>
-                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                                {warn.motivos.map(m => (
-                                                                    <button
-                                                                        key={m.codigo}
-                                                                        onClick={() => { setPidiendoMotivo(null); handleQuickResolve(warn.id, `NO_SE_DIERON:${m.codigo}`); }}
-                                                                        className="py-4 px-4 bg-white border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 rounded-[1.5rem] transition-all active:scale-95 text-left shadow-sm font-bold"
-                                                                    >
-                                                                        {m.etiqueta}
-                                                                    </button>
-                                                                ))}
+
+                                                            <div className="flex flex-col gap-2.5">
+                                                                {warn.porResidente.map(r => {
+                                                                    const clave = `${warn.id}|${r.patientId}`;
+                                                                    const ya = porFila[clave];
+                                                                    const pidiendo = motivoDeFila === clave;
+                                                                    return (
+                                                                        <div key={r.patientId} className="rounded-[1.25rem] border-2 border-slate-200 bg-white p-4">
+                                                                            <p className="font-black text-slate-800 text-base">{r.residente} · {r.dosis} dosis</p>
+                                                                            <p className="text-xs font-medium text-slate-500 mt-0.5 line-clamp-2">{r.medicamentos.join(', ')}</p>
+
+                                                                            {ya ? (
+                                                                                <div className="mt-3 flex items-center justify-between gap-3">
+                                                                                    <span className="text-sm font-black text-teal-700">
+                                                                                        {ya === 'SE_DIERON' ? 'Se dieron'
+                                                                                            : ya === 'NO_PUEDO_GARANTIZAR' ? 'Sin garantizar'
+                                                                                            : `No se dieron — ${warn.motivos?.find(m => m.codigo === ya.replace('NO_SE_DIERON:', ''))?.etiqueta || 'motivo'}`}
+                                                                                    </span>
+                                                                                    <button
+                                                                                        onClick={() => setPorFila(f => { const n = { ...f }; delete n[clave]; return n; })}
+                                                                                        className="text-xs font-bold text-slate-500 underline hover:text-slate-700 shrink-0"
+                                                                                    >
+                                                                                        Cambiar
+                                                                                    </button>
+                                                                                </div>
+                                                                            ) : pidiendo ? (
+                                                                                <div className="mt-3 flex flex-col gap-2">
+                                                                                    <p className="text-[11px] font-semibold text-slate-500">¿Por qué no se dieron?</p>
+                                                                                    {(warn.motivos || []).map(m => (
+                                                                                        <button
+                                                                                            key={m.codigo}
+                                                                                            onClick={() => { setPorFila(f => ({ ...f, [clave]: `NO_SE_DIERON:${m.codigo}` })); setMotivoDeFila(null); }}
+                                                                                            className="min-h-[52px] w-full px-4 py-3 rounded-[1rem] border-2 border-slate-200 bg-white hover:bg-slate-50 text-left font-bold text-sm text-slate-700 active:scale-[0.99] transition-all"
+                                                                                        >
+                                                                                            {m.etiqueta}
+                                                                                        </button>
+                                                                                    ))}
+                                                                                    <button onClick={() => setMotivoDeFila(null)} className="text-xs font-bold text-slate-500 underline self-start mt-1">Volver</button>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div className="mt-3 flex flex-col gap-2">
+                                                                                    {warn.respuestas!.map(resp => (
+                                                                                        <button
+                                                                                            key={resp.codigo}
+                                                                                            onClick={() => {
+                                                                                                if (resp.pideMotivo) { setMotivoDeFila(clave); return; }
+                                                                                                setPorFila(f => ({ ...f, [clave]: resp.codigo }));
+                                                                                            }}
+                                                                                            className="min-h-[52px] w-full px-4 py-3 rounded-[1rem] border-2 border-slate-200 bg-white hover:bg-slate-50 flex items-baseline gap-3 text-left active:scale-[0.99] transition-all"
+                                                                                        >
+                                                                                            <span className="font-black text-sm text-slate-800 whitespace-nowrap">{resp.etiqueta}</span>
+                                                                                            {resp.ayuda && <span className="text-[11px] font-medium text-slate-500">{resp.ayuda}</span>}
+                                                                                        </button>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })}
                                                             </div>
+
+                                                            <button
+                                                                disabled={Object.keys(porFila).filter(k => k.startsWith(warn.id + '|')).length !== warn.porResidente.length}
+                                                                onClick={() => resolverPorResidente(
+                                                                    warn,
+                                                                    Object.fromEntries(
+                                                                        warn.porResidente!.map(r => [r.patientId, porFila[`${warn.id}|${r.patientId}`]]),
+                                                                    ),
+                                                                )}
+                                                                className="min-h-[64px] w-full rounded-[1.25rem] bg-teal-600 text-white font-black text-base hover:bg-teal-700 disabled:bg-slate-200 disabled:text-slate-400 transition-colors active:scale-[0.99]"
+                                                            >
+                                                                Guardar estas respuestas
+                                                            </button>
                                                         </>
                                                     ) : (
                                                         <>
                                                             <p className="text-xs text-slate-500 font-semibold border-t border-slate-100 pt-5">¿Qué pasó? Elige una opción:</p>
-                                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                                            <div className="flex flex-col gap-2.5">
                                                                 {warn.respuestas.map(r => (
                                                                     <button
                                                                         key={r.codigo}
                                                                         onClick={() => {
-                                                                            if (r.pideMotivo) { setPidiendoMotivo(warn.id); return; }
-                                                                            handleQuickResolve(warn.id, r.codigo);
+                                                                            // "No se dieron" nunca resuelve la franja entera:
+                                                                            // el motivo cambia por residente y aplicar uno a
+                                                                            // todos escribe la misma razon sobre gente
+                                                                            // distinta.
+                                                                            if (r.pideMotivo) {
+                                                                                if (warn.porResidente && warn.porResidente.length > 0) {
+                                                                                    setDesglosado(d => ({ ...d, [warn.id]: true }));
+                                                                                } else {
+                                                                                    setPidiendoMotivo(warn.id);
+                                                                                }
+                                                                                return;
+                                                                            }
+                                                                            resolverTodas(warn, r.codigo);
                                                                         }}
                                                                         className={
-                                                                            'py-4 px-3 rounded-[1.5rem] transition-all active:scale-95 text-center flex flex-col gap-1 border-2 '
-                                                                            + (r.principal
-                                                                                ? 'bg-teal-600 text-white border-teal-700 hover:bg-teal-700 shadow-md'
-                                                                                : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm')
+                                                                            'min-h-[64px] w-full px-5 py-3.5 rounded-[1.25rem] border-2 flex items-baseline gap-3 text-left transition-all active:scale-[0.99] '
+                                                                            + 'bg-white text-slate-800 border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm'
                                                                         }
                                                                     >
-                                                                        <span className="font-black text-lg">{r.etiqueta}</span>
-                                                                        {r.ayuda && (
-                                                                            <span className={'text-[11px] font-medium leading-tight ' + (r.principal ? 'text-white/75' : 'text-slate-500')}>
-                                                                                {r.ayuda}
-                                                                            </span>
-                                                                        )}
+                                                                        <span className="font-black text-base whitespace-nowrap">
+                                                                            {r.codigo === 'SE_DIERON' && warn.porResidente && warn.porResidente.length > 1
+                                                                                ? 'Todas se dieron'
+                                                                                : r.etiqueta}
+                                                                        </span>
+                                                                        {r.ayuda && <span className="text-xs font-medium text-slate-500">{r.ayuda}</span>}
                                                                     </button>
                                                                 ))}
+                                                                {warn.porResidente && warn.porResidente.length > 1 && (
+                                                                    <button
+                                                                        onClick={() => setDesglosado(d => ({ ...d, [warn.id]: true }))}
+                                                                        className="min-h-[52px] w-full px-5 py-3 rounded-[1.25rem] border-2 border-dashed border-slate-300 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors"
+                                                                    >
+                                                                        No fue igual para todas — una por una
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         </>
                                                     )}
