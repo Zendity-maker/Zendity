@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
 /**
  * Estado de un empleado — fuente única de verdad.
@@ -101,6 +102,54 @@ export function datosAlta(): Prisma.UserUpdateInput {
  * puntuacion": el turno huerfano se arregla haciendo que las consultas de
  * cobertura MIREN si la persona sigue de alta, no escribiendo un castigo.
  */
+/**
+ * TURNOS DE TRABAJO PUBLICADOS QUE NO CUBRE NADIE.
+ *
+ * Misma definicion exacta que usa `registrarBaja` para su aviso: turnos de
+ * TRABAJO (un OFF no deja hueco), en horario PUBLICADO (un borrador es un
+ * ensayo del constructor), no marcados ausentes, de hoy en adelante, de gente
+ * que ya no esta.
+ *
+ * EXISTE PORQUE EL AVISO DE LA BAJA SALTA UNA VEZ. `registrarBaja` devuelve el
+ * conteo y la pantalla lo muestra en ese momento; si nadie actua, nada lo
+ * vuelve a decir. Joaneliz Rosario dejo cuatro el 21-sep-2026 y al dia
+ * siguiente seguian ahi — uno de ellos un FULL_DAY para HOY, con el horario
+ * publicado y sin marcar ausente: el sistema creyendo que trabaja una persona
+ * borrada.
+ *
+ * Una deuda que solo se anuncia cuando se contrae no es una deuda visible.
+ */
+export async function turnosHuerfanos(hqId: string): Promise<{
+    total: number;
+    porPersona: { nombre: string; turnos: { fecha: Date; tipo: string }[] }[];
+}> {
+    const hoy = new Date();
+    hoy.setUTCHours(0, 0, 0, 0);
+    const filas = await prisma.scheduledShift.findMany({
+        where: {
+            date: { gte: hoy },
+            isAbsent: false,
+            shiftType: { not: 'OFF' },
+            schedule: { headquartersId: hqId, status: 'PUBLISHED' },
+            // Quien ya no esta. Las dos banderas, que se mueven juntas.
+            user: { OR: [{ isActive: false }, { isDeleted: true }] },
+        },
+        // El select lleva lo que se lee. Antipatron 9.
+        select: {
+            date: true, shiftType: true,
+            user: { select: { id: true, name: true } },
+        },
+        orderBy: { date: 'asc' },
+    });
+
+    const porId = new Map<string, { nombre: string; turnos: { fecha: Date; tipo: string }[] }>();
+    for (const f of filas) {
+        if (!porId.has(f.user.id)) porId.set(f.user.id, { nombre: f.user.name?.trim() || 'Sin nombre', turnos: [] });
+        porId.get(f.user.id)!.turnos.push({ fecha: f.date, tipo: String(f.shiftType) });
+    }
+    return { total: filas.length, porPersona: [...porId.values()] };
+}
+
 export async function registrarBaja(
     tx: Prisma.TransactionClient,
     p: { userId: string; hqId: string; porQuien: string | null },

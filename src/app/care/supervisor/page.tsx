@@ -834,6 +834,10 @@ export default function SupervisorMissionControlPage() {
             declaradasAlCerrar: number;
             relevosLeidos: number;
         };
+        turnosHuerfanos?: {
+            total: number;
+            porPersona: { nombre: string; turnos: { fecha: string; tipo: string }[] }[];
+        };
     } | null;
     const dosisSinDar = nuevoEnElPayload?.dosisSinDar;
     /**
@@ -846,6 +850,11 @@ export default function SupervisorMissionControlPage() {
      * que el cierre vino a quitar.
      */
     const cierreDeTurno = nuevoEnElPayload?.cierreDeTurno;
+    /**
+     * Turnos publicados de gente que ya no trabaja aqui. El aviso de la baja
+     * salta una vez; esto lo deja a la vista hasta que se reasignen.
+     */
+    const huerfanos = nuevoEnElPayload?.turnosHuerfanos;
     const teamScores = liveData?.teamScores || [];
     const handoversFeed = liveData?.handoversFeed || [];
     // Alertas clínicas abiertas que quedan FUERA de la ventana que se está
@@ -1996,6 +2005,33 @@ export default function SupervisorMissionControlPage() {
                                   * que hay que ir a preguntar. Solo aparece si lo
                                   * hay — un recuadro vacío no informa.
                                   */}
+                                {/*
+                                  * Turnos que no cubre nadie porque quien los
+                                  * tenia ya no esta. No es del piso resolverlo
+                                  * —lo reasigna quien hace el horario— pero el
+                                  * supervisor es quien se lo encuentra de frente
+                                  * cuando llega el dia.
+                                  */}
+                                {huerfanos && huerfanos.total > 0 && (
+                                    <div className="bg-rose-50 border border-rose-200 rounded-xl p-4">
+                                        <p className="text-[11px] font-black uppercase tracking-wide text-rose-800 mb-2">
+                                            {huerfanos.total} turno{huerfanos.total === 1 ? '' : 's'} sin nadie que lo cubra
+                                        </p>
+                                        <ul className="space-y-1">
+                                            {huerfanos.porPersona.map((p, i) => (
+                                                <li key={i} className="text-xs font-semibold text-rose-900">
+                                                    {p.nombre} — {p.turnos.map(t =>
+                                                        `${new Date(t.fecha).toLocaleDateString('es-PR', { timeZone: 'UTC', day: '2-digit', month: 'short' })} ${t.tipo}`
+                                                    ).join(' · ')}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                        <p className="text-[11px] font-medium text-rose-800/80 mt-2 leading-relaxed">
+                                            Están en el horario publicado a nombre de quien ya no trabaja aquí. Hay que reasignarlos.
+                                        </p>
+                                    </div>
+                                )}
+
                                 {cierreDeTurno && cierreDeTurno.sinGarantizar.length > 0 && (
                                     <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
                                         <p className="text-[11px] font-black uppercase tracking-wide text-amber-800 mb-2">

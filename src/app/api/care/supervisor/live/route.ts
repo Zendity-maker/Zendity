@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { turnosHuerfanos } from '@/lib/staff-status';
 import { rotacionVencida, horasDesdeRotacion } from '@/lib/rotacion-upp';
 import { NextResponse } from 'next/server';
 import { todayStartAST } from '@/lib/dates';
@@ -851,8 +852,17 @@ export async function GET(req: Request) {
             }
         }
 
+        /**
+         * TURNOS PUBLICADOS DE GENTE QUE YA NO ESTA.
+         *
+         * El aviso de la baja salta una vez y se va. Esto lo mantiene a la
+         * vista hasta que alguien los reasigne. Ver src/lib/staff-status.ts.
+         */
+        const huerfanos = await turnosHuerfanos(hqId);
+
         return NextResponse.json({
             success: true,
+            turnosHuerfanos: huerfanos,
             activeCaregivers: activeSessions.length,
             /** Rondas de inspección con los dos pisos firmados hoy, de 3. */
             rondasCompletasHoy,
