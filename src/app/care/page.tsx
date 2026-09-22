@@ -122,6 +122,20 @@ function formatSlotLabel(minutes: number): string {
     return `${h12}:${min.toString().padStart(2, '0')} ${ap}`;
 }
 
+/**
+ * El instante de HOY al que apunta un slot. La hora que hay que proponer
+ * cuando se registra un pack de antes: lo mas probable es que se diera a su
+ * hora y se anotara tarde, que es el caso entero que esto vino a resolver.
+ *
+ * Reloj de la tableta, que es AST. Igual que `<input type="time">` de
+ * HoraDelRegistro, que tambien construye con setHours local.
+ */
+function instanteDelSlot(slotMinutes: number, at: Date = new Date()): Date {
+    const d = new Date(at);
+    d.setHours(Math.floor(slotMinutes / 60), slotMinutes % 60, 0, 0);
+    return d;
+}
+
 // ¿El slot (en minutos) cae en el turno? Mismas ventanas que getMedsForCurrentShift.
 function slotInShift(minutes: number, shift: string): boolean {
     const h = Math.floor(minutes / 60);
@@ -641,9 +655,47 @@ export default function ZendityCareTabletPage() {
     // que no se arrastre sin querer. Ver components/care/HoraDelRegistro.tsx.
     const [horaRegistro, setHoraRegistro] = useState<Date | null>(null);
 
-    // Se reinicia al cambiar de residente o de modal: dejar fijado "hace 2 h" y
-    // seguir registrando a otra persona seria peor que el problema original.
-    useEffect(() => { setHoraRegistro(null); }, [activePatient?.id, modalType]);
+    /**
+     * El pack activo, a nivel de componente. Lo recalcula la vista de meds mas
+     * abajo para pintarlo; aqui se necesita para SEMBRAR la hora.
+     */
+    const packsDelPaciente = modalType === 'MEDS' && activePatient
+        ? groupMedsByScheduleTime(activePatient.medications || [])
+        : [];
+    const packActivo = packsDelPaciente.find(p => !isPackComplete(p)) || null;
+
+    /**
+     * SE REINICIA, Y EN UN PACK ATRASADO SE SIEMBRA CON SU PROPIA HORA.
+     *
+     * Reiniciar es lo de siempre: dejar fijado "hace 2 h" y seguir registrando
+     * a otra persona seria peor que el problema original.
+     *
+     * Sembrar es lo que faltaba, y lo cobro el mismo dia que se estreno. El
+     * 21-sep-2026 se dejo de esconder el pack de antes y se puso un aviso
+     * ambar que decia "pon la hora a la que de verdad se dio" — pero el control
+     * seguia arrancando en `null`, o sea en «Ahora». Resultado a las pocas
+     * horas: 43 dosis de las 8:00 AM con `administeredAt` a las 17:0x. Se
+     * administraron de verdad y se corroboro por telefono con las cuidadoras;
+     * lo que quedo falso fue solo la hora, que es justo el dato que este
+     * control existe para salvar.
+     *
+     * Un aviso que pide un paso manual no es una salvaguarda: es un recordatorio,
+     * y se olvida a la primera. El valor por defecto es la salvaguarda. Y aqui
+     * el defecto correcto es la hora del slot, porque un pack atrasado casi
+     * siempre se dio a su hora y se anoto tarde. No es una suposicion que se
+     * imponga: HoraDelRegistro pinta el valor en ambar, dice "se registrara
+     * como las 8:00 AM" y lleva "Volver a ahora" — si de verdad se acaba de
+     * dar, un toque lo corrige.
+     *
+     * Depende del LABEL del pack, no solo del residente: al cerrar el pack del
+     * turno la tableta avanza al atrasado sin que cambie nada mas, y sin esa
+     * dependencia la hora no se sembraria nunca en el caso mas comun.
+     */
+    useEffect(() => {
+        setHoraRegistro(
+            packActivo?.atrasado ? instanteDelSlot(packActivo.slotMinutes) : null,
+        );
+    }, [activePatient?.id, modalType, packActivo?.label, packActivo?.atrasado]);
     // Flujo por pack — omisión individual
     const [omittingMed, setOmittingMed] = useState<{ id: string; name: string; slotLabel: string } | null>(null);
     /**
@@ -4766,7 +4818,8 @@ export default function ZendityCareTabletPage() {
 
                         {modalType === 'MEDS' && (() => {
                             // Flujo de packs: agrupar meds por slot del turno, resolver pack activo.
-                            const packs = groupMedsByScheduleTime(activePatient?.medications || []);
+                            // Los mismos que sembraron la hora, no un recalculo.
+                            const packs = packsDelPaciente;
                             const activePackIdx = packs.findIndex(p => !isPackComplete(p));
                             const activePack = activePackIdx >= 0 ? packs[activePackIdx] : null;
                             const totalPacks = packs.length;
@@ -4812,7 +4865,7 @@ export default function ZendityCareTabletPage() {
                                                 <span className={`inline-flex items-center text-white text-sm font-black px-3 py-1.5 rounded-full shadow-sm ${(activePack as any).atrasado ? 'bg-amber-600' : 'bg-[#0F6B78]'}`}>Pack {activePack.label}</span>
                                                 {(activePack as any).atrasado && (
                                                     <span className="inline-flex items-center bg-amber-100 text-amber-800 text-[11px] font-black px-2.5 py-1 rounded-full">
-                                                        De antes — pon la hora
+                                                        De antes
                                                     </span>
                                                 )}
                                                 <span className="text-[11px] font-bold text-slate-500">{activePack.meds.length} med{activePack.meds.length !== 1 ? 's' : ''}</span>
@@ -4823,10 +4876,12 @@ export default function ZendityCareTabletPage() {
                                         {/*
                                           * EL AVISO DEL PACK ATRASADO.
                                           *
-                                          * Sin esto se firmaría con la hora de ahora, y el expediente
-                                          * diría que la levotiroxina de las 8 se dio a las 5 de la
-                                          * tarde. El control de la hora ya está abajo en la pantalla
-                                          * (HoraDelRegistro); esto solo dice que HAY que usarlo.
+                                          * PEDIA PONER LA HORA Y ESO NO BASTO. Este aviso salio el
+                                          * 21-sep-2026 diciendo "pon abajo la hora a la que de verdad
+                                          * se dio", con el control arrancando en «Ahora». Ese mismo
+                                          * dia 43 dosis de las 8:00 AM quedaron sentadas a las 17:0x.
+                                          * Un aviso no cambia un valor por defecto; ahora la hora
+                                          * viene puesta y el texto solo dice CUAL es y como cambiarla.
                                           */}
                                         {(activePack as any).atrasado && (
                                             <div className="bg-amber-50 border border-amber-300 rounded-2xl px-4 py-3">
@@ -4834,9 +4889,9 @@ export default function ZendityCareTabletPage() {
                                                     Este pack era de las {activePack.label} y no se registró.
                                                 </p>
                                                 <p className="text-xs font-medium text-amber-800 mt-1 leading-relaxed">
-                                                    Se puede poner ahora. Pon abajo <strong>la hora a la que de verdad
-                                                    se dio</strong> antes de firmar — si lo dejas en «Ahora», el
-                                                    expediente dirá que se dio a esta hora.
+                                                    Se puede poner ahora. Abajo ya queda puesta <strong>la hora
+                                                    del pack, las {activePack.label}</strong> — si se dio a otra
+                                                    hora, cámbiala antes de firmar.
                                                 </p>
                                             </div>
                                         )}

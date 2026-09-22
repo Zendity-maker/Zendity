@@ -22,8 +22,30 @@
 
 /** Margen de reloj desfasado que se tolera hacia el futuro. */
 export const MARGEN_FUTURO_MIN = 5;
-/** Cuanto hacia atras se acepta declarar. Mas que esto va a la bitacora. */
-export const MAX_ATRAS_HORAS = 12;
+/**
+ * Cuanto hacia atras se acepta declarar. Mas que esto va a la bitacora.
+ *
+ * ERAN 12 Y NO ALCANZABAN EL DIA QUE ESTE CAMPO EXISTE PARA REGISTRAR.
+ *
+ * El 21-sep-2026 el pack de las 8:00 AM del grupo ROJO se firmo a las 5 de la
+ * tarde —se habia administrado, se corroboro por telefono con las cuidadoras—
+ * y quedo en el expediente con la hora del tecleo. Al intentar corregirlo se
+ * vio por que: declarar las 08:00 a las 21:39 son 13 h 40, y el servidor lo
+ * rechazaba. Las 05:00 del mismo dia, 16 h 39. O sea que el unico registro que
+ * de verdad necesitaba declarar su hora era justo el que no podia.
+ *
+ * 19 SALE DE UNA MEDIDA, NO DE UN REDONDEO. Se probo primero con 18 —"un dia
+ * de trabajo y algo"— y la propia casa lo desmintio: de las 259 recetas activas
+ * la franja mas temprana son las 05:00 (11 recetas), y la tableta ofrece un
+ * pack atrasado desde las 06:00 hasta las 23:59. El peor caso legitimo es esa
+ * franja declarada a las 23:59: 18.98 h. Con 18 quedaba una franja entera —la
+ * de madrugada, que es la que mas se anota tarde— sin poder declarar su hora.
+ *
+ * Si alguna vez se receta algo antes de las 05:00, este numero hay que volver
+ * a medirlo. Sigue siendo un techo: el campo no sirve si no es auditable. Pero
+ * el techo ahora es "hoy" en vez de medio dia.
+ */
+export const MAX_ATRAS_HORAS = 19;
 
 export type HoraReal =
     | { ok: true;  hora: Date }
