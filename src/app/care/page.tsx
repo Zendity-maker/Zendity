@@ -656,6 +656,51 @@ export default function ZendityCareTabletPage() {
     const [horaRegistro, setHoraRegistro] = useState<Date | null>(null);
 
     /**
+     * LOS AVISOS DEL CIERRE DE TURNO.
+     *
+     * El wizard ya sabia bloquear el cierre mientras quedara un aviso sin
+     * resolver, recoger una justificacion por aviso y persistirla en
+     * `ShiftHandover.justifications`. Lo que no tenia era quien se los diera:
+     * aqui se le pasaba `warnings` sin valor —caia al default `[]`— y
+     * `onResolveWarning` era `async () => true`.
+     *
+     * Medido el 21-sep-2026: 0 de 294 relevos de 30 dias llevan una sola
+     * justificacion, mientras 227 de 227 llevan firma. Construido de punta a
+     * punta y alimentado con vacio.
+     *
+     * `null` mientras se consulta: distinto de `[]`, que significa "no quedo
+     * nada sin resolver". Sin esa distincion el wizard se desbloquearia durante
+     * la consulta y dejaria firmar antes de saber si falta algo.
+     */
+    const [avisosCierre, setAvisosCierre] = useState<any[] | null>(null);
+    const [avisosResolubles, setAvisosResolubles] = useState(true);
+
+    useEffect(() => {
+        if (modalType !== 'SHIFT_CLOSURE_WIZARD' || !activeSession?.id) {
+            setAvisosCierre(null);
+            return;
+        }
+        let vivo = true;
+        setAvisosCierre(null);
+        (async () => {
+            try {
+                const res = await fetch(`/api/care/shift/pendientes?shiftSessionId=${activeSession.id}`);
+                const data = await res.json();
+                if (!vivo) return;
+                // Si la consulta falla NO se pasa `[]`: eso diria "no falta
+                // nada" sobre algo que no se pudo mirar. Se deja en null, que
+                // mantiene el cierre bloqueado, y el wizard lo dice.
+                if (!data.success) return;
+                setAvisosCierre(data.avisos || []);
+                setAvisosResolubles(data.contexto?.resoluble !== false);
+            } catch {
+                // Igual: null, no [].
+            }
+        })();
+        return () => { vivo = false; };
+    }, [modalType, activeSession?.id]);
+
+    /**
      * El pack activo, a nivel de componente. Lo recalcula la vista de meds mas
      * abajo para pintarlo; aqui se necesita para SEMBRAR la hora.
      */
@@ -5789,7 +5834,47 @@ export default function ZendityCareTabletPage() {
 
             {/* FASE NUEVA: SHIFT CLOSURE WIZARD */}
             <ShiftClosureWizard
+                /**
+                 * La escritura de las dosis NO ocurre aqui, a proposito.
+                 *
+                 * El wizard ya guarda la respuesta en `justifications` y esa
+                 * lista viaja entera a /api/care/shift/end, que la aplica
+                 * DENTRO de su transaccion y con la firma del relevo. Asi la
+                 * dosis firmada y el relevo firmado son un solo acto: o los dos
+                 * o ninguno.
+                 *
+                 * Escribir aqui, aviso por aviso, dejaria dosis firmadas con un
+                 * relevo sin cerrar si se cae la red a la mitad — y la firma
+                 * seria de ningun documento.
+                 */
                 onResolveWarning={async () => true}
+                warnings={avisosCierre ?? []}
+                /**
+                 * MIENTRAS NO SE SEPA, BLOQUEA — Y NO COMO AVISO.
+                 *
+                 * Esto iba antes en `warnings`, y era un error: un aviso sin
+                 * `respuestas` propias hereda los tres botones de tarea, asi
+                 * que la cuidadora podia "resolver" el marcador de la consulta
+                 * eligiendo "Rehuso" y firmar sin que nadie hubiera mirado si
+                 * faltaba algo. Un bloqueador se pinta sin botones: informa y
+                 * no se puede despachar.
+                 *
+                 * Y si la consulta falla, el bloqueador se queda. Desbloquear
+                 * ante un fallo diria "no falta nada" sobre algo que no se pudo
+                 * mirar, que es la clase de cero que este proyecto ya pago
+                 * caro: un cero sin procedencia es una afirmacion que nadie
+                 * hizo.
+                 */
+                hardBlockers={avisosCierre === null ? [{
+                    id: 'meds:consultando',
+                    type: 'CONSULTANDO',
+                    title: avisosResolubles
+                        ? 'Comprobando si quedan medicamentos sin registrar'
+                        : 'No se pudo comprobar si quedan medicamentos sin registrar',
+                    description: avisosResolubles
+                        ? 'Un momento — el cierre se abre en cuanto se sepa.'
+                        : 'No se pudo resolver a qué grupo de color estuviste asignada, así que no se puede saber qué dosis eran tuyas. Avisa al supervisor antes de cerrar.',
+                }] : []}
                 isOpen={modalType === 'SHIFT_CLOSURE_WIZARD'}
                 onClose={() => setModalType(null)}
                 shiftSessionId={activeSession?.id || null}
@@ -5812,6 +5897,18 @@ export default function ZendityCareTabletPage() {
                         // clara (en vez de un alert abrupto + logout inmediato).
                         // Reduce el "¿funcionó? voy a intentar de nuevo" que
                         // generaba re-cierres y relevos duplicados.
+                        // Lo que paso con las dosis que acaba de garantizar. Un
+                        // cierre que contesta solo "listo" sobre 45 dosis
+                        // firmadas es el mismo silencio de antes con mejor cara.
+                        const d = (await res.json().catch(() => null))?.dosisResueltas;
+                        if (d && (d.firmadas || d.omitidas || d.sinGarantia || d.yaResueltas)) {
+                            const partes = [];
+                            if (d.firmadas) partes.push(`${d.firmadas} firmada(s)`);
+                            if (d.omitidas) partes.push(`${d.omitidas} anotada(s) como no dada(s)`);
+                            if (d.sinGarantia) partes.push(`${d.sinGarantia} franja(s) sin garantizar`);
+                            if (d.yaResueltas) partes.push(`${d.yaResueltas} franja(s) ya las habia resuelto alguien`);
+                            avisoOk(`Medicamentos: ${partes.join(' · ')}.`);
+                        }
                         setModalType(null);
                         setShiftDeliveredScreen(true);
                         return true;

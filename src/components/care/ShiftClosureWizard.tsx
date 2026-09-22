@@ -4,11 +4,39 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import SignatureCanvas from "react-signature-canvas";
 import { AlertOctagon, AlertTriangle, CheckCircle, PenTool, Lock, ArrowRight, Loader2, Sparkles, FileText, HelpCircle, X, Eraser } from "lucide-react";
 
+export interface RespuestaAviso {
+    codigo: string;
+    etiqueta: string;
+    ayuda?: string;
+    /** Al elegirla se pide el motivo de `motivos` antes de resolver. */
+    pideMotivo?: boolean;
+    /** Destaca la respuesta esperada en el caso normal. */
+    principal?: boolean;
+}
+
 export interface ClosureWarning {
     id: string;
     type: string;
     title: string;
     description: string;
+    /**
+     * RESPUESTAS PROPIAS DE ESTE AVISO.
+     *
+     * Sin esto se pintan las tres de siempre —"Rehusó", "Durmió", "Trasladar"—
+     * que sirven para una tarea sin hacer. Para un medicamento las tres
+     * significan que NO se dio, y eso deja fuera el caso mas frecuente: el
+     * 21-sep-2026, 45 de 45 dosis administradas de verdad y no anotadas, con la
+     * cuidadora ocho horas en el piso y doce banos registrados.
+     *
+     * Una lista cerrada sin la salida honesta hace elegir la opcion menos
+     * equivocada, y el registro miente en la direccion contraria: diria que
+     * once residentes rehusaron su medicacion.
+     */
+    respuestas?: RespuestaAviso[];
+    /** Motivos para la respuesta que los pide. */
+    motivos?: { codigo: string; etiqueta: string }[];
+    /** Detalle desplegable: que dosis exactamente, para que no firme a ciegas. */
+    detalle?: string[];
 }
 
 export interface HardBlocker {
@@ -50,6 +78,10 @@ export default function ShiftClosureWizard({
 }: ShiftClosureWizardProps) {
     const [activeWarnings, setActiveWarnings] = useState<ClosureWarning[]>(warnings);
     const [justifications, setJustifications] = useState<Record<string, string>>({});
+    /** Aviso que ya eligio "no se dieron" y espera el motivo. */
+    const [pidiendoMotivo, setPidiendoMotivo] = useState<string | null>(null);
+    /** Avisos con el detalle de dosis desplegado. */
+    const [detalleAbierto, setDetalleAbierto] = useState<Record<string, boolean>>({});
 
     // Reporte Zendi (generado server-side por /api/care/shift/preview)
     const [zendiSummary, setZendiSummary] = useState<string>("");
@@ -91,6 +123,7 @@ export default function ShiftClosureWizard({
 
     useEffect(() => {
         setActiveWarnings(warnings);
+        setPidiendoMotivo(null);
     }, [warnings]);
 
     const isBlocked = hardBlockers.length > 0 || activeWarnings.length > 0;
@@ -293,6 +326,90 @@ export default function ShiftClosureWizard({
                                                 <p className="font-black text-slate-900 text-2xl leading-tight mb-2">{warn.title}</p>
                                                 <p className="text-base text-slate-500 font-medium">{warn.description}</p>
                                             </div>
+                                            {warn.detalle && warn.detalle.length > 0 && (
+                                                <div className="-mt-4">
+                                                    <button
+                                                        onClick={() => setDetalleAbierto(d => ({ ...d, [warn.id]: !d[warn.id] }))}
+                                                        className="text-sm font-bold text-slate-500 underline hover:text-slate-700"
+                                                    >
+                                                        {detalleAbierto[warn.id]
+                                                            ? 'Ocultar el detalle'
+                                                            : `Ver las ${warn.detalle.length} dosis`}
+                                                    </button>
+                                                    {detalleAbierto[warn.id] && (
+                                                        <ul className="mt-3 max-h-56 overflow-y-auto rounded-2xl bg-slate-50 border border-slate-200 divide-y divide-slate-200">
+                                                            {warn.detalle.map((d, i) => (
+                                                                <li key={i} className="px-4 py-2.5 text-sm font-medium text-slate-700">{d}</li>
+                                                            ))}
+                                                        </ul>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/*
+                                              * RESPUESTAS PROPIAS DEL AVISO.
+                                              *
+                                              * Si el aviso trae las suyas se pintan esas, y en dos
+                                              * pasos cuando una pide motivo: primero que paso, y
+                                              * solo entonces por que. Un medicamento no se puede
+                                              * responder con los tres botones de una tarea.
+                                              */}
+                                            {warn.respuestas && warn.respuestas.length > 0 ? (
+                                                <div className="flex flex-col gap-3">
+                                                    {pidiendoMotivo === warn.id && warn.motivos && warn.motivos.length > 0 ? (
+                                                        <>
+                                                            <div className="flex items-center justify-between border-t border-slate-100 pt-5">
+                                                                <p className="text-xs text-slate-500 font-semibold">¿Por qué no se dieron?</p>
+                                                                <button
+                                                                    onClick={() => setPidiendoMotivo(null)}
+                                                                    className="text-xs font-bold text-slate-500 underline hover:text-slate-700"
+                                                                >
+                                                                    Volver
+                                                                </button>
+                                                            </div>
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                                {warn.motivos.map(m => (
+                                                                    <button
+                                                                        key={m.codigo}
+                                                                        onClick={() => { setPidiendoMotivo(null); handleQuickResolve(warn.id, `NO_SE_DIERON:${m.codigo}`); }}
+                                                                        className="py-4 px-4 bg-white border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 rounded-[1.5rem] transition-all active:scale-95 text-left shadow-sm font-bold"
+                                                                    >
+                                                                        {m.etiqueta}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <p className="text-xs text-slate-500 font-semibold border-t border-slate-100 pt-5">¿Qué pasó? Elige una opción:</p>
+                                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                                                {warn.respuestas.map(r => (
+                                                                    <button
+                                                                        key={r.codigo}
+                                                                        onClick={() => {
+                                                                            if (r.pideMotivo) { setPidiendoMotivo(warn.id); return; }
+                                                                            handleQuickResolve(warn.id, r.codigo);
+                                                                        }}
+                                                                        className={
+                                                                            'py-4 px-3 rounded-[1.5rem] transition-all active:scale-95 text-center flex flex-col gap-1 border-2 '
+                                                                            + (r.principal
+                                                                                ? 'bg-teal-600 text-white border-teal-700 hover:bg-teal-700 shadow-md'
+                                                                                : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm')
+                                                                        }
+                                                                    >
+                                                                        <span className="font-black text-lg">{r.etiqueta}</span>
+                                                                        {r.ayuda && (
+                                                                            <span className={'text-[11px] font-medium leading-tight ' + (r.principal ? 'text-white/75' : 'text-slate-500')}>
+                                                                                {r.ayuda}
+                                                                            </span>
+                                                                        )}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            ) : (
                                             <div className="flex flex-col gap-3">
                                                 <p className="text-xs text-slate-500 font-semibold border-t border-slate-100 pt-5">¿Qué pasó con esta tarea? Elige una opción:</p>
                                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -310,6 +427,7 @@ export default function ShiftClosureWizard({
                                                     </button>
                                                 </div>
                                             </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>

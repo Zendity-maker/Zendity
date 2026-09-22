@@ -12,6 +12,8 @@ import {
     collectShiftActivity,
     buildZendiSummary,
 } from '@/lib/shift-closure-report';
+import { aplicarRespuestasDeCierre } from '@/lib/dosis-sin-resolver';
+import { etiquetaOmision, estadoParaOmision } from '@/lib/omision-medicamento';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -144,7 +146,7 @@ export async function POST(req: Request) {
                 });
             }
 
-            const [handover, closedSession] = await prisma.$transaction(async (tx) => {
+            const [handover, closedSession, dosisResueltas] = await prisma.$transaction(async (tx) => {
                 // Flujo nuevo: cuidador firma → supervisor firma directo.
                 // Sin paso de "senior confirma" (eliminado).
                 // La firma del cuidador en el Wizard es suficiente para cerrar el relevo.
@@ -166,6 +168,34 @@ export async function POST(req: Request) {
                         colorGroups,
                         isDailyPrologue: false,
                     },
+                });
+
+                /**
+                 * LAS DOSIS QUE LA CUIDADORA ACABA DE GARANTIZAR.
+                 *
+                 * Dentro de la transaccion y despues de crear el relevo, con la
+                 * MISMA firma: lo que firma es el reporte que dice que las dio.
+                 * O se guardan las dos cosas o ninguna.
+                 *
+                 * Hasta el 21-sep-2026 esto no ocurria en ninguna parte. El
+                 * wizard ya recogia la respuesta y la guardaba en
+                 * `justifications`, pero nadie la aplicaba al eMAR: 0 de 294
+                 * relevos de 30 dias llevan una sola justificacion, porque el
+                 * unico sitio donde se monta el wizard le pasaba la lista de
+                 * avisos vacia. Ver src/lib/dosis-sin-resolver.ts.
+                 */
+                const dosis = await aplicarRespuestasDeCierre(tx as any, {
+                    justifications,
+                    // Los mismos residentes que resolvio el cierre. Nunca ids de
+                    // fila venidos del cliente: permitiria firmar la dosis de
+                    // cualquier residente de la casa.
+                    patientIds: patients.map(p => p.id),
+                    caregiverId: session.caregiverId,
+                    caregiverName: session.caregiver?.name || 'Cuidador(a)',
+                    firma: signature,
+                    ahora: now,
+                    etiquetaDeMotivo: etiquetaOmision,
+                    estadoDeMotivo: estadoParaOmision,
                 });
 
                 const selected = (handoverData.selectedPatients ?? {}) as Record<string, string>;
@@ -252,7 +282,7 @@ export async function POST(req: Request) {
                     },
                 });
 
-                return [shiftHandover, updatedSession];
+                return [shiftHandover, updatedSession, dosis];
             });
 
             // Recorte de ruido (17-ago-2026): el cierre de turno ya NO
@@ -262,7 +292,19 @@ export async function POST(req: Request) {
             // flujo de seguimiento. El cierre forzado (flujo 2) tampoco
             // notifica: lo ejecuta el propio supervisor.
 
-            return NextResponse.json({ success: true, shiftSession: closedSession, handover });
+            // `dosisResueltas` viaja a la tableta para poder decirle a la
+            // cuidadora QUE paso con lo que acaba de garantizar. Un cierre que
+            // contesta solo "listo" sobre 45 dosis firmadas es el mismo
+            // silencio que teniamos, con mejor cara.
+            console.log(`[shift/end] dosis del cierre — firmadas ${dosisResueltas.firmadas},`
+                + ` omitidas ${dosisResueltas.omitidas}, sin garantia ${dosisResueltas.sinGarantia},`
+                + ` ya resueltas ${dosisResueltas.yaResueltas} · ${session.caregiver?.name}`);
+            return NextResponse.json({
+                success: true,
+                shiftSession: closedSession,
+                handover,
+                dosisResueltas,
+            });
         }
 
         // ──────────────────────────────────────────────────────────────────
