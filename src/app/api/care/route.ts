@@ -7,6 +7,7 @@ import { authOptions } from '@/lib/auth';
 import { requireRole } from '@/lib/api-auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { logError } from '@/lib/logger';
+import { MOTIVO_OBSERVACION } from '@/lib/observacion-vitales';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -276,7 +277,38 @@ export async function GET(req: Request) {
                     take: 1
                 },
                 vitalsOrders: {
-                    where: { status: 'PENDING' },
+                    /**
+                     * PENDING **Y** LA REVISIÓN DE OBSERVACIÓN YA VENCIDA.
+                     *
+                     * Con `status: 'PENDING'` a secas, la tarjeta perdía la
+                     * orden en el instante en que empezaba a importar: el cron
+                     * corre cada 5 minutos y marca EXPIRED lo vencido, así que
+                     * la franja roja «Ventana vencida» solo podía verse durante
+                     * esos 5 minutos. Medido el 22-sep-2026: 6.884 órdenes
+                     * EXPIRED sin completar en la base, CERO en PENDING-vencida
+                     * en ese momento, y de las 96 últimas completadas tarde, el
+                     * 75 % se completó cuando la tarjeta ya no enseñaba nada.
+                     * La cuidadora que llegó tarde y aun así fue, fue por su
+                     * cuenta — no porque la pantalla se lo dijera.
+                     *
+                     * Se arregla SOLO para la revisión de observación, que es
+                     * una obligación clínica sobre alguien a quien el sistema
+                     * marcó como crítico. Extenderlo a las ventanas de entrada
+                     * dejaría a 8 de los 32 residentes de Cupey en rojo
+                     * permanente (25 %), y eso es una decisión de producto, no
+                     * un arreglo.
+                     */
+                    where: {
+                        completedAt: null,
+                        OR: [
+                            { status: 'PENDING' },
+                            {
+                                status: 'EXPIRED',
+                                reason: MOTIVO_OBSERVACION,
+                                expiresAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+                            },
+                        ],
+                    },
                     // Por PLAZO, no por antigüedad. Con una revisión de
                     // observación de 45 min abierta junto a la ventana de
                     // entrada de 4 h, `orderedAt: desc` acertaba por accidente
@@ -285,8 +317,18 @@ export async function GET(req: Request) {
                     // por una revisión recién abierta. El que vence antes es el
                     // que hay que enseñar.
                     orderBy: { expiresAt: 'asc' },
-                    take: 1,
-                    select: { id: true, expiresAt: true, reason: true, orderedAt: true }
+                    /**
+                     * DOS, no una.
+                     *
+                     * Con `take: 1` la revisión de observación VENCIDA gana
+                     * siempre el orden —su `expiresAt` está en el pasado y el
+                     * de la ventana de entrada del turno está 4 h en el
+                     * futuro—, así que durante 24 h enterraba la ventana de
+                     * quien está mirando la tableta. Son dos obligaciones
+                     * distintas y caben las dos: una franja cada una.
+                     */
+                    take: 2,
+                    select: { id: true, expiresAt: true, reason: true, orderedAt: true, status: true }
                 }
             },
             orderBy: { name: 'asc' }

@@ -53,7 +53,20 @@ export async function GET(req: Request) {
 
     try {
         const now = new Date();
-        const windowStart = new Date(now.getTime() + 15 * 60 * 1000);
+        /**
+         * La ventana del recordatorio va desde AHORA hasta 25 min antes de
+         * vencer, no de 15 a 25.
+         *
+         * Con [+15, +25] el intervalo de deteccion era de 10 minutos. Mientras
+         * esta ruta tenga su entrada propia en vercel.json (cada 5 min) siempre cae un
+         * tick dentro, pero cuando estuvo SOLO dentro de dispatch-frequent
+         * (cada 15 min) no: 5 de cada 15 minutos de vencimiento posibles no tenian
+         * ningun tick dentro, y esas ordenes no recibian aviso previo sin que
+         * nada lo registrara. La idempotencia no la da la estrechez de la
+         * ventana sino `reminderSentAt: null`, que ya esta en el where — asi
+         * que ensancharla no repite avisos y deja de depender del cron.
+         */
+        const windowStart = now;
         const windowEnd = new Date(now.getTime() + 25 * 60 * 1000);
 
         // ── A. Recordatorio preventivo 20 min antes ──
@@ -129,11 +142,27 @@ export async function GET(req: Request) {
         let revisionesEscaladas = 0;
         let revisionesSinAvisar = 0;
         for (const o of revisionesVencidas) {
-            // Primero se cierra la puerta, luego se avisa.
-            await prisma.vitalsOrder.update({
-                where: { id: o.id },
+            /**
+             * COMPARE-AND-SWAP DE VERDAD, no un update por id.
+             *
+             * `vitals-reminder` esta programado DOS veces: con su propia
+             * entrada en vercel.json (cada 5 min) y ademas dentro de
+             * /api/cron/dispatch-frequent (cada 15 min). En los minutos :00, :15, :30
+             * y :45 arrancan las dos como invocaciones separadas, hacen el
+             * findMany antes de que ninguna escriba, y las dos avisaban. El
+             * comentario de este bloque prometia una idempotencia que el
+             * `update` por id no daba.
+             *
+             * Con el estado en el WHERE, solo una gana: la que pierde cuenta 0
+             * y no avisa. Y de paso protege el otro lado de la carrera — si la
+             * cuidadora cerro la revision entre la consulta y esta linea, la
+             * fila ya no esta PENDING y no se le pisa.
+             */
+            const gane = await prisma.vitalsOrder.updateMany({
+                where: { id: o.id, status: 'PENDING', completedAt: null },
                 data: { status: 'EXPIRED' },
             });
+            if (gane.count === 0) continue;
 
             /**
              * A quien ya no está no se le pide trabajo. Una revisión vencida

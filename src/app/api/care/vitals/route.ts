@@ -355,6 +355,47 @@ export async function POST(req: Request) {
                 select: { id: true },
             }) : null;
             if (tomaReciente) {
+                /**
+                 * PERO SI ESA LECTURA ERA CRÍTICA, EL REINTENTO NO PUEDE SALIR
+                 * EN BLANCO.
+                 *
+                 * El caso real: el POST escribe la fila de VitalSigns y falla o
+                 * se corta ANTES de abrir la revisión y avisar a supervisión
+                 * —son varios round-trips más—. La tableta cae en su `catch`,
+                 * que no enseñaba nada, y la cuidadora vuelve a pulsar Guardar.
+                 * El reintento entraba por aquí y devolvía «ya estaban
+                 * registrados»: sin alerta, sin revisión de 45 minutos y sin
+                 * aviso a nadie. Una lectura crítica desaparecida por haber
+                 * pulsado dos veces.
+                 *
+                 * `abrirObservacion` no duplica —devuelve la que ya exista— así
+                 * que repetir esto es seguro.
+                 */
+                if (isCritical) {
+                    const obsDup = await abrirObservacion(prisma, {
+                        patientId, headquartersId: invokerHqId, invokerId, ahora: new Date(),
+                    });
+                    const horaLimiteDup = obsDup.expiresAt.toLocaleTimeString('es-ES', {
+                        hour: '2-digit', minute: '2-digit', timeZone: 'America/Puerto_Rico',
+                    });
+                    const avisadosDup = obsDup.yaEstaba ? -1 : await notifyRoles(
+                        invokerHqId, ['SUPERVISOR', 'NURSE', 'DIRECTOR'], {
+                            type: 'EMAR_ALERT',
+                            title: `Vitales fuera de rango — ${(patientCheck.name || '').trim()}`,
+                            message: `En protocolo de observación. La revisión vence a las ${horaLimiteDup}.`
+                                + ` Lo registró ${auth.name ?? 'personal'}.`,
+                            link: '/care/supervisor',
+                        }, invokerId);
+                    return NextResponse.json({
+                        success: true,
+                        duplicada: true,
+                        criticalAlert: true,
+                        hallazgos,
+                        hallazgoTexto: criticalMessage,
+                        message: `${criticalMessage} Esta lectura ya estaba registrada.`
+                            + ` La revisión obligatoria vence a las ${horaLimiteDup}.`,
+                    });
+                }
                 return NextResponse.json({
                     success: true,
                     duplicada: true,
@@ -469,7 +510,7 @@ export async function POST(req: Request) {
                  * única que puede ir a buscar a alguien. Hay que decírselo.
                  */
                 const quienSabe = avisados > 0
-                    ? 'Supervisión y enfermería ya tienen el aviso.'
+                    ? `El aviso salió a ${avisados} persona${avisados === 1 ? '' : 's'} entre supervisión, enfermería y dirección.`
                     : 'OJO: el aviso no le llegó a nadie — ve a buscar a supervisión tú.';
 
                 return NextResponse.json({
@@ -477,6 +518,12 @@ export async function POST(req: Request) {
                     criticalAlert: true,
                     hallazgos,
                     avisados,
+                    /**
+                     * El texto CLÍNICO, aparte del operativo. La tableta lo
+                     * usa para precargar la nota del expediente: ahí va el
+                     * hallazgo, no a cuánta gente le llegó una notificación.
+                     */
+                    hallazgoTexto: criticalMessage,
                     revisionCerrada: revision.cerradas > 0,
                     message: `${criticalMessage} ${quienSabe} Queda una revisión obligatoria antes de las ${horaLimite}`
                         + ` — te aparece en la tarjeta del residente con la cuenta atrás.`
@@ -507,6 +554,26 @@ export async function POST(req: Request) {
              * decía nunca que se había cumplido. Un reloj que empieza delante
              * de ti y no para nunca deja de ser un reloj.
              */
+            /**
+             * LA CONFIRMACIÓN INMEDIATA NO CIERRA NADA, Y HAY QUE DECIRLO.
+             *
+             * Dos mensajes de LLAMAR piden volver a medir en el momento
+             * («Confírmala por vía axilar», «Confirma con la mano tibia») y la
+             * cuidadora lo hace: 33 de los 578 disparos tuvieron su segunda
+             * toma en menos de DOS minutos. Si esa toma cerrara la revisión, el
+             * protocolo quedaría cumplido a los 20 segundos de abrirse. No la
+             * cierra — y quien está delante tiene que saber que el reloj sigue.
+             */
+            if (revision.confirmacionTemprana) {
+                return NextResponse.json({
+                    success: true,
+                    criticalAlert: false,
+                    confirmacionTemprana: true,
+                    message: 'Registrado. Esta confirmación no cierra la revisión de observación:'
+                        + ` hay que volver a tomarle los vitales más adelante.`,
+                });
+            }
+
             if (revision.cerradas > 0) {
                 return NextResponse.json({
                     success: true,

@@ -1892,9 +1892,37 @@ export default function ZendityCareTabletPage() {
 
                 if (data.criticalAlert) {
                     avisoOk(data.message);
-                    setDailyLog({ bathCompleted: false, foodIntake: null, notes: `[ALERTA VITALES] ${data.message} \n\nEscriba los detalles de lo sucedido: ` });
+                    /**
+                     * Al expediente va el HALLAZGO, no el estado del buzón.
+                     *
+                     * `message` lleva además lo operativo —a cuánta gente le
+                     * llegó el aviso, a qué hora vence la revisión— y todo eso
+                     * se estaba precargando dentro de la nota clínica. El
+                     * servidor manda el texto clínico aparte en `hallazgoTexto`
+                     * desde el 22-sep-2026; el `?? data.message` es el puente
+                     * para una tableta abierta contra una versión anterior.
+                     */
+                    const clinico = data.hallazgoTexto ?? data.message;
+                    setDailyLog({ bathCompleted: false, foodIntake: null, notes: `[ALERTA VITALES] ${clinico} \n\nEscriba los detalles de lo sucedido: ` });
                     setModalType('LOG');
                 } else {
+                    /**
+                     * Y SI EL SERVIDOR TIENE ALGO QUE DECIR, SE DICE.
+                     *
+                     * Este `else` hacía `setModalType(null)` y nada más: el
+                     * modal se cerraba en silencio. Por ahí se perdían DOS
+                     * mensajes que sí importan — el de nivel ANOTAR («queda
+                     * anotado para el reporte de enfermería»), que no ha visto
+                     * nadie nunca, y el cierre de la revisión de observación.
+                     * El reloj que Zéndity le pone delante a la cuidadora no
+                     * paraba jamás para ella.
+                     *
+                     * Se enseña solo cuando hay algo que contar: la toma
+                     * rutinaria sigue cerrándose sin ruido.
+                     */
+                    if (data.message && (data.revisionCerrada || data.aviso || data.confirmacionTemprana || data.duplicada)) {
+                        avisoOk(data.message);
+                    }
                     setModalType(null);
                 }
             } else if (data.requireLateReason) {
@@ -1904,7 +1932,17 @@ export default function ZendityCareTabletPage() {
                 avisoError("Error interno: " + data.error);
             }
         } catch (e) {
+            /**
+             * UN GUARDADO QUE FALLA TIENE QUE VERSE.
+             *
+             * Era `console.error(e)` a secas: si la red se caía a mitad, la
+             * cuidadora no veía NADA y volvía a pulsar Guardar. Ese reintento
+             * es justo el que producía el duplicado — y, si la lectura era
+             * crítica, el que perdía la alerta entera (ver la rama `duplicada`
+             * de /api/care/vitals).
+             */
             console.error(e);
+            avisoError('No se pudo guardar. Revisa la conexión y vuelve a intentarlo.');
         } finally {
             setSubmitting(false);
         }
@@ -4229,8 +4267,10 @@ export default function ZendityCareTabletPage() {
                                                     <span className="inline-flex items-center gap-1 bg-[#1e293b] text-[#94a3b8] border border-white/10 text-[9px] font-semibold uppercase tracking-wider rounded-full px-2 py-1 whitespace-nowrap">
                                                         🌙 Turno Noche
                                                     </span>
-                                                    {p.vitalsOrders?.length > 0 && (() => {
-                                                        const order = p.vitalsOrders[0];
+                                                    {/* Una insignia por obligacion: la ventana de entrada del
+                                                        turno y la revision de observacion no compiten por el
+                                                        mismo hueco. Ver /api/care/route.ts (take: 2). */}
+                                                    {(p.vitalsOrders ?? []).map((order: any) => {
                                                         const expiresAt = new Date(order.expiresAt);
                                                         const minsLeft = Math.round((expiresAt.getTime() - Date.now()) / 60000);
                                                         const expired = minsLeft <= 0;
@@ -4244,7 +4284,7 @@ export default function ZendityCareTabletPage() {
                                                             ? (esRevision ? 'Revisión vencida' : 'Ventana vencida')
                                                             : `${esRevision ? 'Revisión en ' : 'Vence en '}${hh > 0 ? `${hh}h ${mm}m` : `${mm}m`}`;
                                                         return (
-                                                            <span className={`inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider rounded-full px-2 py-1 whitespace-nowrap ${
+                                                            <span key={order.id} className={`inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider rounded-full px-2 py-1 whitespace-nowrap ${
                                                                 expired
                                                                     ? 'bg-[#D9534F]/20 text-[#fca5a5] border border-[#D9534F]/40'
                                                                     : urgent
@@ -4254,7 +4294,7 @@ export default function ZendityCareTabletPage() {
                                                                 🩺 {label}
                                                             </span>
                                                         );
-                                                    })()}
+                                                    })}
                                                 </div>
                                             </div>
 
@@ -4457,8 +4497,7 @@ export default function ZendityCareTabletPage() {
                                     </div>
 
                                     {/* ===== VITALS ENTRY WINDOW BADGE (Sprint J — 4h desde inicio de turno) ===== */}
-                                    {p.vitalsOrders?.length > 0 && (() => {
-                                        const order = p.vitalsOrders[0];
+                                    {(p.vitalsOrders ?? []).map((order: any) => {
                                         const expiresAt = new Date(order.expiresAt);
                                         const minsLeft = Math.round((expiresAt.getTime() - Date.now()) / 60000);
                                         const expired = minsLeft <= 0;
@@ -4475,7 +4514,7 @@ export default function ZendityCareTabletPage() {
                                         const mm = Math.max(minsLeft, 0) % 60;
                                         const countdown = hh > 0 ? `${hh}h ${mm}m` : `${mm}m`;
                                         return (
-                                            <div className={`px-4 py-2 flex items-center gap-2 border-b ${
+                                            <div key={order.id} className={`px-4 py-2 flex items-center gap-2 border-b ${
                                                 expired ? 'bg-[#fef2f2] border-[#fecaca]' : urgent ? 'bg-[#fffbeb] border-[#fde68a] animate-pulse' : 'bg-[#ecfeff] border-[#a5f3fc]'
                                             }`}>
                                                 <span className="text-sm">{expired ? '⏰' : urgent ? '⏳' : '🩺'}</span>
@@ -4488,7 +4527,7 @@ export default function ZendityCareTabletPage() {
                                                 </p>
                                             </div>
                                         );
-                                    })()}
+                                    })}
 
                                     {/* ===== STATUS STRIP (4 cols) ===== */}
                                     {(() => {

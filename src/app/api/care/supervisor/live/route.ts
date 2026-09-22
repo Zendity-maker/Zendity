@@ -836,16 +836,25 @@ export async function GET(req: Request) {
          * hechas a tiempo, 0 cerradas.
          *
          * Se filtra a residente ACTIVO porque es una lista de trabajo
-         * pendiente — regla 10 de CLAUDE.md. Y se acota a 24 h: una revisión
-         * de anteayer ya no es una tarea, es historia.
+         * pendiente — regla 10 de CLAUDE.md.
+         *
+         * NO se acota a 24 h. Estuvo acotado y era el error peor: la revisión
+         * que nadie hizo NUNCA se cierra sola, así que a las 24 horas se caía
+         * de la lista con `completedAt` todavía en null y el bloque dejaba de
+         * pintarse. El supervisor leía exactamente lo mismo que vería un día
+         * impecable — «no hay ninguna» — y el caso que desaparecía era el que
+         * llevaba más tiempo sin resolverse. Un cero sin procedencia.
+         *
+         * Ahora salen todas y la pantalla las separa: las de hoy y las que
+         * llevan más de un día sin cerrarse. `take` acotado por la regla 11.
          */
+        const HACE_24H = Date.now() - 24 * 60 * 60 * 1000;
         const revisionesAbiertas = await prisma.vitalsOrder.findMany({
             where: {
                 headquartersId: hqId,
                 reason: MOTIVO_OBSERVACION,
                 completedAt: null,
                 status: { in: ['PENDING', 'EXPIRED'] },
-                orderedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
                 patient: { status: 'ACTIVE' },
             },
             select: {
@@ -856,6 +865,7 @@ export async function GET(req: Request) {
                 caregiver: { select: { id: true, name: true } },
             },
             orderBy: { expiresAt: 'asc' },
+            take: 50,
         });
         const observacionesAbiertas = revisionesAbiertas.map(o => ({
             id: o.id,
@@ -866,7 +876,35 @@ export async function GET(req: Request) {
             desde: o.orderedAt,
             venceA: o.expiresAt,
             minutosRestantes: Math.round((o.expiresAt.getTime() - Date.now()) / 60000),
+            /** Pasado un turno ya no se cierra sola: ver VENTANA_CIERRE_MS. */
+            vieja: o.orderedAt.getTime() < HACE_24H,
         }));
+
+        /**
+         * Y EL FINAL DEL CICLO, QUE TAMPOCO SE VEÍA EN NINGÚN SITIO.
+         *
+         * En cuanto alguien vuelve a tomar los vitales la revisión se cierra y
+         * sale de la lista de arriba (filtra `completedAt: null`), y no entra
+         * en `vitalsOrdersToday`, que filtra `autoCreated: true`. O sea que
+         * una revisión hecha en 40 minutos y otra que no se hizo nunca se
+         * pintaban igual: no se pintaban.
+         *
+         * Si hoy no nació ninguna, el objeto va en null y la pantalla no pinta
+         * nada — NO un «0 ✅», que es la afirmación que nadie hizo.
+         */
+        const delDia = await prisma.vitalsOrder.groupBy({
+            by: ['status'],
+            where: { headquartersId: hqId, reason: MOTIVO_OBSERVACION, orderedAt: { gte: todayStart } },
+            _count: { status: true },
+        });
+        const cuenta = (e: string) => delDia.find(d => d.status === e)?._count.status ?? 0;
+        const totalDelDia = delDia.reduce((a, d) => a + d._count.status, 0);
+        const observacionesDelDia = totalDelDia === 0 ? null : {
+            total: totalDelDia,
+            aTiempo: cuenta('COMPLETED_ON_TIME'),
+            tarde: cuenta('COMPLETED_LATE'),
+            abiertas: cuenta('PENDING') + cuenta('EXPIRED'),
+        };
 
         const relevosDeHoy = await prisma.shiftHandover.findMany({
             where: { headquartersId: hqId, createdAt: { gte: todayStart } },
@@ -916,6 +954,7 @@ export async function GET(req: Request) {
              * `minutosRestantes` en negativo = vencida hace ese rato.
              */
             observacionesAbiertas,
+            observacionesDelDia,
             observacionPlazoMin: OBSERVACION_MIN,
             activeCaregivers: activeSessions.length,
             /** Rondas de inspección con los dos pisos firmados hoy, de 3. */

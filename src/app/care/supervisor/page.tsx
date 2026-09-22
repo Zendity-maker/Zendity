@@ -847,7 +847,9 @@ export default function SupervisorMissionControlPage() {
             desde: string;
             venceA: string;
             minutosRestantes: number;
+            vieja: boolean;
         }[];
+        observacionesDelDia?: { total: number; aTiempo: number; tarde: number; abiertas: number } | null;
         observacionPlazoMin?: number;
     } | null;
     const dosisSinDar = nuevoEnElPayload?.dosisSinDar;
@@ -877,6 +879,11 @@ export default function SupervisorMissionControlPage() {
      */
     const observaciones = nuevoEnElPayload?.observacionesAbiertas ?? [];
     const observacionPlazo = nuevoEnElPayload?.observacionPlazoMin ?? 45;
+    /**
+     * El cierre del ciclo. Va en null cuando hoy no nació ninguna: entonces no
+     * se pinta nada, en vez de un «0 ✅» que se lee igual que un día impecable.
+     */
+    const observacionesDelDia = nuevoEnElPayload?.observacionesDelDia ?? null;
     const teamScores = liveData?.teamScores || [];
     const handoversFeed = liveData?.handoversFeed || [];
     // Alertas clínicas abiertas que quedan FUERA de la ventana que se está
@@ -2019,6 +2026,7 @@ export default function SupervisorMissionControlPage() {
                         {observaciones.length > 0 && (() => {
                             const vencidas = observaciones.filter(o => o.minutosRestantes <= 0);
                             const hayVencidas = vencidas.length > 0;
+                            const viejas = observaciones.filter(o => o.vieja);
                             return (
                                 <div className={`rounded-xl p-4 border ${hayVencidas ? 'bg-rose-50 border-rose-300' : 'bg-amber-50 border-amber-200'}`}>
                                     <p className={`text-[11px] font-black uppercase tracking-wide mb-2 ${hayVencidas ? 'text-rose-800' : 'text-amber-800'}`}>
@@ -2046,9 +2054,41 @@ export default function SupervisorMissionControlPage() {
                                         Sus vitales salieron fuera de rango y Zéndity anunció una revisión a los {observacionPlazo} minutos.
                                         Se cierra sola en cuanto alguien vuelva a tomarle los vitales.
                                     </p>
+                                    {/*
+                                      * Pasado un turno la revisión ya NO se cierra sola —una toma
+                                      * de mañana no contesta al evento de hoy— así que estas se
+                                      * quedan aquí hasta que alguien decida qué pasó. Antes se
+                                      * caían de la lista a las 24 h y el bloque dejaba de
+                                      * pintarse: el caso más viejo era el único invisible.
+                                      */}
+                                    {viejas.length > 0 && (
+                                        <p className="text-[11px] font-bold mt-1.5 leading-relaxed text-rose-900">
+                                            {viejas.length === 1
+                                                ? 'Una lleva más de 24 h sin cerrarse y ya no se cierra sola: hay que decidir qué pasó.'
+                                                : `${viejas.length} llevan más de 24 h sin cerrarse y ya no se cierran solas: hay que decidir qué pasó.`}
+                                        </p>
+                                    )}
                                 </div>
                             );
                         })()}
+
+                        {/*
+                          * EL FINAL DEL CICLO. Solo si hoy nació alguna — cuando no,
+                          * `observacionesDelDia` viene en null y aquí no se pinta nada,
+                          * que no es lo mismo que pintar un cero en verde.
+                          */}
+                        {observacionesDelDia && (
+                            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                                <p className="text-[11px] font-black uppercase tracking-wide text-slate-700 mb-1">
+                                    Revisiones de observación de hoy · {observacionesDelDia.total}
+                                </p>
+                                <p className="text-xs font-semibold text-slate-700">
+                                    {observacionesDelDia.aTiempo} dentro de los {observacionPlazo} min
+                                    {' · '}{observacionesDelDia.tarde} más tarde
+                                    {' · '}{observacionesDelDia.abiertas} sin cerrar
+                                </p>
+                            </div>
+                        )}
 
                         {huerfanos && huerfanos.total > 0 && (
                             <div className="bg-rose-50 border border-rose-200 rounded-xl p-4">

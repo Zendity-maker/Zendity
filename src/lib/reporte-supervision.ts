@@ -71,8 +71,19 @@ export async function construirReporteSupervision(sedeId: string, sedeNombre: st
         prisma.posturalChangeLog.count({
             where: { patient: { headquartersId: sedeId }, isComplianceAlert: true, performedAt: { gte: desde } },
         }),
+        /**
+         * SOLO LAS VENTANAS DE ENTRADA AL TURNO.
+         *
+         * Desde el 22-sep-2026 `VitalsOrder` lleva DOS clases de fila: la
+         * ventana de entrada (4 h, autoCreated) y la revision del protocolo de
+         * observacion (45 min, autoCreated:false). Esta linea del reporte se
+         * titula «Ordenes de vitales que vencieron sin tomarse» y alimenta la
+         * recomendacion al director: sumar ahi una obligacion clinica de 45
+         * minutos sobre un residente critico la convertiria en carga de
+         * trabajo de una cuidadora. Ver src/lib/observacion-vitales.ts.
+         */
         prisma.vitalsOrder.count({
-            where: { headquartersId: sedeId, status: 'EXPIRED', orderedAt: { gte: desde } },
+            where: { headquartersId: sedeId, status: 'EXPIRED', autoCreated: true, orderedAt: { gte: desde } },
         }),
         prisma.fastActionAssignment.count({
             where: {

@@ -78,6 +78,55 @@ export function esOrdenDeObservacion(reason: string | null | undefined): boolean
     return reason === MOTIVO_OBSERVACION;
 }
 
+/**
+ * LA CONFIRMACIÓN INMEDIATA NO ES LA REVISIÓN.
+ *
+ * Dos de los mensajes de LLAMAR piden explícitamente volver a medir AHORA:
+ *
+ *   «Temperatura baja — 94.1. Confírmala por vía axilar antes de escalar…»
+ *   «Oxígeno bajo — 78%. Confirma con la mano tibia.»
+ *
+ * Y la cuidadora lo hace. Medido el 22-sep-2026 sobre los 578 disparos
+ * históricos, mirando la PRIMERA toma con alguno de los cinco signos
+ * evaluables después del disparo:
+ *
+ *   ≤ 2 min ....  33   (17 s, 18 s, 21 s, 23 s, 36 s, 119 s…)
+ *   2–5 min ...    6
+ *   5–10 min ..    1
+ *   10–20 min .    2
+ *   20–45 min .    4   ← la revisión de verdad
+ *   > 45 min ..  524
+ *   nunca .....    8
+ *
+ * Sin esta cota, esas 39 confirmaciones cerrarían la revisión de 45 minutos
+ * como `COMPLETED_ON_TIME` a los segundos de abrirla: el protocolo derrotado
+ * por el acto que el propio protocolo pide, y con un 100 % de cumplimiento de
+ * regalo. Es la métrica que no puede moverse, otra vez.
+ *
+ * 10 minutos deja fuera las 39 y conserva las 6 tomas de 10–45 min. Por debajo
+ * de 10 minutos no hay reevaluación clínica posible: es la misma toma.
+ */
+export const MINIMO_PARA_QUE_CUENTE_MS = 10 * 60 * 1000;
+
+/**
+ * Y PASADO UN TURNO, TAMPOCO ES LA REVISIÓN.
+ *
+ * Sin cota superior, la ronda rutinaria de la mañana siguiente cerraba la
+ * revisión de ayer como `COMPLETED_LATE` y escribía en el expediente
+ * «registrada fuera del plazo de 45 min» — una afirmación de que esa toma
+ * contestó a aquel evento, que no la hizo nadie. De los 578 disparos, 524
+ * tuvieron su siguiente toma a más de 45 minutos, con una mediana de casi
+ * 18 horas: o sea que era el caso NORMAL, no el raro.
+ *
+ * Pasado este plazo la orden se queda EXPIRED con `completedAt` en null, que
+ * es el dato verdadero: no se hizo.
+ *
+ * OJO — 8 h (un turno) es un valor DEFENDIBLE, no una decisión clínica
+ * tomada. La revisión pertenece al turno en que nació y al que recibe el
+ * relevo. Si Celia prefiere otra escala, se cambia aquí y en ningún sitio más.
+ */
+export const VENTANA_CIERRE_MS = 8 * 60 * 60 * 1000;
+
 type Db = PrismaClient | Prisma.TransactionClient;
 
 /**
@@ -164,20 +213,44 @@ export async function cerrarObservacionesAbiertas(db: Db, params: {
      * y el día que pase, lo que se pierde es una revisión clínica.
      */
     tieneSignosEvaluables: boolean;
-}): Promise<{ cerradas: number; huboTarde: boolean }> {
+}): Promise<{ cerradas: number; huboTarde: boolean; confirmacionTemprana: boolean }> {
     const { patientId, ahora, tieneSignosEvaluables } = params;
-    if (!tieneSignosEvaluables) return { cerradas: 0, huboTarde: false };
+    const nada = { cerradas: 0, huboTarde: false, confirmacionTemprana: false };
+    if (!tieneSignosEvaluables) return nada;
+
+    const base = {
+        patientId,
+        reason: MOTIVO_OBSERVACION,
+        status: { in: ['PENDING', 'EXPIRED'] as ('PENDING' | 'EXPIRED')[] },
+        completedAt: null,
+    };
 
     const abiertas = await db.vitalsOrder.findMany({
         where: {
-            patientId,
-            reason: MOTIVO_OBSERVACION,
-            status: { in: ['PENDING', 'EXPIRED'] },
-            completedAt: null,
+            ...base,
+            orderedAt: {
+                // Ni la confirmación de hace 20 segundos…
+                lte: new Date(ahora.getTime() - MINIMO_PARA_QUE_CUENTE_MS),
+                // …ni la ronda de mañana. Ver las dos constantes arriba.
+                gte: new Date(ahora.getTime() - VENTANA_CIERRE_MS),
+            },
         },
         select: { id: true, expiresAt: true },
     });
-    if (abiertas.length === 0) return { cerradas: 0, huboTarde: false };
+
+    if (abiertas.length === 0) {
+        /**
+         * ¿No cerró nada porque no había, o porque la toma llegó demasiado
+         * pronto? No es lo mismo, y quien está delante merece saberlo: si
+         * acaba de confirmar una lectura, el reloj de los 45 minutos SIGUE
+         * corriendo y tiene que volver.
+         */
+        const temprana = await db.vitalsOrder.findFirst({
+            where: { ...base, orderedAt: { gt: new Date(ahora.getTime() - MINIMO_PARA_QUE_CUENTE_MS) } },
+            select: { id: true },
+        });
+        return { ...nada, confirmacionTemprana: !!temprana };
+    }
 
     const aTiempo = abiertas.filter(o => ahora <= o.expiresAt).map(o => o.id);
     const tarde = abiertas.filter(o => ahora > o.expiresAt).map(o => o.id);
@@ -198,5 +271,5 @@ export async function cerrarObservacionesAbiertas(db: Db, params: {
             },
         });
     }
-    return { cerradas: abiertas.length, huboTarde: tarde.length > 0 };
+    return { cerradas: abiertas.length, huboTarde: tarde.length > 0, confirmacionTemprana: false };
 }
