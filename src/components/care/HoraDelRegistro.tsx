@@ -117,23 +117,30 @@ export default function HoraDelRegistro({
             </div>
 
             {/*
-              * LA SEGUNDA FRASE SE FUE PORQUE NO ERA VERDAD EN TODAS PARTES.
+              * LA SEGUNDA FRASE SE FUE UNAS HORAS, Y VOLVIO CUANDO FUE VERDAD.
               *
-              * Decía "queda guardado también a qué hora lo escribiste", y eso
-              * solo es cierto donde hay un sello de escritura. `MealLog`,
-              * `BathLog` y `PosturalChangeLog` NO tienen `createdAt`: en esas
-              * tres el único campo de tiempo es el declarado, así que la hora
-              * del tecleo no se guarda en ninguna parte.
+              * El 22-sep-2026 por la mañana hubo que quitarla: decía "queda
+              * guardado también a qué hora lo escribiste" y `MealLog`,
+              * `BathLog` y `PosturalChangeLog` NO tenían `createdAt`. En esas
+              * tres, el único campo de tiempo era el declarado — que se puede
+              * fijar 19 h hacia atrás— así que la hora del tecleo no se
+              * guardaba en ninguna parte. Prometer trazabilidad que no existe,
+              * dentro del control que existe para que el expediente diga la
+              * verdad, era el peor sitio posible para promete-y-no-entrega.
               *
-              * Prometer trazabilidad que no existe, dentro del control que
-              * existe para que el expediente diga la verdad, es el peor sitio
-              * posible para el patrón de promete-y-no-entrega.
+              * Esa misma tarde se añadió la columna a las tres (push con el
+              * guard, aditivo, verificado: 114 tablas antes y después y cero
+              * filas perdidas). Ahora las cuatro tablas que usan este control
+              * tienen sello de escritura y la frase dice lo que el código hace.
               *
-              * Vuelve cuando esas tablas tengan su `createdAt`.
+              * Un aviso para quien audite hacia atrás: en las filas anteriores
+              * al 22-sep-2026 16:41 UTC, `createdAt` es la hora del push y NO
+              * la del tecleo. No sirve para auditar ese pasado.
               */}
             {!esAhora && (
                 <p className="text-[11px] font-bold text-amber-800">
-                    Se registrará como las <strong>{hhmm(valor!)}</strong>.
+                    Se registrará como las <strong>{hhmm(valor!)}</strong>. Queda guardado
+                    también a qué hora lo escribiste.
                 </p>
             )}
         </div>

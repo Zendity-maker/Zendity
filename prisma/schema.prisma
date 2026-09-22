@@ -1182,7 +1182,7 @@ enum MedActiveStatus {
 }
 
 model MedicationAdministration {
-  id                  String @id @default(uuid())
+  id                  String  @id @default(uuid())
   patientMedicationId String
   /// Quién la dio. NULO mientras la dosis está PENDING, por la misma razón
   /// que `administeredAt`: todavía no la ha dado nadie.
@@ -1491,11 +1491,29 @@ model UlcerLog {
 }
 
 model PosturalChangeLog {
-  id                String   @id @default(uuid())
-  patientId         String
-  nurseId           String
-  position          String // Ej: "Decúbito Lateral Izquierdo", "Supino"
-  performedAt       DateTime @default(now())
+  id          String   @id @default(uuid())
+  patientId   String
+  nurseId     String
+  position    String // Ej: "Decúbito Lateral Izquierdo", "Supino"
+  performedAt DateTime @default(now())
+
+  /// LA HORA DEL TECLEO, QUE ES DISTINTA DE LA HORA DEL CUIDO.
+  ///
+  /// Esta tabla solo tenia el campo DECLARADO, que la cuidadora puede fijar
+  /// hasta 19 h hacia atras con `HoraDelRegistro` (ver src/lib/hora-real.ts).
+  /// O sea que no habia forma de saber cuando se escribio la fila: un registro
+  /// retroactivo era indistinguible de uno en vivo, y el control de la hora
+  /// prometia en pantalla "queda guardado tambien a que hora lo escribiste"
+  /// sobre un campo que no existia. Esa frase hubo que quitarla el 22-sep-2026.
+  ///
+  /// Con esto vuelve a ser verdad, y ademas se puede auditar: `createdAt` es
+  /// automatico e inalterable, asi que el expediente conserva las dos y se lee
+  /// "bañado 7:15, registrado 8:47".
+  ///
+  /// Aditivo y con default: las filas existentes toman la hora del push. No
+  /// sirven para auditar el pasado —y por eso NO se debe comparar `createdAt`
+  /// con `timeLogged` en datos anteriores a esta fecha— pero desde aqui si.
+  createdAt         DateTime @default(now())
   /// EL HECHO CLÍNICO: este residente pasó más de 2h15 sin girarse.
   ///
   /// Se queda como está y NO se apaga nunca, aunque a nadie se le cobre por él.
@@ -1528,7 +1546,7 @@ model PosturalChangeLog {
   /// contador que no escribía en ninguna parte.
   ///
   /// Lo cuentan src/lib/compliance-score.ts y /api/hr/performance/[userId].
-  esImputable       Boolean  @default(false)
+  esImputable Boolean @default(false)
 
   patient Patient @relation(fields: [patientId], references: [id])
   nurse   User    @relation(fields: [nurseId], references: [id])
@@ -2738,7 +2756,25 @@ model BathLog {
   caregiverId    String
   shiftSessionId String?
   timeLogged     DateTime @default(now())
-  status         String   @default("COMPLETED")
+
+  /// LA HORA DEL TECLEO, QUE ES DISTINTA DE LA HORA DEL CUIDO.
+  ///
+  /// Esta tabla solo tenia el campo DECLARADO, que la cuidadora puede fijar
+  /// hasta 19 h hacia atras con `HoraDelRegistro` (ver src/lib/hora-real.ts).
+  /// O sea que no habia forma de saber cuando se escribio la fila: un registro
+  /// retroactivo era indistinguible de uno en vivo, y el control de la hora
+  /// prometia en pantalla "queda guardado tambien a que hora lo escribiste"
+  /// sobre un campo que no existia. Esa frase hubo que quitarla el 22-sep-2026.
+  ///
+  /// Con esto vuelve a ser verdad, y ademas se puede auditar: `createdAt` es
+  /// automatico e inalterable, asi que el expediente conserva las dos y se lee
+  /// "bañado 7:15, registrado 8:47".
+  ///
+  /// Aditivo y con default: las filas existentes toman la hora del push. No
+  /// sirven para auditar el pasado —y por eso NO se debe comparar `createdAt`
+  /// con `timeLogged` en datos anteriores a esta fecha— pero desde aqui si.
+  createdAt DateTime @default(now())
+  status    String   @default("COMPLETED")
 
   patient      Patient       @relation(fields: [patientId], references: [id])
   caregiver    User          @relation(fields: [caregiverId], references: [id])
@@ -2766,6 +2802,24 @@ model MealLog {
   mealType       MealType
   quality        MealQuality
   timeLogged     DateTime    @default(now())
+
+  /// LA HORA DEL TECLEO, QUE ES DISTINTA DE LA HORA DEL CUIDO.
+  ///
+  /// Esta tabla solo tenia el campo DECLARADO, que la cuidadora puede fijar
+  /// hasta 19 h hacia atras con `HoraDelRegistro` (ver src/lib/hora-real.ts).
+  /// O sea que no habia forma de saber cuando se escribio la fila: un registro
+  /// retroactivo era indistinguible de uno en vivo, y el control de la hora
+  /// prometia en pantalla "queda guardado tambien a que hora lo escribiste"
+  /// sobre un campo que no existia. Esa frase hubo que quitarla el 22-sep-2026.
+  ///
+  /// Con esto vuelve a ser verdad, y ademas se puede auditar: `createdAt` es
+  /// automatico e inalterable, asi que el expediente conserva las dos y se lee
+  /// "bañado 7:15, registrado 8:47".
+  ///
+  /// Aditivo y con default: las filas existentes toman la hora del push. No
+  /// sirven para auditar el pasado —y por eso NO se debe comparar `createdAt`
+  /// con `timeLogged` en datos anteriores a esta fecha— pero desde aqui si.
+  createdAt DateTime @default(now())
 
   /// POR QUE no comio, y QUE si acepto.
   ///
@@ -3974,11 +4028,11 @@ model ExternalServiceVisitPatient {
 }
 
 model ExternalKioskDevice {
-  id             String    @id @default(uuid())
+  id             String @id @default(uuid())
   headquartersId String
   floorNumber    Int // 1 o 2 — qué piso opera esta tablet
   label          String // "Tablet Piso 1", "Tablet Lobby" — texto humano para el admin
-  deviceToken    String    @unique // secreto único que la tablet guarda en localStorage
+  deviceToken    String @unique // secreto único que la tablet guarda en localStorage
 
   /// PARA QUÉ SIRVE ESTE DISPOSITIVO.
   ///
@@ -3989,11 +4043,11 @@ model ExternalKioskDevice {
   /// token de una pared colgada en la sala de descanso podría llamar a los
   /// endpoints del kiosco y registrar visitas. Son dos aparatos con el mismo
   /// mecanismo de autenticación y permisos distintos.
-  purpose        String    @default("EXTERNAL_KIOSK")
-  isActive       Boolean   @default(true)
-  lastSeenAt     DateTime?
-  createdAt      DateTime  @default(now())
-  revokedAt      DateTime?
+  purpose    String    @default("EXTERNAL_KIOSK")
+  isActive   Boolean   @default(true)
+  lastSeenAt DateTime?
+  createdAt  DateTime  @default(now())
+  revokedAt  DateTime?
 
   headquarters Headquarters @relation(fields: [headquartersId], references: [id])
 
