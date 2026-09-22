@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { resolverHoraReal } from '@/lib/hora-real';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { notifyRoles } from '@/lib/notifications';
@@ -29,7 +30,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
         }
 
-        const { patientId, action, caregiverId: bodyCaregiverId } = body;
+        const { patientId, action, caregiverId: bodyCaregiverId, timeLogged } = body;
 
         if (!patientId || !action) {
             return NextResponse.json({ success: false, error: 'patientId y action son requeridos' }, { status: 400 });
@@ -71,7 +72,30 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: 'Este residente no tiene configurado el tratamiento de diálisis' }, { status: 400 });
         }
 
-        const now = new Date();
+        const ahora = new Date();
+        /**
+         * LA HORA LA DICE QUIEN LA VIO, Y SE GUARDA DONDE SE PUEDE CONSULTAR.
+         *
+         * Zendi marcó esto CUATRO VECES entre el 7 y el 21-sep-2026 —dos veces
+         * la hora de salida y dos la de retorno— como "falta un campo". Y tenía
+         * razón a medias: la hora SÍ se guardaba… dentro de la frase
+         * `Hora de salida: 08:15`, en `notes`. Un texto libre no se consulta:
+         * nadie puede preguntar cuánto duró una diálisis, ni si la ambulancia
+         * llegó tarde, ni cruzarlo con los vitales de después.
+         *
+         * Y era `now`, siempre. Carmen sale a las 8:15 y la cuidadora lo anota
+         * a las 8:55 cuando vuelve a la tableta: el expediente decía 8:55.
+         *
+         * Ahora la hora se declara —con los mismos límites que el resto,
+         * src/lib/hora-real.ts— y va a `DailyLog.occurredAt`, que es el campo
+         * que ya usan `care/rounds` y `care/incidents` para esto mismo. La
+         * frase se queda porque se lee bien, pero ya no es la única copia.
+         */
+        const hora = resolverHoraReal(timeLogged, ahora);
+        if (!hora.ok) {
+            return NextResponse.json({ success: false, error: hora.error }, { status: 400 });
+        }
+        const now = hora.hora;
 
         if (action === 'DEPART') {
             if (patient.status === 'TEMPORARY_LEAVE' && patient.leaveType === 'DIALYSIS') {
@@ -95,6 +119,8 @@ export async function POST(req: Request) {
                     // null, no 0: este evento no dice nada sobre la comida, y un 0
                     // se lee como "no comió nada".
                     foodIntake: null,
+                    // La hora, en un campo. La frase de abajo es para leerla.
+                    occurredAt: now,
                     notes: `[SALIDA DIÁLISIS] ${patient.name} salió a tratamiento de diálisis. Hora de salida: ${now.toLocaleTimeString('es-PR', { timeZone: 'America/Puerto_Rico', hour: '2-digit', minute: '2-digit' })}.`,
                     isClinicalAlert: false
                 }
@@ -132,6 +158,9 @@ export async function POST(req: Request) {
                 // null, no 0: este evento no dice nada sobre la comida, y un 0
                 // se lee como "no comió nada".
                 foodIntake: null,
+                // La hora, en un campo. Con la de salida en el DailyLog
+                // anterior, la duración de la diálisis pasa a ser consultable.
+                occurredAt: now,
                 notes: `[RETORNO DIÁLISIS] ${patient.name} regresó de tratamiento de diálisis. Hora de retorno: ${now.toLocaleTimeString('es-PR', { timeZone: 'America/Puerto_Rico', hour: '2-digit', minute: '2-digit' })}.`,
                 isClinicalAlert: false
             }

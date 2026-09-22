@@ -230,7 +230,8 @@ model Headquarters {
   cambiosDeCondicion CambioDeCondicion[]
 
   /// Lo que Zendi encontro leyendo, pendiente de confirmar por una persona.
-  hallazgosZendi HallazgoZendi[]
+  hallazgosZendi         HallazgoZendi[]
+  rotacionesNoRealizadas RotacionNoRealizada[]
 }
 
 // =======================
@@ -413,13 +414,14 @@ model User {
   masterCertRevokedAt DateTime?
 
   /// Encuestas en las que una familia lo destaco.
-  encuestasComoFavorito FamilySurvey[] @relation("CuidadorFavorito")
+  encuestasComoFavorito  FamilySurvey[]        @relation("CuidadorFavorito")
   /// Sedes que este usuario administra como dueño. Ver Headquarters.ownerId.
-  sedesPropias          Headquarters[] @relation("SedesDelDueno")
+  sedesPropias           Headquarters[]        @relation("SedesDelDueno")
   /// Acuerdos de sede que esta persona acepto. Ver AcuerdoSede.
-  acuerdosAceptados     AcuerdoSede[]  @relation("AcuerdosAceptados")
+  acuerdosAceptados      AcuerdoSede[]         @relation("AcuerdosAceptados")
   /// Sedes a las que esta persona está vinculada sin pertenecer. Ver SedeVinculo.
-  vinculosDeSede        SedeVinculo[]  @relation("VinculosDeSede")
+  vinculosDeSede         SedeVinculo[]         @relation("VinculosDeSede")
+  rotacionesNoRealizadas RotacionNoRealizada[]
 }
 
 model Account {
@@ -1094,10 +1096,11 @@ model Patient {
   ///
   /// La admision no se puede confirmar sin un familiar registrado O esta marca
   /// puesta. Obliga a decidir, no a rellenar.
-  sinFamiliarConocido     Boolean   @default(false)
+  sinFamiliarConocido     Boolean               @default(false)
   sinFamiliarMotivo       String?
   sinFamiliarMarcadoPorId String?
   sinFamiliarMarcadoAt    DateTime?
+  rotacionesNoRealizadas  RotacionNoRealizada[]
 }
 
 // =======================
@@ -1540,6 +1543,50 @@ model UlcerLog {
 
   ulcer PressureUlcer @relation(fields: [ulcerId], references: [id])
   nurse User          @relation(fields: [nurseId], references: [id])
+}
+
+/// SE INTENTÓ ROTAR Y NO SE PUDO.
+///
+/// Tabla propia y NO una fila de `PosturalChangeLog`, a propósito: un rechazo
+/// no es un cambio postural. Catorce sitios del repo cuentan esa tabla y cuatro
+/// lo hacen con `count` a secas —exec-report, hr/performance ×2 y
+/// shift-closure-report—, así que una fila de "no se pudo" ahí inflaría el
+/// cumplimiento de rotación de la persona y del hogar. Es la misma fuga que
+/// `MedStatus.VOIDED` costó cerrar en cinco sitios.
+///
+/// NACE DE UN HALLAZGO DE ZENDI, el 21-sep-2026: «El paciente se niega a la
+/// rotación postural, que es un requisito de su cuidado» — Elisa Medina
+/// Maldonado. La cuidadora lo escribió en texto libre porque no tenía otra
+/// forma: medido sobre 21.664 filas, los únicos valores de `position` que
+/// existen son Supino, Izquierdo, Derecho y la genérica de las rondas.
+///
+/// EL RELOJ DE 2 h NO SE REINICIA con esto, y es correcto: si no se la movió,
+/// el riesgo de úlcera es el mismo. Lo que cambia es de quién es la culpa —
+/// ver `huboRechazoEnElHueco` en src/lib/rotacion-no-realizada.ts.
+model RotacionNoRealizada {
+  id             String @id @default(uuid())
+  headquartersId String
+  patientId      String
+  /// Quien lo intentó. No "quien falló": intentarlo y decirlo es hacerlo bien.
+  nurseId        String
+
+  /// Código de MOTIVOS_NO_ROTACION. En un campo y no en prosa, para que se
+  /// pueda contar cuántas veces rechaza una persona — que es el dato que
+  /// convierte un incidente suelto en una conversación clínica.
+  motivo String
+  /// Lo que no cabe en el código. Opcional salvo en OTRO.
+  nota   String? @db.Text
+
+  /// Cuándo ocurrió el intento, declarable. `createdAt` es cuándo se escribió.
+  momento   DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  patient      Patient      @relation(fields: [patientId], references: [id])
+  nurse        User         @relation(fields: [nurseId], references: [id])
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+
+  @@index([patientId, momento])
+  @@index([headquartersId, momento])
 }
 
 model PosturalChangeLog {

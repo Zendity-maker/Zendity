@@ -19,6 +19,7 @@ import ShiftClosureWizard from "@/components/care/ShiftClosureWizard";
 import FallIncidentPrint from "@/components/medical/fall-risk/FallIncidentPrint";
 import ZendiAssist from "@/components/ZendiAssist";
 import StaffChat from "@/components/StaffChat";
+import { MOTIVOS_NO_ROTACION } from "@/lib/rotacion-no-realizada";
 import DietPrescription from "@/components/diet/DietPrescription";
 import { formatDietSummary, DietPrescription as DietPrescriptionData } from "@/lib/diet";
 import { MOTIVOS_RECHAZO, pideMotivo, etiquetaMotivo } from "@/lib/comida";
@@ -2142,6 +2143,35 @@ export default function ZendityCareTabletPage() {
      * Fijar el residente activo es una actualizacion de estado que no aplica a
      * tiempo para el fetch que viene detras.
      */
+    /**
+     * A QUIÉN NO SE PUDO ROTAR. `null` = el diálogo está cerrado.
+     *
+     * Nace de un hallazgo de Zendi: Elisa Medina «se niega a la rotación
+     * postural» — y la cuidadora no tenía forma de decirlo. Ver
+     * src/lib/rotacion-no-realizada.ts.
+     */
+    const [noSePudoRotar, setNoSePudoRotar] = useState<{ id: string; nombre: string } | null>(null);
+    const [motivoNoRotacion, setMotivoNoRotacion] = useState<string>("");
+    const [notaNoRotacion, setNotaNoRotacion] = useState<string>("");
+
+    const registrarNoRotacion = async (patientId: string, motivo: string, nota: string) => {
+        setIsSavingFastAction(true);
+        try {
+            const res = await fetch('/api/care/rotacion-no-realizada', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ patientId, motivo, nota, timeLogged: horaRegistro?.toISOString() }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                avisoOk(data.message || 'Anotado.');
+                setNoSePudoRotar(null); setMotivoNoRotacion(""); setNotaNoRotacion("");
+                refreshPatientsSilently(selectedColor!);
+            } else {
+                avisoError(data.error || 'No se pudo anotar.');
+            }
+        } catch (e) { console.error(e); } finally { setIsSavingFastAction(false); }
+    };
+
     const registrarComidaRapida = async (patientId: string, tipo: string, etiqueta: string, nombre: string) => {
         setGuardandoComida(patientId);
         try {
@@ -4573,6 +4603,22 @@ export default function ZendityCareTabletPage() {
                                                         {corto}
                                                     </button>
                                                 ))}
+                                                {/*
+                                                  * "NO SE PUDO" — la salida que no existía.
+                                                  *
+                                                  * Sin ella la cuidadora tiene tres opciones y las
+                                                  * tres son malas: firmar una rotación que no
+                                                  * ocurrió, dejar el SLA en rojo señalándola a ella,
+                                                  * o escribirlo en texto libre. Zendi encontró lo
+                                                  * tercero dos veces el 21-sep.
+                                                  */}
+                                                <button
+                                                    disabled={isSavingFastAction}
+                                                    onClick={(e) => { e.stopPropagation(); setNoSePudoRotar({ id: p.id, nombre: p.name }); setMotivoNoRotacion(""); setNotaNoRotacion(""); }}
+                                                    className="min-h-[52px] px-3 text-[12px] font-bold text-[#92400e] border-l border-[#e7e5e4] hover:bg-[#fef3c7] active:bg-[#fef3c7] disabled:opacity-40 transition-colors whitespace-nowrap"
+                                                >
+                                                    No se pudo
+                                                </button>
                                             </div>
                                         </div>
                                     )}
@@ -6286,6 +6332,72 @@ export default function ZendityCareTabletPage() {
                 </div>
             )}
 
+
+            {/*
+              * "NO SE PUDO ROTAR" — el diálogo del motivo.
+              *
+              * Lista cerrada CON salida honesta ("Otro motivo", que exige
+              * escribir cuál). Sin ese escape, quien tiene un motivo que no
+              * está en la lista elige el que menos se le parece y el registro
+              * miente con una precisión que nadie pidió.
+              */}
+            {noSePudoRotar && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[998] flex items-end sm:items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4">
+                        <div>
+                            <h3 className="text-xl font-black text-slate-800">No se pudo rotar</h3>
+                            <p className="text-sm font-bold text-slate-500 mt-0.5">{noSePudoRotar.nombre}</p>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            {MOTIVOS_NO_ROTACION.map(m => (
+                                <button
+                                    key={m.codigo}
+                                    onClick={() => setMotivoNoRotacion(m.codigo)}
+                                    className={'min-h-[56px] w-full px-4 py-3 rounded-2xl border-2 text-left font-bold text-sm transition-all active:scale-[0.99] '
+                                        + (motivoNoRotacion === m.codigo
+                                            ? 'bg-[#e1f5ee] border-[#0F6B78] text-[#0F6B78]'
+                                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50')}
+                                >
+                                    {m.etiqueta}
+                                </button>
+                            ))}
+                        </div>
+
+                        {motivoNoRotacion === 'OTRO' && (
+                            <textarea
+                                value={notaNoRotacion}
+                                onChange={e => setNotaNoRotacion(e.target.value)}
+                                placeholder="¿Qué pasó?"
+                                className="w-full min-h-[80px] bg-slate-50 border-2 border-slate-200 rounded-2xl p-3 text-sm font-medium outline-none focus:border-[#0F6B78]"
+                            />
+                        )}
+
+                        {/* Se dice ANTES de que pulse, no después: el reloj no
+                            se apaga porque a la residente no la movió nadie. */}
+                        <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
+                            Queda anotado y enfermería se entera. El aviso de rotación sigue activo,
+                            porque no se la movió — no es algo que se te cobre a ti.
+                        </p>
+
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => { setNoSePudoRotar(null); setMotivoNoRotacion(""); setNotaNoRotacion(""); }}
+                                className="flex-1 min-h-[52px] rounded-2xl border-2 border-slate-200 font-bold text-slate-600 hover:bg-slate-50"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                disabled={!motivoNoRotacion || (motivoNoRotacion === 'OTRO' && !notaNoRotacion.trim()) || isSavingFastAction}
+                                onClick={() => registrarNoRotacion(noSePudoRotar.id, motivoNoRotacion, notaNoRotacion)}
+                                className="flex-[2] min-h-[52px] rounded-2xl bg-[#0F6B78] text-white font-black hover:bg-[#0d5a64] disabled:bg-slate-200 disabled:text-slate-400 transition-colors"
+                            >
+                                Anotar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* FASE NUEVA: SHIFT CLOSURE WIZARD */}
             <ShiftClosureWizard

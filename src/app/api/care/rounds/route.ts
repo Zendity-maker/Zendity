@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { huboRechazoEnElHueco } from '@/lib/rotacion-no-realizada';
 import { variantesDePosicion } from '@/lib/posicion-rotacion';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
@@ -184,11 +185,25 @@ export async function POST(req: Request) {
                 },
             });
 
+            /**
+             * Y LA CUARTA: alguien lo intentó y no se pudo.
+             *
+             * Sin esto, quien registra honestamente un rechazo sale PEOR que
+             * quien firma una rotación falsa: la falsa reinicia el reloj y la
+             * honesta deja el hueco abierto, que luego se le cobra a quien
+             * llegue detrás. Con ese incentivo nadie vuelve a registrar un
+             * rechazo, y volvemos al texto libre del que salimos.
+             *
+             * Es "veracidad, no puntuación": el dato se queda verdadero —a la
+             * residente no la movió nadie, y el reloj sigue rojo— y lo que se
+             * retira es el castigo. Ver src/lib/rotacion-no-realizada.ts.
+             */
             const exento =
                 !conOrden ||
                 !(conOrden.requiresPosturalChanges || conOrden.pressureUlcers.length > 0) ||
                 conOrden.status !== 'ACTIVE' ||
-                (!!anterior && solapaConSinServicio(new Date(anterior.performedAt), new Date()));
+                (!!anterior && solapaConSinServicio(new Date(anterior.performedAt), new Date())) ||
+                await huboRechazoEnElHueco(patientId, anterior?.performedAt ?? null, hora.hora);
 
             const veredicto = await evaluarRotacion({
                 caregiverId: authorId,

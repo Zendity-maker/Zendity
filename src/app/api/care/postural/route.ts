@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { huboRechazoEnElHueco } from '@/lib/rotacion-no-realizada';
 import { variantesDePosicion } from '@/lib/posicion-rotacion';
 import { ULCERA_ABIERTA } from '@/lib/upp';
 import { solapaConSinServicio } from '@/lib/ventanas-sin-servicio';
@@ -164,10 +165,24 @@ export async function POST(req: Request) {
          *   3. Y la nueva: el hueco no es suyo, o ya se cobró una vez.
          *      Ver src/lib/rotacion-imputable.ts.
          */
+        /**
+         * Y LA CUARTA: alguien lo intentó y no se pudo.
+         *
+         * Sin esto, quien registra honestamente un rechazo sale PEOR que
+         * quien firma una rotación falsa: la falsa reinicia el reloj y la
+         * honesta deja el hueco abierto, que luego se le cobra a quien
+         * llegue detrás. Con ese incentivo nadie vuelve a registrar un
+         * rechazo, y volvemos al texto libre del que salimos.
+         *
+         * Es "veracidad, no puntuación": el dato se queda verdadero —a la
+         * residente no la movió nadie, y el reloj sigue rojo— y lo que se
+         * retira es el castigo. Ver src/lib/rotacion-no-realizada.ts.
+         */
         const exento =
             !requiereRotacion ||
             !enElEdificio ||
-            (!!lastRotation && solapaConSinServicio(new Date(lastRotation.performedAt), new Date()));
+            (!!lastRotation && solapaConSinServicio(new Date(lastRotation.performedAt), new Date())) ||
+            await huboRechazoEnElHueco(patientId, lastRotation?.performedAt ?? null, momento);
 
         const veredicto = await evaluarRotacion({
             caregiverId,
