@@ -143,12 +143,23 @@ export async function POST(req: Request) {
                 },
             },
         });
+            /**
+             * EXITO, NO ERROR. CLAUDE.md lo dice literal: "devolver EXITO con
+             * la que ya existe, nunca un error rojo. Quien pulso hizo lo
+             * correcto; un error en rojo le hace intentarlo otra vez, que es
+             * justo lo que produce el duplicado."
+             *
+             * Devolvia 429 con `success: false`, y la tableta lo pintaba con
+             * `avisoError`. /api/care/rounds ya lo hacia bien; estas dos
+             * rutas hermanas eran la divergencia.
+             */
         if (comidaReciente) {
             return NextResponse.json({
-                success: false,
-                error: 'COOLDOWN_ACTIVE',
-                message: 'Esta comida ya fue registrada para este residente hace un momento.',
-            }, { status: 429 });
+                success: true,
+                duplicada: true,
+                meal: comidaReciente,
+                message: 'Esta comida ya estaba registrada hace un momento.',
+            });
         }
 
         const newMeal = await prisma.mealLog.create({

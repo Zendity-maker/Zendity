@@ -123,6 +123,114 @@ function formatSlotLabel(minutes: number): string {
 }
 
 /**
+ * ¿A ESTE RESIDENTE HAY QUE ROTARLO?
+ *
+ * La regla la fija el schema, literal (prisma/schema.prisma:897-898): el
+ * enrollment es la UNION de `requiresPosturalChanges OR nortonRisk OR ulcera
+ * activa`. La tarjeta no la seguia: la cara gateaba solo por `nortonRisk` y el
+ * modal solo por `requiresPosturalChanges`.
+ *
+ * Medido el 22-sep-2026 sobre los 32 residentes ACTIVE de Cupey: 9 tienen
+ * nortonRisk, 9 requiresPosturalChanges, 11 tienen alguno — y **21 no tienen
+ * ninguno de los dos**. Esos 21 recibieron 2.928 rotaciones en 30 dias (el
+ * 52%) sin que la tarjeta normal les ofreciera boton por ningun sitio; todas
+ * entraron por el boton grande del modo Rondas.
+ *
+ * El caso que lo resume: **Fernando Garcia Davila** tiene ulcera abierta, el
+ * servidor SI le cobra la penalidad por no rotarlo
+ * (api/care/rounds/route.ts, ULCERA_ABIERTA) y la tarjeta no le ofrecia el
+ * boton — ni por la cara ni por el modal. Se le exige un acto y se le esconde
+ * el control.
+ *
+ * `pressureUlcers` llega en el roster (ACTIVE y HEALING): una ulcera que va
+ * sanando se sigue rotando.
+ *
+ * ═══ Y NO, ESTO NO DEBE ABRIRSE A TODOS. SON DOS ACTOS DISTINTOS ═══
+ *
+ * Con la regla correcta la tira llega a 12 de 33 residentes. Quedan 21 que
+ * recibieron 2.689 rotaciones en 30 dias sin ninguna bandera, y la tentacion
+ * obvia es concluir que la compuerta sigue mal y abrirla a todos. Seria un
+ * error, y el dato lo dice sin ambiguedad:
+ *
+ *   · Los 21 SIN bandera: 2.689 rotaciones, el **100.0%** con
+ *     `position = 'Rotación General (Pre-programada Zendi)'`. Cero con
+ *     posicion concreta.
+ *   · Los 12 CON bandera: 2.552 rotaciones, de las cuales **865 (33.9%)**
+ *     llevan Supino, Izquierdo o Derecho.
+ *
+ * O sea que `PosturalChangeLog` guarda DOS actos que no son el mismo:
+ *
+ *   1. **La ronda del turno de noche**, que pasa por todos y no elige
+ *      posicion. Sale del boton grande del modo Rondas.
+ *   2. **El protocolo UPP de dos horas**, que elige decubito y tiene un SLA
+ *      con reloj. Es el de esta tira.
+ *
+ * Poner la tira —con su reloj de 2 h y su alerta de incumplimiento— en la
+ * tarjeta de alguien que solo recibe la ronda nocturna le inventaria una
+ * obligacion clinica que nadie le puso, y encendaria `isComplianceAlert` sobre
+ * 21 personas. Por eso la compuerta se queda en la regla del schema.
+ *
+ * (Que los dos actos compartan tabla es un problema aparte, y hace que el
+ * "187 rotaciones al dia" de cualquier informe sume dos cosas distintas.)
+ */
+/**
+ * LA POSICION, CUANDO DE VERDAD HAY UNA.
+ *
+ * La cara hacia `position?.split(' ')[0]`, y el 82.9% de las 5.623 rotaciones
+ * de 30 dias llevan `position = 'Rotación General (Pre-programada Zendi)'` —
+ * lo que escribe el boton grande del modo Rondas cuando no se elige posicion.
+ * Sobre esa cadena, el split devuelve literalmente **"Rotación"**, asi que la
+ * tarjeta anunciaba "Pos. Rotación" como si fuera un decubito.
+ *
+ * Una posicion que no se eligio no se inventa: se dice que no se anoto. Es la
+ * misma regla que el resto del proyecto — un cero (o un texto) sin procedencia
+ * es una afirmacion que nadie hizo.
+ */
+function posicionLegible(position?: string | null): string {
+    if (!position) return 'sin posición';
+    const limpio = position.trim();
+    if (/^Rotaci[oó]n General/i.test(limpio)) return 'sin posición';
+    // 'IZQUIERDA' | 'Izquierdo' | 'SUPINO' | 'Derecho'… se muestra tal cual,
+    // con la primera en mayuscula.
+    const corto = limpio.split(/[\s(]/)[0];
+    return corto.charAt(0).toUpperCase() + corto.slice(1).toLowerCase();
+}
+
+/**
+ * QUE COMIDA TOCA AHORA, SI ES QUE TOCA ALGUNA.
+ *
+ * Espejo EXACTO de las ventanas que valida el servidor en
+ * src/app/api/care/adls/meal/route.ts:94-98 — desayuno 7:00-9:59, almuerzo
+ * 11:00-13:59, cena 16:00-18:59, en hora de Puerto Rico. Si estas dos se
+ * separan, la tableta ofrece un boton que el servidor rechaza con un 403, que
+ * es la peor combinacion posible: parece que funciona y no funciona.
+ *
+ * Medido sobre las 2.618 comidas de 30 dias: el tipo se deriva de la hora sin
+ * ninguna ambiguedad — BREAKFAST solo aparece de 6 a 9h, LUNCH de 11 a 13h y
+ * DINNER de 16 a 18h. Cero horas con mas de un tipo.
+ *
+ * Devuelve null fuera de las tres ventanas: **9 de las 24 horas del dia**. Por
+ * eso el boton NO desaparece cuando no toca — se apaga y dice por que. Hacerlo
+ * aparecer y desaparecer moveria seis veces al dia los tres botones
+ * irreversibles que viven justo debajo ("Alerta Caida", "Trasladar ER",
+ * "Reportar fallecimiento"), que estan donde estan por una decision que el
+ * codigo documenta y que ya costo un error.
+ */
+function comidaDeAhora(at: Date = new Date()): { tipo: 'BREAKFAST' | 'LUNCH' | 'DINNER'; etiqueta: string } | null {
+    const h = Number(new Date(at).toLocaleString('en-US', {
+        timeZone: 'America/Puerto_Rico', hour: '2-digit', hour12: false,
+    }));
+    if (h >= 7 && h < 10) return { tipo: 'BREAKFAST', etiqueta: 'Desayuno' };
+    if (h >= 11 && h < 14) return { tipo: 'LUNCH', etiqueta: 'Almuerzo' };
+    if (h >= 16 && h < 19) return { tipo: 'DINNER', etiqueta: 'Cena' };
+    return null;
+}
+
+function necesitaRotacion(p: any): boolean {
+    return !!(p?.requiresPosturalChanges || p?.nortonRisk || (p?.pressureUlcers?.length > 0));
+}
+
+/**
  * El instante de HOY al que apunta un slot. La hora que hay que proponer
  * cuando se registra un pack de antes: lo mas probable es que se diera a su
  * hora y se anotara tarde, que es el caso entero que esto vino a resolver.
@@ -384,7 +492,20 @@ export default function ZendityCareTabletPage() {
     const [activePatient, setActivePatient] = useState<any>(null);
     const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "REPORTAR_FALLECIMIENTO" | "CAMBIO_CONDICION" | "PROGRESS_NOTE_PDF" | "ACCEPT_HANDOVER" | "DIET_CHANGE" | "FAST_ACTION_DISPATCH" | "PREVENTIVE" | "VITALS_HISTORY" | "SHIFT_CLOSURE_WIZARD" | null>(null);
 
-    const isNightHours = () => { const h = new Date().getHours(); return h >= 22 || h < 6; };
+    /**
+     * La franja de rondas, en hora de Puerto Rico y no en la del aparato.
+     *
+     * Usaba `new Date().getHours()`, el reloj LOCAL de la tableta. Hoy da
+     * igual porque las tabletas estan en Cupey, pero era el unico sitio de la
+     * pantalla donde una franja horaria clinica dependia de como este
+     * configurado el dispositivo. AST es UTC-4 todo el año.
+     */
+    const isNightHours = () => {
+        const h = Number(new Date().toLocaleString('en-US', {
+            timeZone: 'America/Puerto_Rico', hour: '2-digit', hour12: false,
+        }));
+        return h >= 22 || h < 6;
+    };
     const [isNightMode, setIsNightMode] = useState(() => isNightHours());
     const [hospitalReason, setHospitalReason] = useState("");
     // ¿El traslado fue por una caída? Se preguntaba en la prosa del motivo y ahí
@@ -512,11 +633,33 @@ export default function ZendityCareTabletPage() {
     const [gridView, setGridView] = useState<'1col' | '2col'>('1col');
     useEffect(() => { if (window.innerWidth >= 768) setGridView('2col'); }, []);
 
-    // Auto-toggle Night Rounds Mode entre 10pm y 6am
+    /**
+     * EL MODO DE RONDAS SE PROPONE POR LA HORA, PERO NO SE IMPONE.
+     *
+     * Esto era un `setInterval` de 60 s que hacia
+     * `setIsNightMode(isNightHours())` INCONDICIONALMENTE: le quitaba a la
+     * cuidadora el modo que acababa de elegir, sin que tocara nada, en menos
+     * de un minuto.
+     *
+     * Y no es teorico. Medido el 22-sep-2026 sobre 30 dias: fuera de la franja
+     * 22:00-05:59 se escriben **126.8 registros al dia** desde la tarjeta de
+     * Rondas —2.527 rotaciones y 1.276 pañales— que solo aparece si alguien
+     * pulsa "Rondas". Lo hacen 14 personas, en 278 rafagas. Las rafagas duran
+     * **mediana 16 segundos** y el **92.8% cabe dentro de la ventana de 60 s**:
+     * estaban corriendo contra un reloj que no sabian que existia. Y es
+     * simetrico — a las 03:00 tambien le quitaba el modo Normal a quien lo
+     * habia elegido para abrir un expediente.
+     *
+     * Ahora el reloj solo decide el ARRANQUE (linea 388). En cuanto alguien
+     * toca el conmutador, manda la persona. `eleccionManual` no se reinicia:
+     * si se equivoco, vuelve a pulsar.
+     */
+    const eleccionManual = useRef(false);
     useEffect(() => {
         const interval = setInterval(() => {
+            if (eleccionManual.current) return;
             const shouldBeNight = isNightHours();
-            setIsNightMode(prev => { if (prev !== shouldBeNight) return shouldBeNight; return prev; });
+            setIsNightMode(prev => (prev !== shouldBeNight ? shouldBeNight : prev));
         }, 60000);
         return () => clearInterval(interval);
     }, []);
@@ -599,7 +742,21 @@ export default function ZendityCareTabletPage() {
             .catch(() => {});
     }, [user?.id]);
 
-    const [dailyLog, setDailyLog] = useState<{ bathCompleted: boolean; foodIntake: number | null; notes: string; selectedMeal?: string }>({ bathCompleted: false, foodIntake: 100, notes: "", selectedMeal: undefined });
+    /**
+     * `foodIntake` ARRANCA EN NULL, NO EN 100.
+     *
+     * Arrancaba en 100 y `submitLog` manda el estado entero, asi que guardar
+     * una nota de turno sin tocar nada escribia "comio el 100%" sin que nadie
+     * lo hubiera dicho. Medido el 22-sep-2026: de las 356 DailyLog de 30 dias,
+     * 139 tienen la nota vacia y LAS 139 tienen foodIntake=100.
+     *
+     * Y no hay forma de que sea deliberado: **no existe ningun control de UI
+     * para este campo en toda la pantalla** (comprobado por grep: solo
+     * aparecen valores iniciales y reinicios). La comida de verdad se registra
+     * en MealLog desde el panel nutricional, que es de donde ya la lee el
+     * portal de la familia.
+     */
+    const [dailyLog, setDailyLog] = useState<{ bathCompleted: boolean; foodIntake: number | null; notes: string; selectedMeal?: string }>({ bathCompleted: false, foodIntake: null, notes: "", selectedMeal: undefined });
 
     // BUG FIX baños: derivar el estado de "baño completado hoy" directamente
     // del residente activo, NO de un flag global en dailyLog.
@@ -1804,7 +1961,15 @@ export default function ZendityCareTabletPage() {
             const payload = {
                 patientId: activePatient.id,
                 type: 'LOG',
-                data: { ...dailyLog, isAlert: dailyLog.notes.toLowerCase().includes("alerta") }
+                // `foodIntake` NO viaja: ningun control de esta pantalla lo
+                // llena, asi que mandarlo solo puede escribir un numero que
+                // nadie dijo. La comida va por MealLog.
+                data: {
+                    bathCompleted: dailyLog.bathCompleted,
+                    notes: dailyLog.notes,
+                    selectedMeal: dailyLog.selectedMeal,
+                    isAlert: dailyLog.notes.toLowerCase().includes("alerta"),
+                }
             };
             const res = await fetch("/api/care/vitals", {
                 method: "POST", headers: { "Content-Type": "application/json" },
@@ -1812,7 +1977,7 @@ export default function ZendityCareTabletPage() {
             });
             const data = await res.json();
             if (data.success) {
-                setDailyLog({ bathCompleted: false, foodIntake: 100, notes: "" });
+                setDailyLog({ bathCompleted: false, foodIntake: null, notes: "" });
                 refreshPatientsSilently(selectedColor!);
                 setModalType(null);
             }
@@ -1894,6 +2059,45 @@ export default function ZendityCareTabletPage() {
         } catch (e) { console.error(e); } finally { setSubmitting(false); }
     };
 
+    /**
+     * LA COMIDA, DESDE LA CARA, EN UN TOQUE.
+     *
+     * Estaba a TRES toques dentro de "Bitacora" —abrir el modal, elegir la
+     * comida, elegir la calidad— y es el segundo acto mas frecuente de la casa
+     * despues de los medicamentos: 87.2 al dia contra los 0.2 de Preventiva,
+     * que ocupaba este sitio.
+     *
+     * Registra "comio TODO" para la comida que toca por la hora. Eso resuelve
+     * el **90.8%** de los casos medidos (2.378 de 2.618 son ALL); el resto
+     * —mitad, poco, nada— sigue en el modal, donde ademas esta la pregunta de
+     * por que, que es la que no se puede perder.
+     *
+     * No pasa por `activePatient`: recibe el id, igual que `logNightRound`.
+     * Fijar el residente activo es una actualizacion de estado que no aplica a
+     * tiempo para el fetch que viene detras.
+     */
+    const registrarComidaRapida = async (patientId: string, tipo: string, etiqueta: string) => {
+        setSubmitting(true);
+        try {
+            const res = await fetch("/api/care/adls/meal", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    patientId, caregiverId: user?.id, shiftSessionId: activeSession?.id,
+                    mealType: tipo, quality: 'ALL',
+                }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                avisoOk(data.duplicada
+                    ? `${etiqueta} ya estaba registrado.`
+                    : `${etiqueta}: comió todo.`);
+                refreshPatientsSilently(selectedColor!);
+            } else {
+                avisoError(data.error || data.message || 'No se pudo registrar la comida.');
+            }
+        } catch (e) { console.error(e); } finally { setSubmitting(false); }
+    };
+
     const handleBathLog = async () => {
         setSubmitting(true);
         try {
@@ -1903,7 +2107,12 @@ export default function ZendityCareTabletPage() {
             });
             const data = await res.json();
             if (data.success) {
-                avisoOk(" Baño registrado al sistema central.");
+                // `duplicada` llega con success: la ruta devuelve la fila que
+                // ya existe en vez de un rojo. El mensaje lo dice tal cual:
+                // "registrado" sobre algo que ya estaba invita a comprobarlo.
+                avisoOk(data.duplicada
+                    ? "Este baño ya estaba registrado."
+                    : " Baño registrado al sistema central.");
                 // BUG FIX: añadir el nuevo BathLog al activePatient para que
                 // `bathCompletedToday` (useMemo) se recalcule y el botón se
                 // deshabilite SOLO para este residente, no para los demás.
@@ -1955,9 +2164,12 @@ export default function ZendityCareTabletPage() {
             const data = await res.json();
             if (data.success) {
                 const etiqueta = etiquetaMotivo(motivo);
-                avisoOk(etiqueta
+                avisoOk(data.duplicada
+                    ? "Esta comida ya estaba registrada."
+                    : etiqueta
                     ? ` Registrado: comió ${quality === 'NONE' ? 'nada' : 'poco'} — ${etiqueta.toLowerCase()}`
                     : ` Comida (${mealType}) registrada con métrica de consumo: ${quality}`);
+
                 setRechazoPendiente(null);
                 setMotivoRechazo(null);
                 setAceptoEnCambio("");
@@ -3424,7 +3636,7 @@ export default function ZendityCareTabletPage() {
 
                 {/* Night mode toggle */}
                 <button
-                    onClick={() => setIsNightMode(!isNightMode)}
+                    onClick={() => { eleccionManual.current = true; setIsNightMode(!isNightMode); }}
                     className={`flex items-center gap-1.5 px-3 h-9 rounded-[10px] text-[11px] font-semibold whitespace-nowrap transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] ${isNightMode ? 'bg-[#3CC6C4] text-[#1F2D3A]' : 'bg-white/10 text-white hover:opacity-85'}`}
                 >
                     {isNightMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -4169,8 +4381,12 @@ export default function ZendityCareTabletPage() {
                                         const medsForShift = getMedsForCurrentShift(p.medications || []);
                                         const bathDone = p.bathLogs?.length > 0;
                                         const mealsCount = p.mealLogs?.length || 0;
-                                        const rotationLabel = !p.nortonRisk ? 'N/A' : (isVencido ? 'Atrasado' : isWarning ? 'Próxima' : 'Al día');
-                                        const rotationColor = !p.nortonRisk ? 'text-[#a8a29e]' : (isVencido ? 'text-[#D9534F]' : isWarning ? 'text-[#E5A93D]' : 'text-[#22A06B]');
+                                        // Por la regla del schema, no por una sola bandera.
+                                        // Ver necesitaRotacion() arriba: el chip decia 'N/A' a 23
+                                        // de 32 residentes, incluidos tres con ulcera abierta.
+                                        const rotaEste = necesitaRotacion(p);
+                                        const rotationLabel = !rotaEste ? 'N/A' : (!lastRotation ? 'Sin registrar' : isVencido ? 'Atrasado' : isWarning ? 'Próxima' : 'Al día');
+                                        const rotationColor = !rotaEste ? 'text-[#a8a29e]' : (!lastRotation ? 'text-[#E5A93D]' : isVencido ? 'text-[#D9534F]' : isWarning ? 'text-[#E5A93D]' : 'text-[#22A06B]');
                                         return (
                                             <div className="grid grid-cols-4 bg-white border-b border-[#e7e5e4]">
                                                 <div className="px-2.5 py-[10px] border-r border-[#e7e5e4]">
@@ -4233,21 +4449,49 @@ export default function ZendityCareTabletPage() {
                                     </div>
 
                                     {/* ===== UPP SLA TIMER (solo Norton risk con datos de rotación) ===== */}
-                                    {p.nortonRisk && lastRotation && (
+                                    {necesitaRotacion(p) && (
                                         <div className={`mx-4 mt-3 p-3 rounded-xl border flex items-center justify-between transition-all ${isVencido ? 'bg-[#fee2e2] border-[#fecaca]' : (isWarning ? 'bg-[#fef3c7] border-[#fde68a]' : 'bg-[#e1f5ee] border-[#3CC6C4]/30')}`}>
                                             <div className="flex items-center gap-2.5 min-w-0">
                                                 <span className={`text-lg leading-none ${isVencido ? 'text-[#D9534F]' : (isWarning ? 'text-[#E5A93D]' : 'text-[#0F6B78]')}`}>⏳</span>
                                                 <div className="min-w-0">
                                                     <p className={`text-[9px] font-semibold uppercase tracking-wide leading-none mb-1 ${isVencido ? 'text-[#991b1b]' : (isWarning ? 'text-[#92400e]' : 'text-[#0F6B78]')}`}>SLA Rotación 2h</p>
                                                     <p className={`text-[11px] font-semibold leading-none ${isVencido ? 'text-[#D9534F]' : (isWarning ? 'text-[#92400e]' : 'text-[#1F2D3A]')}`}>
-                                                        {hoursElapsed.toFixed(1)}h <span className="font-normal opacity-70">/ 2.0h · Pos. {p.posturalChanges[0]?.position?.split(' ')[0] || 'N/A'}</span>
+                                                        {lastRotation ? `${hoursElapsed.toFixed(1)}h` : '—'} <span className="font-normal opacity-70">/ 2.0h · {posicionLegible(p.posturalChanges?.[0]?.position)}</span>
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="flex bg-white rounded-lg overflow-hidden border border-[#e7e5e4] shrink-0">
-                                                <button onClick={(e) => { e.stopPropagation(); logNightRound(p.id, 'ROTACION', 'Izquierdo'); }} className="px-2 py-1.5 text-[10px] font-semibold text-[#1F2D3A] hover:bg-[#e1f5ee] hover:text-[#0F6B78] border-r border-[#e7e5e4] transition-colors">Izq</button>
-                                                <button onClick={(e) => { e.stopPropagation(); logNightRound(p.id, 'ROTACION', 'Supino'); }} className="px-2 py-1.5 text-[10px] font-semibold text-[#1F2D3A] hover:bg-[#e1f5ee] hover:text-[#0F6B78] border-r border-[#e7e5e4] transition-colors">Sup</button>
-                                                <button onClick={(e) => { e.stopPropagation(); logNightRound(p.id, 'ROTACION', 'Derecho'); }} className="px-2 py-1.5 text-[10px] font-semibold text-[#1F2D3A] hover:bg-[#e1f5ee] hover:text-[#0F6B78] transition-colors">Der</button>
+                                            {/*
+                                              * DE 34x27 px A 52 px DE ALTO.
+                                              *
+                                              * Este es el control mas tocado en horas normales y era
+                                              * el mas pequeño de la pantalla: `px-2 py-1.5
+                                              * text-[10px]` da ~34x27, contra los 52-56 px de todo
+                                              * lo demas y los 44 del minimo tactil.
+                                              *
+                                              * Y el tamaño estaba cambiando el DATO, no solo la
+                                              * comodidad. Medido sobre los mismos 9 residentes que
+                                              * escriben por las dos superficies: la tira registra
+                                              * **Supino el 75.2%** y los botones de 56 px del modal
+                                              * el **38.4%**, con IZQUIERDA subiendo de 13.9% a
+                                              * 49.3%. Mismo mes, mismos pacientes, mismo acto: el
+                                              * boton del medio se lleva los toques imprecisos.
+                                              *
+                                              * `disabled` tambien faltaba — la mitad cliente del
+                                              * doble envio. Los cuatro botones del modo Rondas si lo
+                                              * llevan.
+                                              */}
+                                            <div className="flex bg-white rounded-xl overflow-hidden border border-[#e7e5e4] shrink-0">
+                                                {([['Izquierdo', 'Izq'], ['Supino', 'Sup'], ['Derecho', 'Der']] as const).map(([pos, corto], i) => (
+                                                    <button
+                                                        key={pos}
+                                                        disabled={submitting}
+                                                        onClick={(e) => { e.stopPropagation(); logNightRound(p.id, 'ROTACION', pos); }}
+                                                        className={'min-h-[52px] min-w-[52px] px-3 text-[13px] font-bold text-[#1F2D3A] hover:bg-[#e1f5ee] hover:text-[#0F6B78] active:bg-[#e1f5ee] disabled:opacity-40 transition-colors'
+                                                            + (i < 2 ? ' border-r border-[#e7e5e4]' : '')}
+                                                    >
+                                                        {corto}
+                                                    </button>
+                                                ))}
                                             </div>
                                         </div>
                                     )}
@@ -4314,10 +4558,16 @@ export default function ZendityCareTabletPage() {
                                         )}
 
                                         {/* ── ALGO CAMBIO ───────────────────────────────────
-                                            Los tres de siempre —vitales, bitacora, preventiva—
-                                            mas el que faltaba. Ver src/lib/cambios-de-condicion.ts:
-                                            entre lo rutinario y lo grave habia un hueco, y lo que
-                                            caia ahi terminaba en una nota de turno que nadie relee. */}
+                                            La rejilla de tres, repartida por USO medido y no por
+                                            costumbre: Vitales (60.9/dia), Bitacora (la puerta a
+                                            bano, pañal y el panel UPP) y Comida (87.2/dia, que
+                                            estaba a tres toques). Preventiva cedio su tercio con
+                                            0.2/dia y vive ahora dentro de Bitacora.
+
+                                            Y debajo, el que faltaba. Ver
+                                            src/lib/cambios-de-condicion.ts: entre lo rutinario y lo
+                                            grave habia un hueco, y lo que caia ahi terminaba en una
+                                            nota de turno que nadie relee. */}
                                         <p className="text-[10px] font-bold uppercase tracking-widest text-[#a8a29e] mt-3 mb-1.5">Algo cambió</p>
                                         <div className="grid grid-cols-3 gap-1.5">
                                             <button
@@ -4338,15 +4588,41 @@ export default function ZendityCareTabletPage() {
                                                 </svg>
                                                 <span className="text-[12px] font-medium text-[#1F2D3A]">Bitácora</span>
                                             </button>
-                                            <button
-                                                onClick={() => { setActivePatient(p); setSelectedSymptom(null); setMostrarSintomas(false); setPreventiveNote(""); setModalType('PREVENTIVE'); }}
-                                                className="min-h-[52px] bg-white border border-[#e7e5e4] rounded-[12px] flex flex-col items-center justify-center gap-1 transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] hover:opacity-85"
-                                            >
-                                                <svg className="w-4 h-4 text-[#0F6B78]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                                </svg>
-                                                <span className="text-[12px] font-medium text-[#1F2D3A]">Preventiva</span>
-                                            </button>
+                                            {/*
+                                              * EL TERCIO QUE TENIA PREVENTIVA, AHORA COMIDA.
+                                              *
+                                              * Medido: Preventiva 0.2 registros al dia —7 en 30
+                                              * dias, en el 12% de los dias— con un tercio de la
+                                              * rejilla visible. La comida, 87.2 al dia, estaba a
+                                              * TRES toques dentro de Bitacora. Preventiva no se
+                                              * esconde: sube sin compuerta dentro del modal, donde
+                                              * ahora la alcanzan tambien los 9 residentes con
+                                              * protocolo UPP que antes no la tenian.
+                                              *
+                                              * La ranura NO desaparece fuera de horario: se apaga y
+                                              * dice por que. Ver comidaDeAhora().
+                                              */}
+                                            {(() => {
+                                                const comida = comidaDeAhora();
+                                                const yaRegistrada = !!comida
+                                                    && (p.mealLogs || []).some((m: any) => m.mealType === comida.tipo);
+                                                const apagado = !comida || yaRegistrada || submitting;
+                                                return (
+                                                    <button
+                                                        onClick={() => comida && registrarComidaRapida(p.id, comida.tipo, comida.etiqueta)}
+                                                        disabled={apagado}
+                                                        className="min-h-[52px] bg-white border border-[#e7e5e4] rounded-[12px] flex flex-col items-center justify-center gap-0.5 px-1 transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] hover:opacity-85 disabled:opacity-45 disabled:active:scale-100"
+                                                    >
+                                                        <span className="text-base leading-none">🍽️</span>
+                                                        <span className="text-[12px] font-medium text-[#1F2D3A] leading-none">
+                                                            {comida ? comida.etiqueta : 'Comida'}
+                                                        </span>
+                                                        <span className="text-[9px] font-medium text-[#a8a29e] leading-none">
+                                                            {!comida ? 'fuera de hora' : yaRegistrada ? 'ya registrado' : 'comió todo'}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })()}
                                         </div>
                                         <button
                                             onClick={() => { setActivePatient(p); setAreaCambio(null); setDescripcionCambio(''); setModalType('CAMBIO_CONDICION'); }}
@@ -4743,11 +5019,27 @@ export default function ZendityCareTabletPage() {
                                             {activePatient.requiresPosturalChanges ? ' Protocolo UPP Activo' : ' Vigilancia Dermatológica'}
                                         </h4>
                                         
+                                        {/*
+                                          * PREVENCION, PARA TODOS Y NO SOLO PARA LOS QUE NO TIENEN
+                                          * PROTOCOLO.
+                                          *
+                                          * Este boton vivia DENTRO de la rama
+                                          * `!requiresPosturalChanges`, y la otra entrada estaba en
+                                          * la cara de la tarjeta. Al ceder Preventiva su tercio de
+                                          * la rejilla visible —0.2 usos al dia contra los 87 de la
+                                          * comida— los 9 residentes CON protocolo UPP activo se
+                                          * habrian quedado sin ninguna via. Que son justo los que
+                                          * mas prevencion necesitan.
+                                          *
+                                          * Asi que sube fuera de la rama: el panel de prevencion
+                                          * esta para cualquiera, y debajo cada quien ve lo suyo.
+                                          */}
+                                        <button onClick={() => setModalType('PREVENTIVE')} className="w-full py-4 text-emerald-800 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 min-h-[56px] text-sm active:scale-95">
+                                            <span className="text-xl">🛡️</span> Abrir Panel de Prevención
+                                        </button>
+
                                         {!activePatient.requiresPosturalChanges ? (
                                             <>
-                                                <button onClick={() => setModalType('PREVENTIVE')} className="w-full py-4 text-emerald-800 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 min-h-[56px] text-sm active:scale-95">
-                                                    <span className="text-xl">🛡️</span> Abrir Panel de Prevención
-                                                </button>
                                                 <p className="text-[10px] font-bold text-emerald-600/60 mt-2 text-center uppercase tracking-wider">Fase Preventiva: +5 Pts Zendity</p>
                                             </>
                                         ) : (

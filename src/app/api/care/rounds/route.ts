@@ -87,9 +87,38 @@ export async function POST(req: Request) {
              * Dos minutos. Una rotacion real del mismo residente en ese lapso
              * no existe: el objetivo son 120 minutos.
              */
-            const dosMinutosAtras = new Date(Date.now() - 2 * 60 * 1000);
+            /**
+             * LA VENTANA VA ALREDEDOR DE LA HORA QUE SE VA A ESCRIBIR, NO DEL
+             * RELOJ — Y COMPARA LA POSICION.
+             *
+             * Buscaba `performedAt >= Date.now() - 2min` pero escribe
+             * `performedAt: hora.hora`, que es la hora DECLARADA por la
+             * cuidadora y puede ir hasta 19 h hacia atras (MAX_ATRAS_HORAS en
+             * src/lib/hora-real.ts, que subio de 12 a 19 el 21-sep). O sea que
+             * la guarda no veia lo que ella misma acababa de escribir. Es el
+             * mismo fallo que `adls/meal` pago el 14-sep y arreglo asi.
+             *
+             * Medido el 22-sep sobre los 24 dias desde que la guarda existe:
+             * 102 pares del mismo residente a menos de 120 s, 57 por debajo de
+             * 300 ms y 9 por debajo de 50 ms — no son reenvios retroactivos,
+             * son dos peticiones concurrentes.
+             *
+             * Y AHORA MIRA `position`. Antes casaba cualquier rotacion del
+             * mismo residente en la ventana, asi que quien registraba
+             * "Izquierdo" y se corregia a "Derecha" en el mismo minuto perdia
+             * la correccion en silencio. Los duplicados reales son de la MISMA
+             * posicion: de los 357 pares medidos, todos repetian posicion.
+             */
+            const posicionAEscribir = position || "Rotación General (Pre-programada Zendi)";
             const rotacionReciente = await prisma.posturalChangeLog.findFirst({
-                where: { patientId, performedAt: { gte: dosMinutosAtras } },
+                where: {
+                    patientId,
+                    position: posicionAEscribir,
+                    performedAt: {
+                        gte: new Date(hora.hora.getTime() - 2 * 60 * 1000),
+                        lte: new Date(hora.hora.getTime() + 2 * 60 * 1000),
+                    },
+                },
                 select: { id: true },
             });
             if (rotacionReciente) {
@@ -155,7 +184,7 @@ export async function POST(req: Request) {
                 data: {
                     patientId,
                     nurseId: authorId,
-                    position: position || "Rotación General (Pre-programada Zendi)",
+                    position: posicionAEscribir,
                     performedAt: hora.hora,
                     isComplianceAlert: veredicto.tarde,
                     esImputable: veredicto.imputable,

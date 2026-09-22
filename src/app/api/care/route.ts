@@ -247,7 +247,19 @@ export async function GET(req: Request) {
                 },
                 bathLogs: {
                     where: { timeLogged: { gte: todayStart, lte: todayEnd } },
-                    select: { id: true },
+                    /**
+                     * `timeLogged` VA EN EL SELECT PORQUE LA TABLETA LO LEE.
+                     *
+                     * Sin el, `bathCompletedToday` (care/page.tsx:609) hacia
+                     * `new Date(log.timeLogged || log.createdAt)` sobre dos
+                     * campos que no se habian pedido, y el candado de "ya se
+                     * bano hoy" daba SIEMPRE false. El boton de bano nunca se
+                     * deshabilitaba y la cara nunca podia decir que estaba
+                     * hecho. Es el antipatron 9 de CLAUDE.md, vivo: un campo
+                     * que no pides vuelve null en todas las filas y se lee
+                     * igual que "ninguna lo tiene".
+                     */
+                    select: { id: true, timeLogged: true },
                     take: 1
                 },
                 pressureUlcers: {

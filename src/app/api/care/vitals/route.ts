@@ -60,7 +60,19 @@ const VitalsDataSchema = z.object({
 });
 
 const LogDataSchema = z.object({
-    foodIntake:    z.union([coerceNum.int().min(0).max(100), z.string()]).optional(),
+    /**
+     * `optionalNum`, NO `coerceNum` a secas.
+     *
+     * `z.coerce.number()` convierte `null` en 0, pasa el `.min(0)` y llega al
+     * handler como el numero cero — el `?? null` de mas abajo ya no puede
+     * verlo. Resultado medido sobre 30 dias: 162 filas diciendo "comio 0%",
+     * escritas por los caminos del Action Hub que mandan `foodIntake: null`
+     * a proposito para decir "este evento no dice nada sobre la comida".
+     *
+     * Y eso llega al portal de la familia. El mismo wrapper ya existia dos
+     * lineas mas arriba por el mismo motivo en glucose y spo2.
+     */
+    foodIntake:    optionalNum(coerceNum.int().min(0).max(100)),
     bathCompleted: z.boolean().optional(),
     notes:         z.string().max(2000).optional().nullable(),
     isAlert:       z.boolean().optional(),

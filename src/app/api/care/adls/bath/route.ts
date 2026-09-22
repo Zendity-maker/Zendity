@@ -67,20 +67,39 @@ export async function POST(req: Request) {
         const desde = new Date(hora.hora.getTime() - 2 * 60 * 1000);
         const hasta = new Date(hora.hora.getTime() + 2 * 60 * 1000);
 
+        /**
+         * SIN `caregiverId`: un baño es del residente, no de quien lo teclea.
+         *
+         * Con el en la llave, dos personas registrando el MISMO baño lo
+         * atravesaban por diseño. Medido: pares del mismo residente a menos de
+         * 2 min, 7 de la misma cuidadora y **4 de cuidadoras distintas**; a
+         * menos de 30 min, 25 y 12. La ruta hermana `adls/meal` ya casa por
+         * `{ patientId, mealType, ventana }` sin autor: esto la alinea.
+         */
         const recentBath = await prisma.bathLog.findFirst({
             where: {
-                caregiverId,
                 patientId,
                 timeLogged: { gte: desde, lte: hasta },
             }
         });
 
+            /**
+             * EXITO, NO ERROR. CLAUDE.md lo dice literal: "devolver EXITO con
+             * la que ya existe, nunca un error rojo. Quien pulso hizo lo
+             * correcto; un error en rojo le hace intentarlo otra vez, que es
+             * justo lo que produce el duplicado."
+             *
+             * Devolvia 429 con `success: false`, y la tableta lo pintaba con
+             * `avisoError`. /api/care/rounds ya lo hacia bien; estas dos
+             * rutas hermanas eran la divergencia.
+             */
         if (recentBath) {
             return NextResponse.json({
-                success: false,
-                error: "COOLDOWN_ACTIVE",
-                message: "Este baño ya fue registrado recientemente para este residente. Espera un momento."
-            }, { status: 429 });
+                success: true,
+                duplicada: true,
+                bath: recentBath,
+                message: "Este baño ya estaba registrado hace un momento.",
+            });
         }
 
         const newBath = await prisma.bathLog.create({
