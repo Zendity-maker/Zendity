@@ -756,6 +756,19 @@ export default function ZendityCareTabletPage() {
      * en MealLog desde el panel nutricional, que es de donde ya la lee el
      * portal de la familia.
      */
+    /**
+     * QUE RESIDENTE TIENE UNA COMIDA EN VUELO. No `submitting`, que es global.
+     *
+     * Con el estado global, durante la peticion de un residente los botones de
+     * los otros 32 quedaban inertes: en una ronda de once a un toque cada cinco
+     * segundos, la cuidadora toca a la siguiente, no pasa nada, ve el toast de
+     * la anterior y sigue. La comida de esa persona no se escribe y nadie se
+     * entera. Es el mismo "aprieto y no pasa nada" que costo 3.325 rotaciones
+     * duplicadas, y que el bug del pañal del 07-jun ya obligo a separar en
+     * `savingDiaper`.
+     */
+    const [guardandoComida, setGuardandoComida] = useState<string | null>(null);
+
     const [dailyLog, setDailyLog] = useState<{ bathCompleted: boolean; foodIntake: number | null; notes: string; selectedMeal?: string }>({ bathCompleted: false, foodIntake: null, notes: "", selectedMeal: undefined });
 
     // BUG FIX baños: derivar el estado de "baño completado hoy" directamente
@@ -971,6 +984,19 @@ export default function ZendityCareTabletPage() {
                 } else {
                     avisoOk(position ? `Rotación registrada: ${position}` : 'Rotación registrada');
                 }
+                /**
+                 * Y SE REFRESCA LA TARJETA. Faltaba, y es la otra mitad del
+                 * mismo problema que el aviso de arriba.
+                 *
+                 * Sin esto, despues de rotar el reloj del SLA seguia en rojo y
+                 * "Pos." seguia diciendo la posicion anterior: la pantalla
+                 * contradecia el toast. `handleBathLog` y `handlePosturalChange`
+                 * ya refrescaban; esta no. Es la causa MECANICA de las rachas
+                 * de 3, 5 y 15 registros seguidos del mismo residente — no es
+                 * que no vieran el aviso, es que la tarjeta seguia pidiendo lo
+                 * que acababan de hacer.
+                 */
+                refreshPatientsSilently(selectedColor!);
             } else {
                 avisoError(data.error || 'No se pudo registrar. Intenta de nuevo.');
             }
@@ -2076,8 +2102,8 @@ export default function ZendityCareTabletPage() {
      * Fijar el residente activo es una actualizacion de estado que no aplica a
      * tiempo para el fetch que viene detras.
      */
-    const registrarComidaRapida = async (patientId: string, tipo: string, etiqueta: string) => {
-        setSubmitting(true);
+    const registrarComidaRapida = async (patientId: string, tipo: string, etiqueta: string, nombre: string) => {
+        setGuardandoComida(patientId);
         try {
             const res = await fetch("/api/care/adls/meal", {
                 method: "POST", headers: { "Content-Type": "application/json" },
@@ -2088,14 +2114,18 @@ export default function ZendityCareTabletPage() {
             });
             const data = await res.json();
             if (data.success) {
+                // El aviso NOMBRA al residente. Sin nombre, en una ronda de
+                // once a un toque cada cinco segundos, el toast de la anterior
+                // se lee como la confirmacion de la siguiente.
+                const quien = nombre.trim().split(' ')[0];
                 avisoOk(data.duplicada
-                    ? `${etiqueta} ya estaba registrado.`
-                    : `${etiqueta}: comió todo.`);
+                    ? `${quien} — ${etiqueta} ya estaba registrado.`
+                    : `${quien} — ${etiqueta}: comió todo.`);
                 refreshPatientsSilently(selectedColor!);
             } else {
                 avisoError(data.error || data.message || 'No se pudo registrar la comida.');
             }
-        } catch (e) { console.error(e); } finally { setSubmitting(false); }
+        } catch (e) { console.error(e); } finally { setGuardandoComida(null); }
     };
 
     const handleBathLog = async () => {
@@ -4450,13 +4480,19 @@ export default function ZendityCareTabletPage() {
 
                                     {/* ===== UPP SLA TIMER (solo Norton risk con datos de rotación) ===== */}
                                     {necesitaRotacion(p) && (
-                                        <div className={`mx-4 mt-3 p-3 rounded-xl border flex items-center justify-between transition-all ${isVencido ? 'bg-[#fee2e2] border-[#fecaca]' : (isWarning ? 'bg-[#fef3c7] border-[#fde68a]' : 'bg-[#e1f5ee] border-[#3CC6C4]/30')}`}>
+                                        // Sin rotacion registrada NO es "al dia": la caja salia en
+                                        // teal de cumplimiento mientras el chip de arriba decia
+                                        // "Sin registrar" en ambar, en la misma tarjeta. Un estado
+                                        // sin dato se pinta como lo que es.
+                                        <div className={`mx-4 mt-3 p-3 rounded-xl border flex items-center justify-between transition-all ${!lastRotation ? 'bg-[#fef3c7] border-[#fde68a]' : isVencido ? 'bg-[#fee2e2] border-[#fecaca]' : (isWarning ? 'bg-[#fef3c7] border-[#fde68a]' : 'bg-[#e1f5ee] border-[#3CC6C4]/30')}`}>
                                             <div className="flex items-center gap-2.5 min-w-0">
                                                 <span className={`text-lg leading-none ${isVencido ? 'text-[#D9534F]' : (isWarning ? 'text-[#E5A93D]' : 'text-[#0F6B78]')}`}>⏳</span>
                                                 <div className="min-w-0">
                                                     <p className={`text-[9px] font-semibold uppercase tracking-wide leading-none mb-1 ${isVencido ? 'text-[#991b1b]' : (isWarning ? 'text-[#92400e]' : 'text-[#0F6B78]')}`}>SLA Rotación 2h</p>
                                                     <p className={`text-[11px] font-semibold leading-none ${isVencido ? 'text-[#D9534F]' : (isWarning ? 'text-[#92400e]' : 'text-[#1F2D3A]')}`}>
-                                                        {lastRotation ? `${hoursElapsed.toFixed(1)}h` : '—'} <span className="font-normal opacity-70">/ 2.0h · {posicionLegible(p.posturalChanges?.[0]?.position)}</span>
+                                                        {lastRotation
+                                                            ? <>{hoursElapsed.toFixed(1)}h <span className="font-normal opacity-70">/ 2.0h · {posicionLegible(p.posturalChanges?.[0]?.position)}</span></>
+                                                            : <span className="font-normal">sin rotación registrada</span>}
                                                     </p>
                                                 </div>
                                             </div>
@@ -4484,7 +4520,12 @@ export default function ZendityCareTabletPage() {
                                                 {([['Izquierdo', 'Izq'], ['Supino', 'Sup'], ['Derecho', 'Der']] as const).map(([pos, corto], i) => (
                                                     <button
                                                         key={pos}
-                                                        disabled={submitting}
+                                                        // `isSavingFastAction`, que es lo que SI pone y
+                                                        // quita `logNightRound`. Con `submitting` el
+                                                        // disabled era decorativo —esa funcion no lo
+                                                        // toca— y ademas apagaba la tira por
+                                                        // acciones de otros modales.
+                                                        disabled={isSavingFastAction}
                                                         onClick={(e) => { e.stopPropagation(); logNightRound(p.id, 'ROTACION', pos); }}
                                                         className={'min-h-[52px] min-w-[52px] px-3 text-[13px] font-bold text-[#1F2D3A] hover:bg-[#e1f5ee] hover:text-[#0F6B78] active:bg-[#e1f5ee] disabled:opacity-40 transition-colors'
                                                             + (i < 2 ? ' border-r border-[#e7e5e4]' : '')}
@@ -4606,10 +4647,17 @@ export default function ZendityCareTabletPage() {
                                                 const comida = comidaDeAhora();
                                                 const yaRegistrada = !!comida
                                                     && (p.mealLogs || []).some((m: any) => m.mealType === comida.tipo);
-                                                const apagado = !comida || yaRegistrada || submitting;
+                                                const enVuelo = guardandoComida === p.id;
+                                                const apagado = !comida || yaRegistrada || enVuelo;
                                                 return (
                                                     <button
-                                                        onClick={() => comida && registrarComidaRapida(p.id, comida.tipo, comida.etiqueta)}
+                                                        onClick={() => {
+                                                            // Se recalcula en el toque, no en el render: un
+                                                            // boton pintado a las 13:59 y pulsado a las 14:00
+                                                            // disparaba una peticion que el servidor rechaza.
+                                                            const ahora = comidaDeAhora();
+                                                            if (ahora) registrarComidaRapida(p.id, ahora.tipo, ahora.etiqueta, p.name);
+                                                        }}
                                                         disabled={apagado}
                                                         className="min-h-[52px] bg-white border border-[#e7e5e4] rounded-[12px] flex flex-col items-center justify-center gap-0.5 px-1 transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] hover:opacity-85 disabled:opacity-45 disabled:active:scale-100"
                                                     >
@@ -4618,7 +4666,7 @@ export default function ZendityCareTabletPage() {
                                                             {comida ? comida.etiqueta : 'Comida'}
                                                         </span>
                                                         <span className="text-[9px] font-medium text-[#a8a29e] leading-none">
-                                                            {!comida ? 'fuera de hora' : yaRegistrada ? 'ya registrado' : 'comió todo'}
+                                                            {enVuelo ? 'guardando…' : !comida ? 'fuera de hora' : yaRegistrada ? 'ya registrado' : 'comió todo'}
                                                         </span>
                                                     </button>
                                                 );
@@ -4960,8 +5008,24 @@ export default function ZendityCareTabletPage() {
                                 {selectedColor && (
                                     <div className="bg-sky-50 border border-sky-100 p-3 rounded-2xl">
                                         <h4 className="font-black text-sky-800 text-base mb-2"> Higiene Matutina</h4>
-                                        <button onClick={handleBathLog} disabled={submitting || bathCompletedToday} className={`w-full py-3 rounded-xl font-bold transition-all ${bathCompletedToday ? 'bg-sky-200 text-sky-500 cursor-not-allowed' : 'bg-sky-500 hover:bg-sky-600 text-white shadow-md shadow-sky-500/30 active:scale-95'}`}>
-                                            {bathCompletedToday ? "Baño Registrado " : "Completar Baño de 6AM - 10AM"}
+                                        {/*
+                                          * EL CANDADO NO CIERRA LA PUERTA, SOLO AVISA.
+                                          *
+                                          * Hasta el 22-sep el candado no funcionaba —el roster no
+                                          * pedia `timeLogged`, asi que `bathCompletedToday` daba
+                                          * SIEMPRE false— y al arreglarlo el boton pasaba a quedar
+                                          * bloqueado de verdad. Eso habria dejado sin registrar los
+                                          * **22 segundos baños de 30 dias** que si ocurren: una
+                                          * diarrea, un vomito, un accidente. La guarda de dos
+                                          * minutos del servidor ya evita el doble toque, que es lo
+                                          * unico que el candado pretendia.
+                                          *
+                                          * Asi que se pinta el estado y se deja pasar. Y el rotulo
+                                          * deja de decir "6AM - 10AM", que describe una ventana que
+                                          * ninguna ruta valida.
+                                          */}
+                                        <button onClick={handleBathLog} disabled={submitting} className={`w-full py-3 rounded-xl font-bold transition-all ${bathCompletedToday ? 'bg-sky-100 text-sky-700 border border-sky-200 active:scale-95' : 'bg-sky-500 hover:bg-sky-600 text-white shadow-md shadow-sky-500/30 active:scale-95'}`}>
+                                            {bathCompletedToday ? "Baño registrado ✓ · Registrar otro" : "Registrar baño"}
                                         </button>
                                         <p className="text-[10px] font-bold text-sky-600/60 mt-1.5 text-center uppercase tracking-wider">Protegido por cooldown de 2 minutos</p>
                                     </div>

@@ -101,7 +101,10 @@ export async function POST(req: Request) {
         if (!isValidWindow) {
             return NextResponse.json({
                 success: false,
-                error: `La ventana de tiempo para registrar el ${mealType} está actualmente cerrada.`
+                // En castellano: el enum crudo ("DINNER") salia tal cual a la
+                // tableta cuando el boton de la cara se pulsaba en el borde de
+                // la ventana.
+                error: `La ventana para registrar ${({ BREAKFAST: 'el desayuno', LUNCH: 'el almuerzo', DINNER: 'la cena' } as Record<string, string>)[mealType] ?? 'esta comida'} está cerrada ahora mismo.`
             }, { status: 403 });
         }
 
@@ -143,6 +146,50 @@ export async function POST(req: Request) {
                 },
             },
         });
+
+        /**
+         * UNA CORRECCION NO ES UN DOBLE TOQUE, Y DESCARTARLA ES PEOR QUE
+         * DUPLICARLA.
+         *
+         * La guarda casaba solo por (residente, comida, ventana) y tiraba la
+         * segunda escritura. Mientras devolvia un 429 rojo al menos la
+         * cuidadora veia que algo fallaba; al pasarla a "exito" el 22-sep se
+         * volvio SILENCIOSA y VERDE — la frase que sustituye a una mentira
+         * tampoco puede ser una.
+         *
+         * El caso: se toca por error el boton de la cara (un toque, sin
+         * confirmacion, escribe ALL), se abre el modal al minuto para poner lo
+         * que de verdad paso —"Nada", motivo "Dificultad para tragar"— y la
+         * guarda lo descartaba. El expediente quedaba diciendo que comio todo,
+         * el motivo se perdia, y `notifyRoles` no avisaba a enfermeria. Y no
+         * hay pantalla en Zendity capaz de corregir esa fila: cero
+         * `mealLog.update` en todo el repo.
+         *
+         * Medido sobre 30 dias: **3 correcciones reales** —Dwight Santiago dos
+         * veces (ALL→NONE, motivo SOMNOLIENTO) y Carmen A. Velez una— y las
+         * tres sobrevivieron SOLO porque cayeron fuera de la ventana de dos
+         * minutos, a 3.8, 4.8 y 45.9 minutos. Con el boton de un toque en la
+         * cara, la correccion que antes tardaba cinco minutos ahora llega en
+         * uno: justo dentro de la ventana.
+         *
+         * Aviso honesto sobre la magnitud: descartes DEMOSTRABLES hoy, cero.
+         * Lo que sostiene el arreglo no es la frecuencia, es que el dato es
+         * irrecuperable y ahora ademas invisible.
+         */
+        const esCorreccion = !!comidaReciente && (
+            comidaReciente.quality !== quality
+            || (!!motivoRechazo && comidaReciente.motivoRechazo !== motivoRechazo)
+        );
+
+        // La MISMA fila, no una segunda: corregir no es anotar dos veces. Y el
+        // aviso a enfermeria de mas abajo se deja correr, porque el motivo que
+        // llega ahora es justo el que no habia.
+        const filaCorregida = (comidaReciente && esCorreccion)
+            ? await prisma.mealLog.update({
+                where: { id: comidaReciente.id },
+                data: { quality, motivoRechazo, aceptoEnCambio, caregiverId },
+            })
+            : null;
             /**
              * EXITO, NO ERROR. CLAUDE.md lo dice literal: "devolver EXITO con
              * la que ya existe, nunca un error rojo. Quien pulso hizo lo
@@ -153,7 +200,8 @@ export async function POST(req: Request) {
              * `avisoError`. /api/care/rounds ya lo hacia bien; estas dos
              * rutas hermanas eran la divergencia.
              */
-        if (comidaReciente) {
+        // Doble toque de verdad: misma comida, misma calidad, mismo motivo.
+        if (comidaReciente && !esCorreccion) {
             return NextResponse.json({
                 success: true,
                 duplicada: true,
@@ -162,7 +210,7 @@ export async function POST(req: Request) {
             });
         }
 
-        const newMeal = await prisma.mealLog.create({
+        const newMeal = filaCorregida ?? await prisma.mealLog.create({
             data: {
                 patientId,
                 caregiverId,
@@ -192,7 +240,11 @@ export async function POST(req: Request) {
             }, auth.id).catch(e => console.error('Aviso de rechazo de comida:', e));
         }
 
-        return NextResponse.json({ success: true, meal: newMeal });
+        return NextResponse.json({
+            success: true,
+            meal: newMeal,
+            corregida: !!filaCorregida,
+        });
 
     } catch (error) {
         logError('care.adls.meal.post', error);

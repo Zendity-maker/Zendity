@@ -250,7 +250,7 @@ export async function GET(req: Request) {
                     /**
                      * `timeLogged` VA EN EL SELECT PORQUE LA TABLETA LO LEE.
                      *
-                     * Sin el, `bathCompletedToday` (care/page.tsx:609) hacia
+                     * Sin el, `bathCompletedToday` en care/page.tsx hacia
                      * `new Date(log.timeLogged || log.createdAt)` sobre dos
                      * campos que no se habian pedido, y el candado de "ya se
                      * bano hoy" daba SIEMPRE false. El boton de bano nunca se

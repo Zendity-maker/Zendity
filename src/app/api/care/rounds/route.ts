@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { variantesDePosicion } from '@/lib/posicion-rotacion';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { resolverHoraReal } from '@/lib/hora-real';
@@ -113,7 +114,23 @@ export async function POST(req: Request) {
             const rotacionReciente = await prisma.posturalChangeLog.findFirst({
                 where: {
                     patientId,
-                    position: posicionAEscribir,
+                    /**
+                     * POR LADO, NO POR CADENA.
+                     *
+                     * La tira de la cara escribe "Izquierdo" y el modal
+                     * "IZQUIERDA": el mismo decubito con dos vocabularios. Con
+                     * la cadena exacta, un doble toque que cruza las dos
+                     * superficies no se veia.
+                     *
+                     * Medido sobre los 357 pares del mismo residente a menos de
+                     * 2 min en 30 dias: la guarda vieja (cualquier rotacion)
+                     * atrapaba los 357 pero se tragaba las correcciones; por
+                     * cadena exacta caia a 319; **por lado atrapa 329 y deja
+                     * pasar 28**. Y 329 + 28 = 357 exactamente: los 329 son
+                     * mismo lado —duplicados de verdad— y los 28 son cambio de
+                     * lado, que es justo lo que hay que dejar escribir.
+                     */
+                    position: { in: variantesDePosicion(posicionAEscribir) },
                     performedAt: {
                         gte: new Date(hora.hora.getTime() - 2 * 60 * 1000),
                         lte: new Date(hora.hora.getTime() + 2 * 60 * 1000),

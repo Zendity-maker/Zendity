@@ -116,10 +116,24 @@ export default function HoraDelRegistro({
                 />
             </div>
 
+            {/*
+              * LA SEGUNDA FRASE SE FUE PORQUE NO ERA VERDAD EN TODAS PARTES.
+              *
+              * Decía "queda guardado también a qué hora lo escribiste", y eso
+              * solo es cierto donde hay un sello de escritura. `MealLog`,
+              * `BathLog` y `PosturalChangeLog` NO tienen `createdAt`: en esas
+              * tres el único campo de tiempo es el declarado, así que la hora
+              * del tecleo no se guarda en ninguna parte.
+              *
+              * Prometer trazabilidad que no existe, dentro del control que
+              * existe para que el expediente diga la verdad, es el peor sitio
+              * posible para el patrón de promete-y-no-entrega.
+              *
+              * Vuelve cuando esas tablas tengan su `createdAt`.
+              */}
             {!esAhora && (
                 <p className="text-[11px] font-bold text-amber-800">
-                    Se registrará como las <strong>{hhmm(valor!)}</strong>. Queda guardado
-                    también a qué hora lo escribiste.
+                    Se registrará como las <strong>{hhmm(valor!)}</strong>.
                 </p>
             )}
         </div>
