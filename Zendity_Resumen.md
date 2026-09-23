@@ -1,3 +1,35 @@
+> ## ⚠️ Esto es material comercial, no documentación del producto
+>
+> **Escrito en marzo de 2026. Verificado contra el código el 23-sep-2026.**
+> Describe hacia dónde va Zéndity, no lo que hace hoy. Si buscas cómo funciona
+> el sistema, ve a [`README.md`](./README.md) y a [`CLAUDE.md`](./CLAUDE.md),
+> que sí se mantienen al día.
+>
+> **Lo que de este documento existe hoy:**
+> el eMAR con firma en pantalla · el relevo de turno con resumen generado por
+> IA · el portal familiar con vitales, mensajes, citas y facturas · la escala
+> de Downton para caídas y la de Braden para úlceras · la trazabilidad de cada
+> acto con su autor y su hora · el CRM con su kanban · Academy · el concierge
+> como catálogo y agenda.
+>
+> **Lo que NO existe, y aquí se cuenta como si existiera:**
+>
+> | lo que dice | lo que hay |
+> |---|---|
+> | «IoT Sentinel»: sensores de habitación, detección de caídas por postura, *wake-word* | nada. Cero cámaras, cero audio, cero dispositivos |
+> | «Geofencing» para fugas | cero geolocalización en las 173 tablas. `IncidentType` ni siquiera tiene un tipo para una fuga |
+> | «Zendity Pay», pasarela B2C *one-click* | no hay pasarela. La familia ve su factura y la pantalla le dice que contacte al director |
+> | «altera el inventario farmacéutico en vivo» | no hay inventario: `Medication` no tiene ni un campo de cantidad |
+> | «prevé reacciones adversas» / «análisis de incompatibilidad entre pacientes» | no existe ninguno de los dos |
+> | «sugerencias de dietas» por IA | el menú lo escribe cocina |
+> | escala **Braden/Emina** | Braden sí, Emina no existe |
+>
+> Nada de esto es un error de quien lo escribió: era una hoja de ruta. El daño
+> aparece cuando alguien lo lee seis meses después y lo toma por una lista de
+> funciones. Por eso queda esta cabecera y no se borra el documento.
+
+---
+
 # Zendity Home System
 **Compliance as a Service - Cumplimiento Asistido como Servicio**
 
