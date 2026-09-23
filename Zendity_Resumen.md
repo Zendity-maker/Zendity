@@ -12,7 +12,8 @@
 > acto con su autor y su hora · el CRM con su kanban · Academy · el concierge
 > como catálogo y agenda.
 >
-> **Lo que NO existe, y aquí se cuenta como si existiera:**
+> **Lo que NO existe — y NO es trabajo pendiente, es lo que Zéndity
+> deliberadamente NO va a tener:**
 >
 > | lo que dice | lo que hay |
 > |---|---|
@@ -24,9 +25,16 @@
 > | «sugerencias de dietas» por IA | el menú lo escribe cocina |
 > | escala **Braden/Emina** | Braden sí, Emina no existe |
 >
-> Nada de esto es un error de quien lo escribió: era una hoja de ruta. El daño
-> aparece cuando alguien lo lee seis meses después y lo toma por una lista de
-> funciones. Por eso queda esta cabecera y no se borra el documento.
+> Esta tabla **no es un backlog**. Son funciones que se escribieron en un
+> documento comercial y que el producto ha decidido no tener: vigilar una
+> habitación con cámara y micrófono, poner un perímetro alrededor de una
+> persona, o dejar que un modelo prediga una reacción adversa no es hacia
+> donde va este sistema. Lo que hay en su lugar es alguien que mira, escribe
+> lo que vio y firma con su nombre.
+>
+> Se deja el documento porque tiene valor comercial, y se deja esta cabecera
+> porque sin ella alguien lo lee dentro de seis meses, lo toma por una lista
+> de funciones pendientes, y se pone a construirlas.
 
 ---
 
