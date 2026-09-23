@@ -4476,20 +4476,29 @@ export default function ZendityCareTabletPage() {
                                                         </span>
                                                     )}
                                                     {p.nortonRisk && <span className="text-[10px] font-semibold text-[#92400e] bg-[#fef3c7] border border-[#fde68a] px-1.5 py-0.5 rounded-md">Alto riesgo piel</span>}
-                                                    {/* LA ETIQUETA DE UPP AHORA SE TOCA.
-                                                        Era una etiqueta muerta. La cuidadora es quien
+                                                    {/* LA ETIQUETA DE UPP VUELVE A SER UNA ETIQUETA.
+                                                        Fue un boton desde que el registro del aposito
+                                                        bajo a la tarjeta de la cuidadora —ella es quien
                                                         ve el aposito sucio a las 3 de la mañana, y la
-                                                        pantalla donde se registra —/care/nursing— es
-                                                        de enfermeria: ella no la ve ni con la URL.
-                                                        Asi que el registro viene a su tarjeta. */}
+                                                        pantalla de enfermeria no la ve ni con la URL—.
+                                                        Pero medido a 768x1024 el 23-sep-2026 era el
+                                                        elemento mas pequeño de toda la tableta, 114x21,
+                                                        para una escritura clinica sobre alguien con una
+                                                        ulcera abierta.
+
+                                                        No se podia agrandar aqui: comparte fila con dos
+                                                        chips que NO se tocan y miden lo mismo, y subirlo
+                                                        a 44 px lo hacia descollar sobre ellos.
+
+                                                        Asi que la fila recupera su trabajo —decir de un
+                                                        vistazo como esta el residente— y el ACTO se va a
+                                                        "Lo de siempre", con los 52 px que tienen los
+                                                        demas. Cambiar un aposito no es "algo cambio": es
+                                                        la rutina diaria de quien tiene una ulcera. */}
                                                     {p.pressureUlcers?.length > 0 && (
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); abrirAposito(p); }}
-                                                            title="Toca para registrar que cambiaste el apósito"
-                                                            className="text-[10px] font-semibold text-white bg-[#D9534F] hover:bg-[#c0392b] px-1.5 py-0.5 rounded-md transition-colors"
-                                                        >
-                                                            UPP · cambié apósito
-                                                        </button>
+                                                        <span className="text-[10px] font-semibold text-white bg-[#D9534F] px-1.5 py-0.5 rounded-md">
+                                                            UPP{p.pressureUlcers.length > 1 ? ` ×${p.pressureUlcers.length}` : ''}
+                                                        </span>
                                                     )}
                                                 </div>
                                             )}
@@ -4734,6 +4743,28 @@ export default function ZendityCareTabletPage() {
                                                 className="mt-1.5 w-full min-h-[52px] bg-[#1e40af] hover:bg-[#1d4ed8] text-white rounded-[12px] flex items-center justify-center gap-2 font-semibold text-[13px] transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] disabled:opacity-60"
                                             >
                                                 <span className="text-base leading-none">🩺</span> Salida a Diálisis
+                                            </button>
+                                        )}
+
+                                        {/* EL APOSITO, DONDE ESTAN LOS DEMAS ACTOS.
+                                            Mismo patron que la dialisis: condicional del residente,
+                                            ancho completo, 52 px. Para Fernando el apósito es lo que
+                                            para Carmen es el martes — no una excepcion, su dia.
+                                            Venia de la fila de chips de arriba, donde medía 21 px. */}
+                                        {p.pressureUlcers?.length > 0 && (
+                                            <button
+                                                onClick={() => abrirAposito(p)}
+                                                /* Tratamiento SECUNDARIO, no alarma. En solido usaba
+                                                   #D9534F, que es el rojo de alarma de la app —el del
+                                                   SLA vencido y el contador de dosis— y gritaba mas
+                                                   que Medicamentos, que es el boton mas tocado de la
+                                                   tarjeta. Cambiar un aposito es rutina: prominente
+                                                   por tamaño y por sitio, no por color. Es el mismo
+                                                   patron que "Algo cambio en el residente": fondo
+                                                   claro, borde y texto del color de su dominio. */
+                                                className="mt-1.5 w-full min-h-[52px] bg-[#fdecea] border border-[#D9534F]/35 text-[#B02A26] rounded-[12px] flex items-center justify-center gap-2 font-semibold text-[13px] transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] hover:opacity-85"
+                                            >
+                                                <span className="text-base leading-none">🩹</span> Cambié el apósito
                                             </button>
                                         )}
 
