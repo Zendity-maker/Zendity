@@ -4442,7 +4442,7 @@ export default function ZendityCareTabletPage() {
                                                         ? returnDialysis(p.id)
                                                         : returnResident(p.id);
                                                 }}
-                                                className="bg-[#22A06B] hover:opacity-90 text-white px-5 py-2 rounded-xl font-semibold shadow-lg transition pointer-events-auto"
+                                                className="min-h-[44px] bg-[#22A06B] hover:opacity-90 text-white px-5 py-2 rounded-xl font-semibold shadow-lg transition pointer-events-auto"
                                             >
                                                 {p.leaveType === 'DIALYSIS' ? '✓ Registrar Retorno de Diálisis' : 'Registrar Retorno al Piso'}
                                             </button>
@@ -4887,7 +4887,7 @@ export default function ZendityCareTabletPage() {
                                                     )}
                                                     <button
                                                         onClick={() => router.push(`/corporate/medical/patients/${p.id}/pai`)}
-                                                        className="w-full min-h-[40px] bg-white border border-[#e7e5e4] rounded-[10px] text-[12px] font-bold text-[#0F6B78] hover:bg-[#e1f5ee] transition-colors"
+                                                        className="w-full min-h-[44px] bg-white border border-[#e7e5e4] rounded-[10px] text-[12px] font-bold text-[#0F6B78] hover:bg-[#e1f5ee] transition-colors"
                                                     >
                                                         {vacio ? 'Plan de cuido — sin redactar' : 'Ver plan de cuido'}
                                                     </button>
