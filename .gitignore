@@ -124,3 +124,12 @@ public/academy/_backup_old/
 # La pagina de copiar se genera en el ESCRITORIO, fuera del repo (lleva los
 # correos del personal). Esta linea queda por si alguien la copia aqui.
 Correo caidas — copiar y pegar.html
+
+# Los PDF que se generan en la raiz NO entran al repo. Llevan nombre y datos de
+# residentes y de personal —un PAI, un certificado, una hoja de caidas— y un
+# `git add .` los publica en GitHub para siempre. Mismo criterio que la linea de
+# arriba sobre el correo de caidas: se generan, se entregan y viven fuera.
+# El sitio de trabajo es ~/Documents/Zendity — documentos.
+# La fuente si se versiona, en scripts/documentos/: el PDF se rehace, no se guarda.
+/*.pdf
+!/Zendity_Resumen.pdf
