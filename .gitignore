@@ -133,3 +133,8 @@ Correo caidas — copiar y pegar.html
 # La fuente si se versiona, en scripts/documentos/: el PDF se rehace, no se guarda.
 /*.pdf
 !/Zendity_Resumen.pdf
+
+# Los logs no se versionan. Habia doce en la raiz —build, dev, tsc, .next—
+# congelados en el estado de un dia de marzo, sin secretos dentro pero sin
+# ninguna utilidad y ocupando el sitio donde se mira si algo esta limpio.
+*.log
