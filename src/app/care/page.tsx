@@ -48,7 +48,7 @@ interface MedDelResidente {
     medication?: { name?: string | null; dosage?: string | null } | null;
 }
 import { Toaster, toast } from 'sonner';
-import { aFahrenheit } from '@/lib/vitals-thresholds';
+import { aFahrenheit, evaluarVitales, nivelDe } from '@/lib/vitals-thresholds';
 import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
 
 /**
@@ -1576,19 +1576,52 @@ export default function ZendityCareTabletPage() {
     };
     // ==========================================
 
-    // Shadow AI: Contextual Vitals
+    /**
+     * EL AVISO EN VIVO, CON LOS UMBRALES DE LA ENFERMERA — NO CON OTROS.
+     *
+     * Esto era una SEGUNDA tabla de umbrales, escrita a mano aqui y sin
+     * relacion con src/lib/vitals-thresholds.ts, que es la que la enfermera
+     * del hogar aprobo el 21-ago-2026. La cuidadora leia una opinion clinica
+     * mientras tecleaba y el servidor le daba otra distinta al guardar.
+     *
+     * Divergencia medida el 23-sep-2026 sobre las 6.869 lecturas de Cupey:
+     *
+     *   signo         esto decia        la enfermera        avisos de mas
+     *   sistolica     >= 140            >=160 anotar         201 vs 39  (162)
+     *   temperatura   >= 99.2 F         >=100.4 llamar        17 vs  3   (14)
+     *   SpO2          < 92              <90 llamar           158 vs 107  (51)
+     *
+     * 227 avisos que nadie pidio, el 3,3 % de todas las lecturas. Y el de la
+     * sistolica era exactamente el umbral que vitals-thresholds.ts explica en
+     * su cabecera que se RETIRO por marcar como crisis la presion que se le
+     * espera a un adulto mayor: el arreglo llego al servidor y nunca a la
+     * tableta.
+     *
+     * Peor que el numero: el de SpO2 mandaba «notificar a la Enfermera a Cargo
+     * inmediatamente» en la banda 90-91, que la enfermera clasifico como
+     * ANOTAR — sin interrumpir el turno. Asi se aprende a ignorar una alarma.
+     *
+     * Ahora se llama a `evaluarVitales`, la misma funcion que corre el
+     * servidor. Lo que lee mientras teclea y lo que le contesta al guardar son
+     * la misma opinion.
+     */
     useEffect(() => {
         if (modalType !== 'VITALS') { setAiSuggestion(null); return; }
-        if (Number(vitals.temp) >= 99.2) {
-            setAiSuggestion(" Zendity AI: Temperatura liminal. Se recomienda ofrecer aumento de ingesta hídrica preventiva y reassesment en 4 horas.");
-        } else if (Number(vitals.sys) >= 140) {
-            setAiSuggestion(" Zendity AI: Presión Sistólica > 140. Considere un lapso de relajación y volver a tomar la lectura.");
-        } else if (Number(vitals.spo2) > 0 && Number(vitals.spo2) < 92) {
-            setAiSuggestion(" Zendity AI: Alerta de Oxigenación (SpO2 < 92%). Evaluar dificultad respiratoria y notificar a la Enfermera a Cargo inmediatamente.");
-        } else {
-            setAiSuggestion(null);
-        }
-    }, [vitals.temp, vitals.sys, vitals.spo2, modalType]);
+        const num = (x: string) => {
+            const n = Number(x);
+            return x === '' || x === null || x === undefined || Number.isNaN(n) ? null : n;
+        };
+        const hallazgos = evaluarVitales({
+            systolic: num(vitals.sys), diastolic: num(vitals.dia), heartRate: num(vitals.hr),
+            temperature: num(vitals.temp), spo2: num(vitals.spo2),
+        });
+        if (hallazgos.length === 0) { setAiSuggestion(null); return; }
+        // Si algo es de LLAMAR, solo se enseña eso: mezclarlo con una
+        // febricula diluye lo que hay que atender ahora.
+        const nivel = nivelDe(hallazgos);
+        const mostrar = nivel === 'LLAMAR' ? hallazgos.filter(h => h.nivel === 'LLAMAR') : hallazgos;
+        setAiSuggestion(mostrar.map(h => h.mensaje).join(' '));
+    }, [vitals.sys, vitals.dia, vitals.hr, vitals.temp, vitals.spo2, modalType]);
 
     // 2-jun-2026 — Re-poll de my-color para corregir 'ALL' stale.
     //
