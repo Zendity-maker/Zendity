@@ -21,7 +21,7 @@
  */
 
 import { prisma } from './prisma';
-import { computeShiftCoverage, type ShiftT } from './shift-coverage';
+import { computeShiftCoverage, inferShiftTypeFromAST, type ShiftT } from './shift-coverage';
 import { todayStartAST } from './dates';
 import { notifyUser, notifyRoles } from './notifications';
 import { logWarn } from './logger';
@@ -175,8 +175,52 @@ export async function redistributeUncoveredColors(opts: {
         });
 
         if (createVitalsOrders) {
+            /**
+             * LA GUARDIA NO RECIBE ORDENES AUTOMATICAS DE VITALES.
+             *
+             * La regla es del 24-ago-2026 (commit c94bfcaf, «la guardia deja de
+             * recibir ordenes que nadie hace») y esta escrita en
+             * src/app/api/care/shift/start/route.ts:341. Pero se aplico en UNA
+             * de las dos puertas: esta, la del reparto por ausencia, siguio
+             * creandolas.
+             *
+             * Medido el 23-sep-2026, y con los dos numeros porque no dicen lo
+             * mismo:
+             *
+             *   · Por la hora en que NACE la orden: 139 entre las 22:00 y las
+             *     06:00, todas con este `reason`, las 139 vencidas sin
+             *     completar.
+             *   · Por el inicio del TURNO de quien la recibe —que es lo que
+             *     este guard mira— son 143, y de esas 10 SI se completaron
+             *     (7%). La ultima orden nocturna, el 19-sep: no era historia,
+             *     seguia ocurriendo.
+             *
+             * O sea que apagarlo cuesta 10 ordenes completadas en 30 dias,
+             * una cada tres dias, a cambio de dejar de fabricar 133
+             * incumplimientos. Y no cuesta ni un dato clinico: si la guardia
+             * toma vitales sin orden, los vitales se guardan igual. Lo que
+             * desaparece no es la toma, es la exigencia.
+             *
+             * Se usa `inferShiftTypeFromAST` —el MISMO helper que la otra
+             * puerta— y no un calculo propio, precisamente para que las dos no
+             * puedan volver a discrepar.
+             *
+             * Y NO apaga el seguimiento: las ordenes que responden a algo —la
+             * revision del protocolo de observacion, o la que una enfermera
+             * cree a mano— no se crean aqui, asi que siguen llegandole a la
+             * guardia y siguen saliendo en la tarjeta del residente. Lo que se
+             * apaga es la ronda de entrada automatica, que de noche no se hace.
+             */
+            const recibeDeGuardia = inferShiftTypeFromAST(recipient.startTime) === 'NIGHT';
+            if (recibeDeGuardia) {
+                logWarn(
+                    'shift-redistribute.guardia-sin-vitales',
+                    'Turno de guardia: no se abre orden de vitales de entrada.',
+                    { patientId: patient.patientId, caregiverId: recipient.userId },
+                );
+            }
             const vitalsExpiresAt = new Date(recipient.startTime.getTime() + VITALS_WINDOW_MS);
-            if (vitalsExpiresAt > now) {
+            if (!recibeDeGuardia && vitalsExpiresAt > now) {
                 const existingVital = await prisma.vitalsOrder.findFirst({
                     where: {
                         patientId: patient.patientId,
