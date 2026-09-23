@@ -7,7 +7,7 @@ import { authOptions } from '@/lib/auth';
 import { requireRole } from '@/lib/api-auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { logError } from '@/lib/logger';
-import { MOTIVO_OBSERVACION } from '@/lib/observacion-vitales';
+import { MOTIVO_OBSERVACION, VENTANA_CIERRE_MS } from '@/lib/observacion-vitales';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -305,7 +305,29 @@ export async function GET(req: Request) {
                             {
                                 status: 'EXPIRED',
                                 reason: MOTIVO_OBSERVACION,
-                                expiresAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+                                /**
+                                 * LA FRANJA Y EL CIERRE MIDEN LO MISMO.
+                                 *
+                                 * Esto pedía 24 h mientras `cerrarObservacionesAbiertas`
+                                 * solo cierra lo que tenga menos de VENTANA_CIERRE_MS
+                                 * (8 h). En medio quedaban 16 h y 45 min en los que la
+                                 * franja roja pedía una revisión que el servidor iba a
+                                 * rechazar en silencio: la cuidadora podía ir, tomar los
+                                 * vitales, y la franja seguía ahí.
+                                 *
+                                 * El ancla es `orderedAt` y no `expiresAt` porque es la
+                                 * que usa el cierre. Con `expiresAt` las dos ventanas
+                                 * quedaban desfasadas 45 minutos — el mismo fallo, más
+                                 * pequeño.
+                                 *
+                                 * Lo que se retira es la PETICIÓN, no el hecho: la orden
+                                 * sigue EXPIRED con `completedAt` en null, y el panel del
+                                 * supervisor la lista sin tope de tiempo y marca las que
+                                 * llevan más de un día. Si 8 h resulta ser el número
+                                 * equivocado, se cambia en observacion-vitales.ts y esto
+                                 * lo sigue solo.
+                                 */
+                                orderedAt: { gte: new Date(Date.now() - VENTANA_CIERRE_MS) },
                             },
                         ],
                     },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, AlertTriangle, X } from "lucide-react";
+import { CheckCircle2, AlertTriangle, BellRing, X } from "lucide-react";
 
 /**
  * Avisos del piso, en lugar de alert() del navegador.
@@ -18,7 +18,15 @@ import { CheckCircle2, AlertTriangle, X } from "lucide-react";
  * tiempo porque hay que leerlo; la confirmación se va rápido porque no.
  */
 
-export type TipoAviso = "ok" | "error";
+/**
+ * Tres, no dos.
+ *
+ * "ok" dice HECHO y se va rápido. "error" dice NO SE PUDO y se queda para que
+ * se lea. Faltaba el tercero: TE FALTA ESTO Y ES AHORA — que no es un fallo de
+ * nadie, así que no puede salir en rojo, y no es una confirmación, así que no
+ * puede irse en 2,6 segundos antes de que dé tiempo a leer un nombre.
+ */
+export type TipoAviso = "ok" | "error" | "atencion";
 
 export interface Aviso {
     texto: string;
@@ -29,26 +37,31 @@ export interface Aviso {
 
 const MS_OK = 2600;
 const MS_ERROR = 6000;
+/** Lleva un nombre dentro y hay que poder leerlo con la tableta en una mano. */
+const MS_ATENCION = 8000;
 
 export function useAviso() {
     const [aviso, setAviso] = useState<Aviso | null>(null);
 
     useEffect(() => {
         if (!aviso) return;
-        const t = setTimeout(() => setAviso(null), aviso.tipo === "ok" ? MS_OK : MS_ERROR);
+        const ms = aviso.tipo === "ok" ? MS_OK : aviso.tipo === "atencion" ? MS_ATENCION : MS_ERROR;
+        const t = setTimeout(() => setAviso(null), ms);
         return () => clearTimeout(t);
     }, [aviso]);
 
     const ok = useCallback((texto: string, puntos?: number) => setAviso({ texto, tipo: "ok", puntos }), []);
     const error = useCallback((texto: string) => setAviso({ texto, tipo: "error" }), []);
+    const atencion = useCallback((texto: string) => setAviso({ texto, tipo: "atencion" }), []);
     const cerrar = useCallback(() => setAviso(null), []);
 
-    return { aviso, ok, error, cerrar };
+    return { aviso, ok, error, atencion, cerrar };
 }
 
 export function AvisoPiso({ aviso, onCerrar }: { aviso: Aviso | null; onCerrar: () => void }) {
     if (!aviso) return null;
     const esError = aviso.tipo === "error";
+    const esAtencion = aviso.tipo === "atencion";
 
     return (
         <div
@@ -60,11 +73,17 @@ export function AvisoPiso({ aviso, onCerrar }: { aviso: Aviso | null; onCerrar: 
                 className={`pointer-events-auto flex items-start gap-3 max-w-md w-full rounded-2xl px-5 py-4 shadow-2xl border ${
                     esError
                         ? "bg-rose-950 border-rose-800 text-rose-50"
-                        : "bg-teal-950 border-teal-800 text-teal-50"
+                        : esAtencion
+                            ? "bg-amber-950 border-amber-700 text-amber-50"
+                            : "bg-teal-950 border-teal-800 text-teal-50"
                 }`}
             >
                 <span className="shrink-0 mt-0.5">
-                    {esError ? <AlertTriangle className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
+                    {esError
+                        ? <AlertTriangle className="w-5 h-5" />
+                        : esAtencion
+                            ? <BellRing className="w-5 h-5" />
+                            : <CheckCircle2 className="w-5 h-5" />}
                 </span>
 
                 <div className="flex-1 min-w-0">

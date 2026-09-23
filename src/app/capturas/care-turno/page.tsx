@@ -198,7 +198,23 @@ instalar({
                 bathLogs: [{ id: 'b2' }],
                 pressureUlcers: [],
                 posturalChanges: [],
-                vitalsOrders: [],
+                /**
+                 * CARMEN ESTA EN PROTOCOLO DE OBSERVACION.
+                 *
+                 * Sus vitales de las 08:05 traen 142/88 y 100.2 °F: cruzaron el
+                 * umbral, y el sistema abrio la revision de 45 minutos. Es un
+                 * estado real de la tableta desde el 22-sep-2026, y hasta hoy no
+                 * estaba montado en ningun andamio — ni para capturarlo para
+                 * Academy ni para poder probarlo.
+                 *
+                 * Con esto la pantalla enseña las dos franjas a la vez y, al
+                 * registrarle los vitales a OTRO residente, sale el recordatorio
+                 * de que a Carmen le toca.
+                 */
+                vitalsOrders: [{
+                    id: 'vo2', expiresAt: EN_MIN(25), orderedAt: HACE_MIN(20),
+                    reason: 'Revisión de observación (45 min)',
+                }],
             },
             {
                 // Sigue en el censo con el sello "En Hospital". La API vacía sus

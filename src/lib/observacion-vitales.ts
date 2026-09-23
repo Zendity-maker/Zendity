@@ -65,7 +65,46 @@
  */
 import type { Prisma, PrismaClient } from '@prisma/client';
 
-/** El plazo que la tableta le promete a la cuidadora, en minutos. */
+/**
+ * El plazo que la tableta le promete a la cuidadora, en minutos.
+ *
+ * ═══ EL 45 NO LO DECIDIO NADIE, Y CONVIENE SABERLO ═══
+ *
+ * Viene del commit 2126fa11 (20-mar-2026), "implement autonomous vital signs
+ * observation protocol with 45min SLA". En ESE MISMO bloque entro tambien:
+ *
+ *     if (sys > 140 || dia > 90) { isCritical = true; ... }
+ *
+ * que es exactamente el umbral que la enfermera del hogar retiro cinco meses
+ * despues por marcar como crisis hipertensiva la presion que se le espera a un
+ * adulto mayor (ver la cabecera de vitals-thresholds.ts). Misma tanda, misma
+ * ausencia de revision clinica. El umbral se corrigio; el plazo nadie lo miro.
+ *
+ * ═══ Y CAMBIARLO NO ARREGLA NADA ═══
+ *
+ * Medido el 23-sep-2026 sobre los 578 disparos historicos, contando como
+ * revision la primera toma evaluable a partir de los 10 minutos:
+ *
+ *     plazo  30 min ->   5 a tiempo (0,9 %)
+ *     plazo  45 min ->   6 a tiempo (1,0 %)   <- hoy
+ *     plazo  60 min ->   9 a tiempo (1,6 %)
+ *     plazo  90 min ->  15 a tiempo (2,6 %)
+ *     plazo 180 min ->  26 a tiempo (4,5 %)
+ *     plazo 360 min -> 194 a tiempo (33,6 %)
+ *
+ * El numero no se mueve hasta las SEIS HORAS, y a las seis horas eso ya no es
+ * una revision: es la ronda del turno siguiente. Asi que mover 45 a 60 o a 90
+ * es movimiento sin efecto, y encima le daria al numero una autoria que sigue
+ * sin tener.
+ *
+ * Lo que si movia la aguja estaba en otro sitio: 542 de los 578 disparos
+ * (94 %) tuvieron vitales tomados a OTRO residente dentro de la ventana. La
+ * cuidadora estaba haciendo el acto, en el momento, sobre la persona
+ * equivocada. Ver el recordatorio de `submitVitals` en src/app/care/page.tsx.
+ *
+ * SI ALGUIEN VA A TOCAR ESTE NUMERO: que lo decida Celia, no el codigo. Y que
+ * sepa que la evidencia dice que no es ahi donde esta el problema.
+ */
 export const OBSERVACION_MIN = 45;
 
 /**

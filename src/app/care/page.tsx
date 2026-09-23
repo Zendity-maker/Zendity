@@ -456,7 +456,7 @@ export default function ZendityCareTabletPage() {
     // Shift Session (Clock-In) Core
     const [activeSession, setActiveSession] = useState<any>(null);
     // Avisos del piso — reemplazan los 57 avisoOk() que bloqueaban la pantalla.
-    const { aviso, ok: avisoOk, error: avisoError, cerrar: cerrarAviso } = useAviso();
+    const { aviso, ok: avisoOk, error: avisoError, atencion: avisoAtencion, cerrar: cerrarAviso } = useAviso();
     const [shiftNotes, setShiftNotes] = useState<string | null>(null);
     const [verifyingCensus, setVerifyingCensus] = useState(false);
     const [censusChecklist, setCensusChecklist] = useState<Record<string, string>>({});
@@ -1923,8 +1923,53 @@ export default function ZendityCareTabletPage() {
                 setLateReasonDraft("");
                 refreshPatientsSilently(selectedColor!);
 
+                /**
+                 * «TE FALTA FULANO» — AQUÍ, CON EL BRAZALETE EN LA MANO.
+                 *
+                 * Este es el arreglo que sale del dato más incómodo de todo el
+                 * protocolo de observación. Medido el 23-sep-2026 sobre los 578
+                 * disparos históricos:
+                 *
+                 *   542 de 578 (94 %) tuvieron vitales tomados a OTRO residente
+                 *   dentro de la ventana exacta de 45 minutos. 6.013 tomas en
+                 *   total. Solo en 36 no se midió a nadie.
+                 *
+                 * O sea que en el 94 % de los casos la cuidadora estaba haciendo
+                 * EXACTAMENTE el acto que hacía falta, en el momento que hacía
+                 * falta, sobre la persona equivocada — porque nada se lo dijo.
+                 * No era falta de tiempo ni de ronda ni de aviso: las
+                 * notificaciones se leen al 94 %. Era que nadie le decía el
+                 * nombre cuando tenía las manos puestas.
+                 *
+                 * Por eso va aquí y no en el buzón, y por eso es `atencion` y no
+                 * `ok`: no ha hecho nada mal, pero tiene que poder leer un
+                 * nombre antes de que el aviso se vaya.
+                 *
+                 * La lista ya viene acotada por el servidor a lo que de verdad
+                 * se puede cerrar (ver /api/care/route.ts): si sale aquí, ir a
+                 * medir todavía sirve.
+                 */
+                let recordatorio: string | null = null;
+                try {
+                    const pendientes = (patients || []).filter((otro: any) =>
+                        otro.id !== activePatient.id
+                        && (otro.vitalsOrders || []).some((o: any) => esOrdenDeObservacion(o.reason)));
+                    if (pendientes.length > 0) {
+                        const primero = pendientes[0];
+                        const orden = primero.vitalsOrders.find((o: any) => esOrdenDeObservacion(o.reason));
+                        const mins = Math.round((new Date(orden.expiresAt).getTime() - Date.now()) / 60000);
+                        const nombre = String(primero.name || '').trim().split(' ').slice(0, 2).join(' ');
+                        const cola = pendientes.length > 1 ? ` (y ${pendientes.length - 1} más)` : '';
+                        recordatorio = mins > 0
+                            ? `Ya que estás: a ${nombre} le toca la revisión de vitales. Le quedan ${mins} min${cola}.`
+                            : `Ya que estás: a ${nombre} se le pasó la revisión de vitales hace ${Math.abs(mins)} min. Sigue haciendo falta${cola}.`;
+                    }
+                } catch (e) { console.error('aviso de revision pendiente:', e); }
+
                 if (data.criticalAlert) {
-                    avisoOk(data.message);
+                    // Su alerta manda. El recordatorio del otro se pega detrás
+                    // en vez de perderse: los dos son trabajo de ahora mismo.
+                    avisoAtencion(recordatorio ? `${data.message} ${recordatorio}` : data.message);
                     /**
                      * Al expediente va el HALLAZGO, no el estado del buzón.
                      *
@@ -1953,9 +1998,18 @@ export default function ZendityCareTabletPage() {
                      * Se enseña solo cuando hay algo que contar: la toma
                      * rutinaria sigue cerrándose sin ruido.
                      */
-                    if (data.message && (data.revisionCerrada || data.aviso || data.confirmacionTemprana || data.duplicada)) {
-                        avisoOk(data.message);
-                    }
+                    /**
+                     * El aviso es UN SOLO estado, así que aquí se decide quién
+                     * habla. Lo del residente que acaba de medir manda; el
+                     * recordatorio de otro va detrás, o solo si no había nada
+                     * que decir de este. Encadenar dos toasts seguidos no sirve:
+                     * el segundo borra al primero antes de leerlo.
+                     */
+                    const suyo = data.message && (data.revisionCerrada || data.aviso || data.confirmacionTemprana || data.duplicada)
+                        ? data.message : null;
+                    if (suyo && recordatorio) avisoAtencion(`${suyo} ${recordatorio}`);
+                    else if (suyo) avisoOk(suyo);
+                    else if (recordatorio) avisoAtencion(recordatorio);
                     setModalType(null);
                 }
             } else if (data.requireLateReason) {
