@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { clinicalDay } from '@/lib/dates';
 import { compatibleShiftTypesAt } from '@/lib/shift-coverage';
 import { etiquetaOmision } from '@/lib/omision-medicamento';
+import { MOTIVO_OBSERVACION, VENTANA_CIERRE_MS } from '@/lib/observacion-vitales';
 
 /**
  * Lógica compartida entre:
@@ -327,10 +328,13 @@ export async function collectShiftActivity(params: {
             falls: [] as { patientName: string; severity: string; location: string }[],
             clinicalAlerts: [] as { patientName: string; notes: string; reportadoPor: string | null }[],
             rotations: 0,
+            revisionesAbiertas: [] as { patientName: string; venceA: Date; vencida: boolean }[],
         };
     }
 
-    const [medsAdmin, medsOmit, mealCount, bathCount, vitalCount, falls, alerts, rotations] = await Promise.all([
+    const ahora = new Date();
+
+    const [medsAdmin, medsOmit, mealCount, bathCount, vitalCount, falls, alerts, rotations, revisiones] = await Promise.all([
         prisma.medicationAdministration.count({
             where: { administeredById: caregiverId, administeredAt: { gte: shiftStart }, status: 'ADMINISTERED' },
         }),
@@ -411,6 +415,39 @@ export async function collectShiftActivity(params: {
             take: 15,
         }),
         prisma.posturalChangeLog.count({ where: { nurseId: caregiverId, performedAt: { gte: shiftStart } } }),
+        /**
+         * LA REVISIÓN DE OBSERVACIÓN QUE SE QUEDA ABIERTA AL CERRAR EL TURNO.
+         *
+         * Hasta hoy el relevo era ciego a esto. La orden sobrevive al cierre a
+         * propósito —el barrido de `shift/end` filtra `autoCreated: true` y
+         * estas nacen con `false`— pero sobrevivía MUDA: quien entraba no se
+         * enteraba de que había alguien en observación sin revisar.
+         *
+         * Tres decisiones, y las tres importan:
+         *
+         * 1. SE ANCLA EN `ahora`, NO EN `shiftStart`. La revisión que importa es
+         *    la que sigue abierta en este momento, la haya abierto quien la haya
+         *    abierto — incluido el turno anterior al de quien cierra.
+         * 2. NO SE FILTRA POR `caregiverId`. Es del residente, no de quien la
+         *    abrió. Quien entra la hereda igual.
+         * 3. COTA EN `VENTANA_CIERRE_MS`. Pasado ese plazo ninguna toma la
+         *    cierra ya (ver `cerrarObservacionesAbiertas`), así que anunciarla
+         *    sería pedirle a quien entra un acto que el sistema no va a
+         *    registrar. Lo que queda más atrás vive en el panel del supervisor,
+         *    que las lista sin tope y marca las de más de un día.
+         */
+        prisma.vitalsOrder.findMany({
+            where: {
+                patientId: { in: patientIds },
+                reason: MOTIVO_OBSERVACION,
+                completedAt: null,
+                status: { in: ['PENDING', 'EXPIRED'] as ('PENDING' | 'EXPIRED')[] },
+                orderedAt: { gte: new Date(ahora.getTime() - VENTANA_CIERRE_MS) },
+            },
+            select: { expiresAt: true, patient: { select: { name: true } } },
+            orderBy: { expiresAt: 'asc' },
+            take: 10,
+        }),
     ]);
 
     return {
@@ -430,6 +467,11 @@ export async function collectShiftActivity(params: {
             reportadoPor: a.author?.id === caregiverId ? null : (a.author?.name ?? null),
         })),
         rotations,
+        revisionesAbiertas: revisiones.map(r => ({
+            patientName: r.patient?.name?.trim() || 'Residente desconocido',
+            venceA: r.expiresAt,
+            vencida: r.expiresAt < ahora,
+        })),
     };
 }
 
@@ -479,6 +521,31 @@ export async function buildZendiSummary(params: {
     const fallLines = activity.falls.length > 0
         ? activity.falls.map(f => `  · ${f.patientName} en ${f.location} (severidad ${f.severity})`).join('\n')
         : '  · ninguno';
+
+    /**
+     * EL BLOQUE LITERAL DE LAS REVISIONES ABIERTAS.
+     *
+     * Va DELANTE del texto de Zendi y no dentro del prompt, y es deliberado:
+     * al modelo se le pide un relevo de 500 caracteres y se le ordena
+     * priorizar. Una revisión clínica abierta sobre alguien cuyos vitales
+     * salieron fuera de rango no puede competir por ese espacio, ni salir
+     * reescrita, ni desaparecer porque ese día hubo tres caídas. Se imprime
+     * tal cual o no se imprime.
+     *
+     * El texto dice solo lo que consta: que la orden sigue sin cerrar y a qué
+     * hora vencía. POR QUÉ no se hizo no lo sabe quien lo cuenta.
+     */
+    const revisionesBloque = activity.revisionesAbiertas.length > 0
+        ? `⚠ REVISIÓN DE VITALES SIN CERRAR (${activity.revisionesAbiertas.length})\n`
+          + activity.revisionesAbiertas.map(r => {
+                const hora = r.venceA.toLocaleTimeString('es-PR', {
+                    timeZone: 'America/Puerto_Rico', hour: '2-digit', minute: '2-digit',
+                });
+                return `  · ${r.patientName} — ${r.vencida ? `vencía a las ${hora}` : `vence a las ${hora}`}`;
+            }).join('\n')
+          + '\nSus vitales salieron fuera de rango y la revisión sigue sin hacerse.'
+          + '\nSe cierra sola en cuanto alguien vuelva a tomárselos.\n\n'
+        : '';
 
     const alertLines = activity.clinicalAlerts.length > 0
         ? activity.clinicalAlerts.map(a =>
@@ -545,7 +612,26 @@ export async function buildZendiSummary(params: {
     // al cambio de turno. Un resumen que no se lee entero vale lo mismo que no
     // tenerlo, asi que se recorta a la mitad y los numeros van al final en una
     // sola linea.
+    /**
+     * Y SE LE DICE AL MODELO QUE EL BLOQUE YA ESTA ESCRITO.
+     *
+     * Sin esto, el prompt le ordena poner "Sin novedades que requieran
+     * seguimiento" cuando no ve nada en Atención — y lo escribiría JUSTO
+     * DEBAJO del aviso de una revisión abierta. Dos frases que se contradicen
+     * en el mismo documento, y quien entra se queda con la de abajo.
+     *
+     * No se le pasan los nombres: el bloque ya los lleva, y repetirlos le
+     * daría margen para reescribirlos.
+     */
+    const avisoBloque = activity.revisionesAbiertas.length > 0
+        ? `\nIMPORTANTE: encima de tu texto YA está impreso un aviso de ${activity.revisionesAbiertas.length} `
+          + `revisión(es) de vitales sin cerrar. NO escribas "Sin novedades que requieran seguimiento" `
+          + `—sí las hay— y NO repitas ese aviso: ya está puesto. Escribe solo lo DEMÁS que requiera seguimiento, `
+          + `y si no hay nada más, empieza directamente por el punto 2.\n`
+        : '';
+
     const prompt = `Eres Zendi. Escribe el relevo de turno de ${caregiverName}, en español, para la persona que ENTRA al turno.
+${avisoBloque}
 
 Tu trabajo es que quien entra sepa A QUIÉN MIRAR. No es un informe de productividad.
 
@@ -605,7 +691,7 @@ Escribe el relevo ahora.`;
         const text = completion.choices?.[0]?.message?.content?.trim();
         if (text && text.length > 40) {
             console.log(`[shift-closure-report] source=gpt-4o-mini len=${text.length} caregiver=${caregiverName}`);
-            return { summary: text, source: 'gpt' };
+            return { summary: revisionesBloque + text, source: 'gpt' };
         }
         console.warn(`[shift-closure-report] GPT respuesta corta (${text?.length ?? 0} chars), fallback`);
     } catch (e) {
@@ -613,7 +699,9 @@ Escribe el relevo ahora.`;
     }
 
     console.warn(`[shift-closure-report] source=fallback caregiver=${caregiverName}`);
-    const fallback = `Reporte de cierre — ${caregiverName} · ${shiftLabel}
+    // El bloque va tambien aqui: si OpenAI se cae, lo que NO puede perderse es
+    // justo esto. El resumen es prescindible; la revision abierta no.
+    const fallback = revisionesBloque + `Reporte de cierre — ${caregiverName} · ${shiftLabel}
 
 Residentes a cargo (${patients.length}): ${patients.map(p => p.name).join(', ') || 'sin asignación por color'}.
 
