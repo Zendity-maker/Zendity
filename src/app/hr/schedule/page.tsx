@@ -153,6 +153,9 @@ const AYUDA_TECLAS = [
     { k: 'D', q: 'Diurno' }, { k: 'T', q: 'Tarde' }, { k: 'N', q: 'Noche' }, { k: 'L', q: 'Libre' },
     { k: '⇧D', q: '12h día' }, { k: '⇧N', q: '12h noche' },
     { k: '1', q: 'Rojo' }, { k: '2', q: 'Amarillo' }, { k: '3', q: 'Verde' }, { k: '4', q: 'Azul' },
+    // El segundo grupo (24-sep-2026). Un atajo que nadie sabe que existe no
+    // existe: si no sale en esta lista, Celia nunca lo va a encontrar.
+    { k: '⇧ + nº', q: 'Añadir 2º grupo' },
     { k: '0', q: 'Sin color' }, { k: '⌫', q: 'Borrar' }, { k: '↵', q: 'Más opciones' },
 ];
 
@@ -605,12 +608,25 @@ export default function ScheduleBuilderPage() {
             // teclado, que es como se arma una semana de verdad.
             return mover(1, 0);
         }
-        if (k in TECLA_COLOR) {
+        /**
+         * El número, con o sin ⇧.
+         *
+         * Se lee de `e.code` (Digit4 / Numpad4) y no de `e.key`, porque con ⇧
+         * pulsada el navegador manda el símbolo —⇧4 es '$'— y la tecla no se
+         * reconocería. `e.code` es la tecla física y no cambia con el
+         * modificador ni con la distribución del teclado.
+         */
+        const codigo = e.code || '';
+        const digito = codigo.startsWith('Digit') ? codigo.slice(5)
+            : codigo.startsWith('Numpad') ? codigo.slice(6)
+            : (k in TECLA_COLOR ? k : '');
+        if (digito && digito in TECLA_COLOR) {
             e.preventDefault();
-            ponerColor(celdaFoco.userId, celdaFoco.fecha, TECLA_COLOR[k]);
-            // En la pasada de colores el número es el gesto principal, así que
-            // baja sola igual que la letra en la primera pasada.
-            if (modoColor) mover(1, 0);
+            const suma = e.shiftKey;
+            ponerColor(celdaFoco.userId, celdaFoco.fecha, TECLA_COLOR[digito], suma ? 'sumar' : 'reemplazar');
+            // Solo baja sola el número pelado. Con ⇧ se está añadiendo un
+            // segundo grupo A ESTA celda: moverse la dejaría a medias.
+            if (modoColor && !suma) mover(1, 0);
             return;
         }
     };
@@ -671,14 +687,25 @@ export default function ScheduleBuilderPage() {
      *                                     el ancla y no se mueve por accidente
      *   · '' (tecla 0)                 → limpia los dos
      *   · 'ALL'                        → borra el segundo: «todos» ya los lleva
+     *
+     * DOS MODOS, Y LA DISTINCIÓN NO ES COSMÉTICA. En «2 · Repartir grupos» la
+     * tecla BAJA SOLA a la siguiente persona: así se reparte una columna sin
+     * soltar el teclado, y es como Celia arma la semana. Si el número sumara,
+     * pulsar 1 y luego 4 pondría rojo a una y azul A LA DE ABAJO.
+     *
+     *   · número pelado  → 'reemplazar': este turno es de este color, y sigue
+     *   · ⇧ + número     → 'sumar': TAMBIÉN este, sin moverse de la celda
      */
-    const ponerColor = (userId: string, fecha: string, color: string) => {
+    const ponerColor = (userId: string, fecha: string, color: string, modo: 'reemplazar' | 'sumar' = 'sumar') => {
         setShifts(prev => prev.map(s => {
             if (s.userId !== userId || s.date !== fecha) return s;
             if (s.shiftType === 'OFF') return s;
             const c1 = s.colorGroup || null;
             const c2 = s.colorGroup2 || null;
             let n1 = c1, n2 = c2;
+            if (modo === 'reemplazar') {
+                return { ...s, colorGroup: color || '', colorGroup2: null, isFloorSupervision: false };
+            }
             if (!color) { n1 = null; n2 = null; }
             else if (color === 'ALL') { n1 = 'ALL'; n2 = null; }
             else if (color === c1) { n1 = c2; n2 = null; }   // quitar el primero: sube el segundo
@@ -1664,6 +1691,12 @@ export default function ScheduleBuilderPage() {
                     )}
 
                     {modoColor && (
+                        <span className="text-[11px] text-slate-500 font-medium">
+                            Un número reparte y baja. <span className="font-bold text-slate-700">⇧ + número</span> añade un segundo grupo sin moverse.
+                        </span>
+                    )}
+
+                    {modoColor && (
                         huecos.length === 0
                             ? <span className="text-xs font-bold text-emerald-600 ml-auto">Todos los turnos tienen sus tres grupos cubiertos.</span>
                             : <span className="text-xs font-bold text-amber-700 ml-auto">
@@ -1769,10 +1802,15 @@ export default function ScheduleBuilderPage() {
                                                             </span>
                                                             {sh.isFloorSupervision ? (
                                                                 <span className="text-[9px] font-black px-1.5 rounded-full border leading-none bg-indigo-100 text-indigo-700 border-indigo-300">👁</span>
-                                                            ) : sh.colorGroup ? (
-                                                                <span className={`font-black rounded-full border leading-none ${modoColor ? 'text-[11px] px-2.5 py-1' : 'text-[9px] px-1.5'} ${COLOR_STYLES[sh.colorGroup]}`}>
-                                                                    {modoColor ? (NOMBRE_COLOR[sh.colorGroup] ?? sh.colorGroup) : sh.colorGroup}
-                                                                </span>
+                                                            ) : coloresDeLaCelda(sh).length > 0 ? (
+                                                                // Una etiqueta por grupo. Esta es LA rejilla que Celia
+                                                                // mira al repartir: si aquí solo saliera el primero, el
+                                                                // segundo color sería invisible justo donde se decide.
+                                                                <>{coloresDeLaCelda(sh).map(c => (
+                                                                    <span key={c} className={`font-black rounded-full border leading-none ${modoColor ? 'text-[11px] px-2.5 py-1' : 'text-[9px] px-1.5'} ${COLOR_STYLES[c] || COLOR_STYLES.NONE}`}>
+                                                                        {modoColor ? (NOMBRE_COLOR[c] ?? c) : c}
+                                                                    </span>
+                                                                ))}</>
                                                             ) : (
                                                                 // Turno puesto y color sin decidir: se avisa.
                                                                 <span className={`font-black rounded-full border leading-none bg-amber-100 text-amber-700 border-amber-300 ${modoColor ? 'text-[11px] px-2.5 py-1' : 'text-[9px] px-1.5'}`}>
