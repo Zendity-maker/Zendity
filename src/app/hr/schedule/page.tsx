@@ -313,6 +313,16 @@ export default function ScheduleBuilderPage() {
      * propuesta que el piso ajusta al entrar. Se arman por separado.
      */
     const [modoColor, setModoColor] = useState(false);
+    /**
+     * «Le doy a las teclas y no pasa nada.»
+     *
+     * Un horario PUBLICADO no se edita —hay que desbloquearlo primero— y el
+     * teclado lo respetaba con un `return` mudo. Medido el 24-sep-2026: las
+     * cinco semanas mas recientes de Cupey estan las cinco PUBLISHED, o sea que
+     * el caso normal al abrir la pantalla es justo ese. La regla es correcta;
+     * tragarse la tecla sin decir por que es lo que la hace parecer rota.
+     */
+    const [avisoPublicado, setAvisoPublicado] = useState(false);
     /** Guardado automático: hay cambios que todavía no están en la base. */
     const [sinGuardar, setSinGuardar] = useState(false);
     const [guardadoAt, setGuardadoAt] = useState<Date | null>(null);
@@ -552,8 +562,19 @@ export default function ScheduleBuilderPage() {
      * al navegador, incluido Tab, para que no se atrape a quien navega con él.
      */
     const manejarTecla = (e: React.KeyboardEvent, listaOrdenada: { id: string }[], dias: Date[]) => {
-        // Un horario publicado no se edita: se despublica primero.
-        if (!celdaFoco || publishedSchedule) return;
+        if (!celdaFoco) return;
+        // Un horario publicado no se edita: se despublica primero. Pero se DICE,
+        // en vez de tragarse la tecla. Las flechas siguen moviendo: navegar por
+        // un horario publicado es legitimo, lo que no se puede es cambiarlo.
+        if (publishedSchedule) {
+            const esFlecha = e.key.startsWith('Arrow');
+            if (!esFlecha) {
+                e.preventDefault();
+                setAvisoPublicado(true);
+                window.setTimeout(() => setAvisoPublicado(false), 6000);
+                return;
+            }
+        }
         const iFila = listaOrdenada.findIndex(p => p.id === celdaFoco.userId);
         const iCol = dias.findIndex(d => d.toISOString().split('T')[0] === celdaFoco.fecha);
         if (iFila < 0 || iCol < 0) return;
@@ -1690,7 +1711,14 @@ export default function ScheduleBuilderPage() {
                         </button>
                     )}
 
-                    {modoColor && (
+                    {avisoPublicado && (
+                        <span className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-3 py-1.5">
+                            Este horario está publicado, por eso las teclas no lo cambian.
+                            Usa «Editar horario publicado» abajo para desbloquearlo.
+                        </span>
+                    )}
+
+                    {modoColor && !avisoPublicado && (
                         <span className="text-[11px] text-slate-500 font-medium">
                             Un número reparte y baja. <span className="font-bold text-slate-700">⇧ + número</span> añade un segundo grupo sin moverse.
                         </span>
@@ -2130,6 +2158,29 @@ export default function ScheduleBuilderPage() {
                                             );
                                         })}
                                     </select>
+                                </div>
+                            )}
+                            {/* EL SEGUNDO GRUPO, AQUI TAMBIEN.
+                                Estaba solo en la vista «Por día», y la de por
+                                defecto es «Por empleado» — o sea que quien abría
+                                esta ventana no tenía forma de ponerlo sin usar
+                                el teclado. Pedido por Andrés el 24-sep-2026. */}
+                            {!isOff && !isCleaning && !sh.isFloorSupervision && sh.colorGroup && sh.colorGroup !== 'ALL' && (
+                                <div>
+                                    <label className="text-[11px] font-black text-slate-500 uppercase tracking-wide block mb-1">Segundo grupo (opcional)</label>
+                                    <select
+                                        value={sh.colorGroup2 || 'NONE'}
+                                        onChange={e => setSegundoColor(sh.tempId, e.target.value)}
+                                        className="w-full text-sm bg-white border border-dashed border-slate-300 rounded-lg px-3 py-2 font-medium text-slate-700 focus:outline-none focus:border-teal-500"
+                                    >
+                                        <option value="NONE">Ninguno — solo {sh.colorGroup}</option>
+                                        {COLORES_CON_RESIDENTES.concat('GREEN')
+                                            .filter(c => c !== sh.colorGroup)
+                                            .map(c => <option key={c} value={c}>También grupo {c}</option>)}
+                                    </select>
+                                    <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                                        Cubre los dos grupos. Cuenta igual que el primero para la cobertura y para las ausencias.
+                                    </p>
                                 </div>
                             )}
                             {!isOff && (
