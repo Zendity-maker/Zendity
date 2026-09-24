@@ -118,6 +118,18 @@ const TECLA_COLOR: Record<string, string> = {
  */
 const COLORES_CON_RESIDENTES = ['RED', 'YELLOW', 'BLUE'];
 
+/**
+ * Los colores de una celda del builder. Espejo de `coloresDeLaPauta` del
+ * servidor (src/lib/shift-coverage.ts) — si una se cambia, se cambian las dos.
+ * Se escribe aqui en vez de importarla porque el tipo del builder es local.
+ */
+function coloresDeLaCelda(s: { colorGroup?: string | null; colorGroup2?: string | null }): string[] {
+    const limpio = (c: string | null | undefined) => (c && c !== 'UNASSIGNED' ? c : null);
+    const a = limpio(s.colorGroup), b = limpio(s.colorGroup2);
+    if (a === 'ALL' || b === 'ALL') return ['ALL'];
+    return Array.from(new Set([a, b].filter((c): c is string => !!c)));
+}
+
 /** Las tres franjas en que se piensa un día. Los turnos largos pisan varias. */
 const FRANJAS: FranjaT[] = ['MORNING', 'EVENING', 'NIGHT'];
 
@@ -170,6 +182,8 @@ type ShiftEntry = {
     date: string;
     shiftType: string;
     colorGroup: string | null;
+    /** El segundo grupo, cuando cubre dos. Máximo dos. Ver ponerColor(). */
+    colorGroup2?: string | null;
     isFloorSupervision?: boolean;
     notes?: string;
     isAbsent?: boolean;
@@ -341,6 +355,7 @@ export default function ScheduleBuilderPage() {
                     date: sh.date.split('T')[0],
                     shiftType: sh.shiftType,
                     colorGroup: sh.colorGroup,
+                    colorGroup2: sh.colorGroup2 ?? null,
                     isFloorSupervision: sh.isFloorSupervision ?? false,
                     notes: sh.notes || '',
                     isAbsent: sh.isAbsent || false,
@@ -459,8 +474,13 @@ export default function ScheduleBuilderPage() {
                 const delTurno = shifts.filter(s =>
                     s.date === fecha && cubren.includes(s.shiftType as any));
                 if (delTurno.length === 0) continue; // nadie trabaja: no hay hueco que llenar
-                const cubiertos = new Set(delTurno.flatMap(s =>
-                    s.colorGroup === 'ALL' ? COLORES_CON_RESIDENTES : (s.colorGroup ? [s.colorGroup] : [])));
+                // Los DOS colores cuentan: quien cubre rojo y azul tapa dos
+                // huecos, no uno. Con `colorGroup` a secas el builder le habria
+                // avisado a Celia de un hueco que ella acababa de cubrir.
+                const cubiertos = new Set(delTurno.flatMap(s => {
+                    const cs = coloresDeLaCelda(s);
+                    return cs.includes('ALL') ? COLORES_CON_RESIDENTES : cs;
+                }));
                 const faltan = COLORES_CON_RESIDENTES.filter(c => !cubiertos.has(c));
                 if (faltan.length) {
                     huecos.push({
@@ -503,10 +523,10 @@ export default function ScheduleBuilderPage() {
                     if (idx.length === 0) continue;
 
                     const yaPuestos = new Set(idx
-                        .filter(({ s }) => s.colorGroup && s.colorGroup !== 'ALL')
-                        .map(({ s }) => s.colorGroup as string));
+                        .flatMap(({ s }) => coloresDeLaCelda(s))
+                        .filter(c => c !== 'ALL'));
                     const porRepartir = COLORES_CON_RESIDENTES.filter(c => !yaPuestos.has(c));
-                    const libres = idx.filter(({ s }) => !s.colorGroup && !s.isFloorSupervision);
+                    const libres = idx.filter(({ s }) => coloresDeLaCelda(s).length === 0 && !s.isFloorSupervision);
 
                     libres.forEach(({ i }, n) => {
                         const color = porRepartir[n];
@@ -617,6 +637,7 @@ export default function ScheduleBuilderPage() {
                     ...s,
                     shiftType,
                     colorGroup: shiftType === 'OFF' ? '' : s.colorGroup,
+                    colorGroup2: shiftType === 'OFF' ? null : s.colorGroup2,
                     isFloorSupervision: shiftType === 'OFF' ? false : s.isFloorSupervision,
                 });
             }
@@ -632,12 +653,41 @@ export default function ScheduleBuilderPage() {
         });
     };
 
-    /** El color, con un número. No hace nada sobre un día libre. */
+    /**
+     * EL COLOR, CON UN NÚMERO. Y DESDE EL 24-sep-2026, HASTA DOS.
+     *
+     * Pedido por Celia: una cuidadora puede cubrir dos grupos, y hasta hoy la
+     * única forma de decirlo era `ALL` — que son los TRES. Medido ese día: 35
+     * turnos en `ALL` que en realidad eran de dos.
+     *
+     * La tecla SUMA en vez de reemplazar, y es por velocidad: Celia asigna 84
+     * turnos con el teclado (1 rojo, 4 azul). Un desplegable por celda le
+     * costaría la tarde. Reglas, en el orden en que se comprueban:
+     *
+     *   · el color que ya está puesto  → se quita (misma tecla = deshacer)
+     *   · no hay ninguno               → primero
+     *   · hay uno                      → segundo
+     *   · hay dos                      → reemplaza el SEGUNDO; el primero es
+     *                                     el ancla y no se mueve por accidente
+     *   · '' (tecla 0)                 → limpia los dos
+     *   · 'ALL'                        → borra el segundo: «todos» ya los lleva
+     */
     const ponerColor = (userId: string, fecha: string, color: string) => {
         setShifts(prev => prev.map(s => {
             if (s.userId !== userId || s.date !== fecha) return s;
             if (s.shiftType === 'OFF') return s;
-            return { ...s, colorGroup: color, isFloorSupervision: false };
+            const c1 = s.colorGroup || null;
+            const c2 = s.colorGroup2 || null;
+            let n1 = c1, n2 = c2;
+            if (!color) { n1 = null; n2 = null; }
+            else if (color === 'ALL') { n1 = 'ALL'; n2 = null; }
+            else if (color === c1) { n1 = c2; n2 = null; }   // quitar el primero: sube el segundo
+            else if (color === c2) { n2 = null; }            // quitar el segundo
+            else if (!c1) { n1 = color; }
+            else if (c1 === 'ALL') { n1 = color; n2 = null; } // salir de ALL a un color concreto
+            else if (!c2) { n2 = color; }
+            else { n2 = color; }                             // ya hay dos: reemplaza el segundo
+            return { ...s, colorGroup: n1 ?? '', colorGroup2: n2, isFloorSupervision: false };
         }));
     };
 
@@ -677,6 +727,28 @@ export default function ScheduleBuilderPage() {
             ...s,
             isFloorSupervision: valor === VALOR_SUPERVISION,
             colorGroup: valor === VALOR_SUPERVISION || valor === 'NONE' ? '' : valor,
+            /**
+             * Elegir en el desplegable REEMPLAZA, y por eso limpia el segundo.
+             * La tecla suma (ver `ponerColor`) porque ahí se está construyendo;
+             * el desplegable dice «el color de este turno es este». Si no lo
+             * limpiara, Celia elegiría Azul y la celda saldría «Azul + Rojo»
+             * sin que nada explicara de dónde salió el rojo.
+             */
+            colorGroup2: null,
+        }));
+    };
+
+    /**
+     * EL SEGUNDO GRUPO, CON EL RATÓN.
+     *
+     * El teclado ya lo hace en toda la rejilla (pulsar otro número lo añade).
+     * Esto es para quien no usa los atajos. No aparece si no hay un primer
+     * color, ni sobre `ALL` —que ya son todos— ni sobre supervisión de piso.
+     */
+    const setSegundoColor = (tempId: string, valor: string) => {
+        setShifts(prev => prev.map(s => s.tempId !== tempId ? s : {
+            ...s,
+            colorGroup2: valor === 'NONE' ? null : valor,
         }));
     };
 
@@ -798,6 +870,7 @@ export default function ScheduleBuilderPage() {
                     date: s.date,
                     shiftType: s.shiftType,
                     colorGroup: s.colorGroup || null,
+                    colorGroup2: s.colorGroup2 || null,
                     isFloorSupervision: Boolean(s.isFloorSupervision),
                     notes: s.notes || null,
                     isManual: s.isManual || false,
@@ -1138,6 +1211,7 @@ export default function ScheduleBuilderPage() {
                     date: dateStr,
                     shiftType: sh.shiftType,
                     colorGroup: sh.colorGroup,
+                    colorGroup2: sh.colorGroup2 ?? null,
                     isFloorSupervision: sh.isFloorSupervision ?? false,
                     notes: sh.notes || '',
                     isAbsent: false,
@@ -1260,9 +1334,25 @@ export default function ScheduleBuilderPage() {
                                                             <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${SHIFT_STYLES[shift.shiftType] || SHIFT_STYLES.MORNING}`}>
                                                                 {SHIFT_CORTO[shift.shiftType] || shift.shiftType}
                                                             </span>
-                                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${COLOR_STYLES[shift.isFloorSupervision ? 'SUPERVISION' : (shift.colorGroup || 'NONE')]}`}>
-                                                                {shift.isFloorSupervision ? '👁 Supervisión' : (shift.colorGroup || 'Sin color')}
-                                                            </span>
+                                                            {shift.isFloorSupervision ? (
+                                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${COLOR_STYLES.SUPERVISION}`}>
+                                                                    👁 Supervisión
+                                                                </span>
+                                                            ) : coloresDeLaCelda(shift).length === 0 ? (
+                                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${COLOR_STYLES.NONE}`}>
+                                                                    Sin color
+                                                                </span>
+                                                            ) : (
+                                                                // Una etiqueta por color: dos grupos son dos hechos,
+                                                                // y juntarlos en una cadena («RED+BLUE») pierde el
+                                                                // color de fondo, que es lo que se lee de un vistazo
+                                                                // en una rejilla de 84 celdas.
+                                                                coloresDeLaCelda(shift).map(c => (
+                                                                    <span key={c} className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${COLOR_STYLES[c] || COLOR_STYLES.NONE}`}>
+                                                                        {c}
+                                                                    </span>
+                                                                ))
+                                                            )}
                                                         </>
                                                     )}
                                                 </>
@@ -1334,6 +1424,20 @@ export default function ScheduleBuilderPage() {
                                                         );
                                                     })}
                                                 </select>
+                                                {!shift.isFloorSupervision && shift.colorGroup && shift.colorGroup !== 'ALL' && (
+                                                    <select
+                                                        value={shift.colorGroup2 || 'NONE'}
+                                                        onChange={e => setSegundoColor(shift.tempId, e.target.value)}
+                                                        className="w-full text-[11px] bg-white border border-dashed border-slate-300 rounded-lg px-2 py-1 font-medium text-slate-600 focus:outline-none focus:border-teal-400"
+                                                    >
+                                                        <option value="NONE">+ segundo grupo…</option>
+                                                        {COLORES_CON_RESIDENTES.concat('GREEN')
+                                                            .filter(c => c !== shift.colorGroup)
+                                                            .map(c => (
+                                                                <option key={c} value={c}>También grupo {c}</option>
+                                                            ))}
+                                                    </select>
+                                                )}
                                             </>
                                         )}
                                         {!isOff && shift.isManual && (

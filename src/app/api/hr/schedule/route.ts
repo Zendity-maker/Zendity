@@ -139,6 +139,11 @@ export async function POST(req: Request) {
                                 date: new Date(s.date),
                                 shiftType: s.shiftType,
                                 colorGroup: s.colorGroup || null,
+                                // El segundo grupo, cuando cubre dos. Ver el
+                                // comentario de `colorGroup2` en el schema: NO
+                                // va a ShiftColorAssignment, que es un override
+                                // del mismo dia y se ignoraria la semana que viene.
+                                colorGroup2: s.colorGroup2 || null,
                                 isFloorSupervision: Boolean(s.isFloorSupervision),
                                 notes: s.notes || null,
                                 isManual: s.isManual || false,
@@ -167,6 +172,7 @@ export async function POST(req: Request) {
                         date: new Date(s.date),
                         shiftType: s.shiftType,
                         colorGroup: s.colorGroup || null,
+                        colorGroup2: s.colorGroup2 || null,
                                 isFloorSupervision: Boolean(s.isFloorSupervision),
                         notes: s.notes || null,
                         isManual: s.isManual || false,

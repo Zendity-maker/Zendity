@@ -482,6 +482,32 @@ model ScheduledShift {
   date               DateTime
   shiftType          ShiftType
   colorGroup         String?
+  /// EL SEGUNDO GRUPO, CUANDO UNA CUIDADORA CUBRE DOS.
+  ///
+  /// Pedido por Celia (Vivid Cupey) el 24-sep-2026. Hasta hoy el builder solo
+  /// dejaba poner UN color, asi que para expresar "cubre rojo y azul" la unica
+  /// salida era `ALL` — que son los TRES. Medido ese dia: 35 turnos en `ALL`, y
+  /// Celia confirma que eran de dos colores. O sea que esto no anade una
+  /// funcion: corrige 35 turnos que dicen algo falso sobre quien cubre que.
+  ///
+  /// POR QUE UN CAMPO Y NO UNA FILA EN `ShiftColorAssignment`, que parecia el
+  /// sitio natural: esa tabla NO es de planificacion. `resolveCaregiverColors`
+  /// la consulta con `assignedAt >= boundary6amUtc`, o sea solo las creadas
+  /// HOY — es un override del mismo dia, indexado por cuando se creo. Un color
+  /// guardado desde el builder para la semana que viene llevaria `assignedAt`
+  /// de hoy y el martes el resolver lo ignoraria. Habria funcionado en
+  /// cualquier prueba del mismo dia y fallado en produccion la semana
+  /// siguiente.
+  ///
+  /// Es igual de suyo que el primero (decision de Andres, 24-sep-2026): cuenta
+  /// igual para cobertura, para la ausencia y para lo que se le atribuye. Por
+  /// eso vive en su misma fila y no en la tabla de excepciones.
+  ///
+  /// NADIE debe leer `colorGroup` y `colorGroup2` por separado: se lee con
+  /// `coloresDeLaPauta()` en src/lib/shift-coverage.ts. Dos puertas con la
+  /// misma regla es como se cuelan los fallos — paso esta misma semana con la
+  /// regla de la guardia, implementada en un sitio de los dos.
+  colorGroup2        String?
   /// Turno de supervisión de piso: la persona trabaja el piso supervisando, sin
   /// dueña de un grupo de color. Antes esto solo se podía expresar dejando el
   /// color vacío, que se lee igual que "se me olvidó asignarlo" — y el builder

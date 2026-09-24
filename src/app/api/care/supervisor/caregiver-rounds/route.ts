@@ -18,6 +18,7 @@ import {
 } from '@/lib/floor-map';
 import { logError } from '@/lib/logger';
 import { compatibleShiftTypesAt } from '@/lib/ventanas-de-turno';
+import { coloresDeLaPauta } from '@/lib/shift-coverage';
 
 const SUPERVISOR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
@@ -158,6 +159,7 @@ export async function GET(req: Request) {
                 id: true,
                 userId: true,
                 colorGroup: true,
+                colorGroup2: true,
                 shiftType: true,
                 releasedAt: true,
             },
@@ -377,6 +379,13 @@ export async function GET(req: Request) {
             const baseShift = bs ? {
                 id: bs.id,
                 colorGroup: bs.colorGroup,
+                /**
+                 * Los DOS colores de la pauta, porque "liberar pauta" libera la
+                 * FILA entera —pone `releasedAt`— y con ella los dos. La
+                 * pantalla rotulaba el boton con el primero: el supervisor leia
+                 * "Liberar pauta Rojo" y soltaba tambien el azul.
+                 */
+                colorGroups: coloresDeLaPauta(bs),
                 shiftType: bs.shiftType,
                 releasedAt: bs.releasedAt,
             } : null;

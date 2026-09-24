@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { aFahrenheit } from '@/lib/vitals-thresholds';
 import { scheduledShiftDateRangeForShiftStart } from '@/lib/shift-closure-report';
+import { coloresDeLaPauta } from '@/lib/shift-coverage';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -96,10 +97,13 @@ export async function GET(req: Request) {
             scheduledShifts.flatMap(s => s.colorAssignments.map(a => a.color)).filter(Boolean)
         ));
         if (colorGroups.length === 0) {
+            // Los DOS colores de la pauta. Leer solo `colorGroup` dejaria fuera
+            // el segundo grupo de quien cubre dos, y esta auditoria decide a
+            // quien se le ATRIBUYE el trabajo del turno: media atribucion es
+            // peor que ninguna. Ver coloresDeLaPauta en src/lib/shift-coverage.ts.
             colorGroups = Array.from(new Set(
-                scheduledShifts
-                    .map(s => s.colorGroup)
-                    .filter((c): c is string => !!c && c !== 'UNASSIGNED')
+                scheduledShifts.flatMap(s => coloresDeLaPauta(s))
+                    .filter(c => c !== 'UNASSIGNED')
             ));
             colorSource = colorGroups.length > 0 ? 'legacy' : 'unresolved';
         }

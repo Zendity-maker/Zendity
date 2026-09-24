@@ -10,6 +10,35 @@ export type ShiftT = 'MORNING' | 'EVENING' | 'NIGHT' | 'FULL_DAY' | 'FULL_NIGHT'
  *            Pasar `activeSession.startTime` para resolver el turno del momento
  *            en que el cuidador inició sesión, no el turno actual del reloj.
  */
+/**
+ * LOS COLORES DE UNA PAUTA, EN UN SOLO SITIO.
+ *
+ * Desde el 24-sep-2026 una pauta puede llevar DOS grupos (`colorGroup` y
+ * `colorGroup2`) porque una cuidadora puede cubrir dos. Pedido por Celia.
+ *
+ * Esta funcion existe para que nadie los lea por separado. El fallo que se
+ * arreglo el 23-sep —la guardia recibiendo ordenes de vitales que nadie hace—
+ * existia porque la regla estaba escrita en UNA de las DOS puertas que crean
+ * ordenes. Con dos columnas y cinco consumidores, ese fallo se fabrica solo:
+ * basta que uno lea `colorGroup` a secas y ese consumidor vera medio horario.
+ *
+ * Reglas:
+ *   · 'ALL' absorbe: cubre los tres, asi que un segundo color no aporta nada.
+ *   · 'UNASSIGNED' y null no son colores.
+ *   · Se deduplica: poner el mismo color dos veces no lo cuenta dos veces.
+ */
+export function coloresDeLaPauta(pauta: {
+    colorGroup?: string | null;
+    colorGroup2?: string | null;
+}): string[] {
+    const limpio = (c: string | null | undefined): string | null =>
+        c && c !== 'UNASSIGNED' ? c : null;
+    const a = limpio(pauta.colorGroup);
+    const b = limpio(pauta.colorGroup2);
+    if (a === 'ALL' || b === 'ALL') return ['ALL'];
+    return Array.from(new Set([a, b].filter((c): c is string => !!c)));
+}
+
 export function inferShiftTypeFromAST(at?: Date): ShiftT {
     const astFmt = new Intl.DateTimeFormat('en-US', {
         hour: 'numeric', hour12: false, timeZone: 'America/Puerto_Rico',
@@ -261,7 +290,7 @@ export async function computeShiftCoverage(params: {
             releasedAt: null,                   // FASE 82: ignorar pautas liberadas manualmente
             colorGroup: { not: null },
         },
-        select: { id: true, userId: true, colorGroup: true },
+        select: { id: true, userId: true, colorGroup: true, colorGroup2: true },
     });
 
     const scheduledColorsSet = new Set<string>();
@@ -272,7 +301,11 @@ export async function computeShiftCoverage(params: {
         // `patient.findMany({ colorGroup: { in: [...,'ALL'] } })` CRASHEA
         // porque 'ALL' no es un valor del enum ColorGroup. Se excluye como
         // UNASSIGNED; su efecto de cobertura se maneja abajo (cubre todo).
-        if (s.colorGroup && s.colorGroup !== 'UNASSIGNED' && s.colorGroup !== 'ALL') scheduledColorsSet.add(s.colorGroup);
+        // Los DOS colores de la pauta, por `coloresDeLaPauta`. 'ALL' se sigue
+        // excluyendo por lo que dice el comentario de arriba.
+        for (const c of coloresDeLaPauta(s)) {
+            if (c !== 'ALL') scheduledColorsSet.add(c);
+        }
     }
     // Fail-safe: expectedColors = UNION(pautas no-absent, colores con residentes
     // activos). Si EmpX BLUE está absent, BLUE no entra por scheduledColorsSet
@@ -754,7 +787,7 @@ export async function resolveCaregiverColors(
             releasedAt: null,                   // FASE 82: pautas liberadas no cuentan como color base
             schedule: { headquartersId: hqId, status: 'PUBLISHED' },
         },
-        select: { userId: true, colorGroup: true, shiftType: true, notes: true, date: true },
+        select: { userId: true, colorGroup: true, colorGroup2: true, shiftType: true, notes: true, date: true },
     });
 
     // ── 3) Si includeSource O overtimeFallback, también necesitamos saber
@@ -772,7 +805,7 @@ export async function resolveCaregiverColors(
                 releasedAt: null,               // FASE 82: pautas liberadas no son fallback overtime
                 schedule: { headquartersId: hqId, status: 'PUBLISHED' },
             },
-            select: { userId: true, colorGroup: true, shiftType: true, notes: true, date: true },
+            select: { userId: true, colorGroup: true, colorGroup2: true, shiftType: true, notes: true, date: true },
             orderBy: { date: 'desc' },
         });
     }
@@ -802,9 +835,8 @@ export async function resolveCaregiverColors(
             .filter(c => c && c !== 'UNASSIGNED');
 
         const compatRows = rosterCompatByUser.get(uid) ?? [];
-        const rosterColors = compatRows
-            .map(r => r.colorGroup)
-            .filter((c): c is string => !!c && c !== 'UNASSIGNED');
+        // Los DOS colores de cada pauta compatible. Ver `coloresDeLaPauta`.
+        const rosterColors = compatRows.flatMap(r => coloresDeLaPauta(r));
 
         // Fallback overtime — solo si NO hay compat y el flag está ON.
         let fallbackColors: string[] = [];
@@ -812,9 +844,9 @@ export async function resolveCaregiverColors(
         if (rosterColors.length === 0 && overtimeFallback) {
             const anyRows = rosterAnyByUser.get(uid) ?? [];
             // El más reciente con colorGroup definido
-            const first = anyRows.find(r => r.colorGroup && r.colorGroup !== 'UNASSIGNED');
-            if (first?.colorGroup) {
-                fallbackColors = [first.colorGroup];
+            const first = anyRows.find(r => coloresDeLaPauta(r).length > 0);
+            if (first) {
+                fallbackColors = coloresDeLaPauta(first);
                 fallbackUsed = true;
             }
         }

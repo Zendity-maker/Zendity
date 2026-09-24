@@ -42,6 +42,26 @@ import StaffChat from "@/components/StaffChat";
 import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
 import { tiposQueSolapan } from '@/lib/ventanas-de-turno';
 
+/**
+ * El rotulo de una pauta, que desde el 24-sep-2026 puede llevar DOS colores.
+ *
+ * «Liberar pauta» pone `releasedAt` en la FILA, asi que suelta los dos. El
+ * boton se rotulaba con el primero: el supervisor leia "Liberar pauta Rojo" y
+ * soltaba tambien el azul. Un boton tiene que decir lo que hace.
+ *
+ * Lleva su propio mapa de etiquetas a proposito: en este fichero hay dos
+ * `colorLabels` en ambitos distintos, y depender de cual este a la vista es
+ * como se rompio esto la primera vez.
+ */
+const ETIQUETA_COLOR: Record<string, string> = {
+    RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde', ALL: 'Todos',
+};
+function rotuloDePauta(colores: string[] | undefined, uno: string | null | undefined): string {
+    const lista = (colores && colores.length > 0) ? colores : (uno ? [uno] : []);
+    if (lista.length === 0) return 'sin color';
+    return lista.map(c => ETIQUETA_COLOR[c] || c).join(' + ');
+}
+
 // --- SUB-COMPONENT: Zendi Morning Briefing ---
 const ZendiMorningBriefing = ({ text }: { text: string }) => {
     const [isPlaying, setIsPlaying] = useState(false);
@@ -3349,9 +3369,7 @@ export default function SupervisorMissionControlPage() {
                                                     <span className="text-lg">🔓</span>
                                                     <div className="flex-1">
                                                         <p className="text-sm font-bold text-slate-700">
-                                                            Pauta {cg.baseShift.colorGroup
-                                                                ? (colorLabels[cg.baseShift.colorGroup] || cg.baseShift.colorGroup)
-                                                                : 'sin color'} liberada
+                                                            Pauta {rotuloDePauta(cg.baseShift.colorGroups, cg.baseShift.colorGroup)} liberada
                                                         </p>
                                                         <p className="text-xs text-slate-500 mt-1 leading-relaxed">
                                                             El color original ya no cuenta en el wall. La cobertura activa de {cg.name.split(' ')[0]} se sigue mostrando.
@@ -3370,7 +3388,7 @@ export default function SupervisorMissionControlPage() {
                                             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
                                                 <p className="text-xs text-slate-600 mb-3 leading-relaxed">
                                                     {cg.name.split(' ')[0]} tiene más de un color activo. Si su pauta original
-                                                    {' '}<span className="font-bold">{colorLabels[cg.baseShift.colorGroup] || cg.baseShift.colorGroup}</span> ya no aplica
+                                                    {' '}<span className="font-bold">{rotuloDePauta(cg.baseShift.colorGroups, cg.baseShift.colorGroup)}</span> ya no aplica
                                                     (cambió de cobertura), puedes liberarla — el wall solo mostrará el color real de cobertura.
                                                 </p>
                                                 <button
@@ -3378,12 +3396,12 @@ export default function SupervisorMissionControlPage() {
                                                     disabled={releasingShift}
                                                     className="w-full px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:bg-amber-300 text-white text-sm font-bold transition-colors"
                                                 >
-                                                    {releasingShift ? 'Liberando…' : `Liberar pauta ${colorLabels[cg.baseShift.colorGroup] || cg.baseShift.colorGroup}`}
+                                                    {releasingShift ? 'Liberando…' : `Liberar pauta ${rotuloDePauta(cg.baseShift.colorGroups, cg.baseShift.colorGroup)}`}
                                                 </button>
                                             </div>
                                         ) : cg.baseShift.colorGroup ? (
                                             <div className="text-xs text-slate-500 italic leading-relaxed bg-slate-50 border border-slate-200 rounded-2xl p-3">
-                                                Pauta {colorLabels[cg.baseShift.colorGroup] || cg.baseShift.colorGroup} activa.
+                                                Pauta {rotuloDePauta(cg.baseShift.colorGroups, cg.baseShift.colorGroup)} activa.
                                                 Para liberarla, primero asigna un color de cobertura distinto a {cg.name.split(' ')[0]}.
                                             </div>
                                         ) : null}

@@ -156,10 +156,16 @@ export async function POST(request: Request) {
                 // de una ventana ±7d del evento (cobertura semanal del roster).
                 const windowStart = new Date(new Date(newEvent.startTime).getTime() - EVENT_AUDIENCE_WINDOW_MS);
                 const windowEnd = new Date(new Date(newEvent.startTime).getTime() + EVENT_AUDIENCE_WINDOW_MS);
+                // Los DOS colores de la pauta: quien cubre rojo Y azul tiene que
+                // recibir el evento de los dos grupos. Con `colorGroup` a secas
+                // se quedaba fuera de los avisos de su segundo grupo.
                 const targetUsers = await prisma.scheduledShift.findMany({
                     where: {
                         schedule: { headquartersId: hqId },
-                        colorGroup: { in: newEvent.targetGroups },
+                        OR: [
+                            { colorGroup: { in: newEvent.targetGroups } },
+                            { colorGroup2: { in: newEvent.targetGroups } },
+                        ],
                         isAbsent: false,
                         date: { gte: windowStart, lte: windowEnd },
                     },
