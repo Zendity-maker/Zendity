@@ -1297,10 +1297,40 @@ export default function ScheduleBuilderPage() {
                             <Calendar className="w-6 h-6 text-teal-400" />
                             <h1 className="text-2xl font-black">Constructor de Horarios</h1>
                             {publishedSchedule && (
-                                <span className="bg-teal-500 text-white text-xs font-black px-3 py-1 rounded-full uppercase tracking-widest">Publicado</span>
+                                /**
+                                 * UN CANDADO, NO UNA MEDALLA.
+                                 *
+                                 * Esto era un chip TEAL que decia «Publicado». Teal es el color
+                                 * de «bien» en toda la app, asi que se leia como un logro — y
+                                 * nada decia que un horario publicado NO SE PUEDE EDITAR: el
+                                 * teclado se traga las teclas y los desplegables no guardan.
+                                 *
+                                 * Andres lo vivio el 24-sep-2026: tres intentos de asignar dos
+                                 * colores, y el codigo estaba bien. Lo que fallaba era que la
+                                 * pantalla no decia que estaba cerrada. Medido ese dia: las
+                                 * cinco semanas mas recientes de Cupey estan PUBLISHED, o sea
+                                 * que este es el estado NORMAL al abrir el constructor.
+                                 */
+                                <span className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-900 border border-amber-300 text-xs font-black px-3 py-1 rounded-full uppercase tracking-widest">
+                                    🔒 Publicado · solo lectura
+                                </span>
                             )}
                         </div>
-                        <p className="text-slate-500 text-sm">Asigna turnos, grupos de color y personal para la semana</p>
+                        {publishedSchedule ? (
+                            <div className="flex items-center gap-3 flex-wrap">
+                                <p className="text-amber-200 text-sm font-bold">
+                                    Este horario ya lo vio el equipo, así que está cerrado: ni el teclado ni los menús lo cambian.
+                                </p>
+                                <button
+                                    onClick={unpublishSchedule}
+                                    className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-amber-950 text-xs font-black transition-all"
+                                >
+                                    Desbloquear para editar
+                                </button>
+                            </div>
+                        ) : (
+                            <p className="text-slate-500 text-sm">Asigna turnos, grupos de color y personal para la semana</p>
+                        )}
                     </div>
                     <div className="flex items-center gap-3 flex-wrap">
                         {/* Toggle vista */}
