@@ -50,6 +50,7 @@ interface MedDelResidente {
 import { Toaster, toast } from 'sonner';
 import { aFahrenheit, evaluarVitales, nivelDe } from '@/lib/vitals-thresholds';
 import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
+import { etiquetaDeFranja, mismaFranja } from '@/lib/franja-horaria';
 
 /**
  * Ahora, en el formato de <input type="datetime-local"> (hora local).
@@ -115,14 +116,14 @@ function parseTimeToMinutes(timeStr: string): number {
     return h * 60 + min;
 }
 
-// Minutos → etiqueta canónica "8:00 AM" / "12:00 PM" (clave estable para scheduleTime en DB)
-function formatSlotLabel(minutes: number): string {
-    const h24 = Math.floor(minutes / 60);
-    const min = minutes % 60;
-    const ap = h24 >= 12 ? 'PM' : 'AM';
-    const h12 = (h24 % 12) || 12;
-    return `${h12}:${min.toString().padStart(2, '0')} ${ap}`;
-}
+/**
+ * Minutos → etiqueta canónica "8:00 AM" / "12:00 PM".
+ *
+ * Esta cadena es la CLAVE con la que `slotStatusToday` casa una dosis con su
+ * pack, así que no puede estar escrita en dos sitios. Vive en
+ * src/lib/franja-horaria.ts y el cierre de turno usa la misma.
+ */
+const formatSlotLabel = etiquetaDeFranja;
 
 /**
  * ¿A ESTE RESIDENTE HAY QUE ROTARLO?
@@ -423,8 +424,20 @@ function groupMedsByScheduleTime(medications: any[]) {
  */
 function slotStatusToday(med: any, slotLabel: string): string | null {
     const admins = med.administrations || [];
+    /**
+     * SE COMPARA CON `mismaFranja`, NO CON `===`.
+     *
+     * La igualdad exacta exigía que quien escribió la fila usara la misma
+     * cadena, letra por letra. Y en la base hay TRES formas de decir la misma
+     * hora, según quién escribiera: "8:00 AM" (la tableta), "08:00 AM" (el cron
+     * que materializa las dosis) y "8:00 p. m." (el cierre de turno, hasta
+     * hoy). Con `===`, una dosis firmada por un camino era invisible para otro.
+     *
+     * Lo nuevo sale todo de `etiquetaDeFranja`, pero las 30.018 filas que ya
+     * existen no se reescriben: se leen bien.
+     */
     const found = admins.find((a: any) =>
-        a.scheduleTime === slotLabel && ['ADMINISTERED', 'OMITTED', 'REFUSED', 'HELD'].includes(a.status)
+        mismaFranja(a.scheduleTime, slotLabel) && ['ADMINISTERED', 'OMITTED', 'REFUSED', 'HELD'].includes(a.status)
     );
     return found ? found.status : null;
 }

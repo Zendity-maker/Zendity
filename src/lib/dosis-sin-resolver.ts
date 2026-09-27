@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { etiquetaDeFranjaAST } from '@/lib/franja-horaria';
 
 /**
  * LAS DOSIS DE SU TURNO QUE NADIE RESOLVIÓ — PARA PREGUNTÁRSELO AL CERRAR.
@@ -167,14 +168,17 @@ export interface FranjaSinResolver {
 }
 
 /** "8:00 AM" desde un instante, en hora de Puerto Rico. */
-function etiquetaAST(d: Date): string {
-    return d.toLocaleTimeString('es-PR', {
-        timeZone: 'America/Puerto_Rico',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-    });
-}
+/**
+ * La etiqueta de la franja. Sale de `src/lib/franja-horaria.ts`, que es la
+ * unica definicion, porque esta cadena NO es decorativa: la tableta casa la
+ * dosis con su pack por igualdad de texto.
+ *
+ * Aqui habia un `toLocaleTimeString('es-PR', { hour12: true })` que devuelve
+ * "8:00 p. m." mientras la tableta escribe "8:00 PM". Resultado medido el
+ * 27-sep-2026: 74 filas, TODAS de origen CIERRE_DE_TURNO, con dosis que la
+ * cuidadora declaro dadas y la tableta le seguia enseniando sin firmar.
+ */
+const etiquetaAST = etiquetaDeFranjaAST;
 
 /**
  * Las franjas de este turno con dosis todavía abiertas, más recientes al final.
