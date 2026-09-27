@@ -356,10 +356,39 @@ function groupMedsByScheduleTime(medications: any[]) {
             const enTurno = slotInShift(min, shift);
             const atrasado = !enTurno && puedeHaberAtrasados && min < ahoraMin;
             if (!enTurno && !atrasado) return;
-            // Cruza medianoche (turno de noche): el slot de las 00:30 visto a
-            // las 22:10 tiene `min` menor que `ahoraMin` y no es futuro.
-            const cruzaMedianoche = shift === 'NIGHT' && min < 360 && ahoraMin >= 1320;
-            const todaviaNoToca = enTurno && !cruzaMedianoche && min > ahoraMin + MARGEN_ANTES_MIN;
+            /**
+             * LA NOCHE SE COMPARA EN SU PROPIO CONTINUO, NO EN MINUTOS CRUDOS.
+             *
+             * Aqui habia una excepcion —`cruzaMedianoche`— que desactivaba el
+             * margen para cualquier franja anterior a las 06:00 cuando el reloj
+             * pasaba de las 22:00. Dos cosas estaban mal:
+             *
+             * 1. NO HACIA FALTA. Era codigo muerto: cuando se cumplia, la
+             *    comparacion de abajo tambien daba false por su cuenta (300 no
+             *    es mayor que 1355). Quitarla no cambiaba nada — y quien la
+             *    borrara creyendo que arreglaba algo se iba convencido.
+             * 2. EL FALLO REAL es comparar minutos crudos en un turno que cruza
+             *    la medianoche. A las 22:05 (1325) el pack de las 5:00 AM (300)
+             *    parece pasado, asi que se ofrecia como firmable SIETE HORAS
+             *    antes, sin la etiqueta de "de antes" y sin hora sembrada.
+             *
+             * Y dejaba huella: 5 filas del slot 5:00 AM con `administeredAt`
+             * entre las 22:00 y las 22:01 — Levothyroxine, que se toma en
+             * ayunas, firmada a las diez de la noche sobre la dosis de esa
+             * misma maniana.
+             *
+             * La normalizacion es la MISMA que ya hace el `sort` de mas abajo:
+             * en el turno de noche, lo anterior a las 06:00 pertenece al dia
+             * siguiente, asi que se le suman 1440. Estaba escrita dos veces y
+             * solo una estaba bien.
+             *
+             * Comprobado a mano: 22:05 -> 1740 > 1355, bloqueado. 04:00 ->
+             * 1740 > 1710, bloqueado. 04:30 -> 1740 > 1740 falso, se abre
+             * exactamente 30 min antes. 04:45 -> abierto.
+             */
+            const alContinuoDeNoche = (x: number) => (shift === 'NIGHT' && x < 360 ? x + 1440 : x);
+            const todaviaNoToca = enTurno
+                && alContinuoDeNoche(min) > alContinuoDeNoche(ahoraMin) + MARGEN_ANTES_MIN;
             const label = formatSlotLabel(min);
             if (!groups[label]) groups[label] = { slotMinutes: min, meds: [], atrasado, todaviaNoToca };
             // Evitar duplicar el mismo med en el mismo slot (si CSV repetido)
