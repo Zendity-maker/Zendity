@@ -83,3 +83,77 @@ export function juzgarFirma(recortado: { width: number; height: number } | null 
     }
     return { valida: true, ancho, alto, motivo: '' };
 }
+
+/**
+ * LO MISMO, PERO EN UNA LÍNEA, PARA LOS SEIS SITIOS QUE FIRMAN.
+ *
+ * Antes de esto cada sitio escribía su propia versión de los mismos cuatro
+ * pasos —¿hay ref?, ¿está vacío?, recortar, pasar a PNG— y cada versión
+ * escogía distinto qué hacer cuando algo fallaba. Son seis copias de una
+ * misma regla, que es exactamente la forma de equivocarse que se repitió
+ * cuatro veces en septiembre: se arregla una copia y las otras cinco siguen.
+ *
+ * `dataUrl` viene con valor SOLO si el veredicto es válido. Así no hay forma
+ * de mandar al servidor un trazo que no pasó el juicio: no existe la variable.
+ */
+export interface FirmaLeida extends VeredictoFirma {
+    /** El PNG recortado, listo para enviar. `null` si no se acepta. */
+    dataUrl: string | null;
+}
+
+/** Lo mínimo que hace falta de un canvas de firma. No ata esto a la librería. */
+export interface PadDeFirma {
+    isEmpty(): boolean;
+    getTrimmedCanvas(): HTMLCanvasElement;
+}
+
+export function leerFirma(
+    pad: PadDeFirma | null | undefined,
+    /**
+     * Qué decir cuando el recuadro está en blanco. Cada sitio firma un acto
+     * distinto y lo nombra distinto —«el pack», «el reporte», «el documento»—,
+     * así que ese texto se queda en el sitio. Lo que no se queda en el sitio es
+     * la REGLA de qué cuenta como firma, que es lo que aquí abajo se decide.
+     */
+    textoSiFalta = 'Falta la firma.',
+): FirmaLeida {
+    const sinFirma: FirmaLeida = {
+        valida: false, ancho: 0, alto: 0, dataUrl: null,
+        motivo: textoSiFalta,
+    };
+
+    if (!pad) return sinFirma;
+
+    try {
+        if (pad.isEmpty()) return sinFirma;
+    } catch {
+        return sinFirma;
+    }
+
+    let recorte: HTMLCanvasElement | null = null;
+    try {
+        recorte = pad.getTrimmedCanvas();
+    } catch {
+        recorte = null;
+    }
+
+    /**
+     * `getTrimmedCanvas` revienta si el canvas mide 0 px —pasa cuando está
+     * oculto—, y ahí no se puede juzgar el trazo. Antes un sitio resolvía esto
+     * mandando el canvas SIN recortar, que son cientos de kB de blanco con una
+     * raya perdida dentro. Si no se puede medir, no se acepta: es la misma
+     * regla que el resto del expediente.
+     */
+    if (!recorte) {
+        return {
+            valida: false, ancho: 0, alto: 0, dataUrl: null,
+            motivo: 'No se pudo leer la firma. Vuelve a trazarla.',
+        };
+    }
+
+    const veredicto = juzgarFirma(recorte);
+    return {
+        ...veredicto,
+        dataUrl: veredicto.valida ? recorte.toDataURL('image/png') : null,
+    };
+}

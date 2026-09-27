@@ -51,7 +51,7 @@ import { Toaster, toast } from 'sonner';
 import { aFahrenheit, evaluarVitales, nivelDe } from '@/lib/vitals-thresholds';
 import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
 import { etiquetaDeFranja, mismaFranja } from '@/lib/franja-horaria';
-import { juzgarFirma } from '@/lib/firma';
+import { leerFirma } from '@/lib/firma';
 
 /**
  * Ahora, en el formato de <input type="datetime-local"> (hora local).
@@ -2110,19 +2110,16 @@ export default function ZendityCareTabletPage() {
 
     // ── Flujo de packs: administrar pack completo con firma única ─────────────
     const administerPack = async (pack: { label: string; meds: any[] }) => {
-        if (!packSigCanvas.current || packSigCanvas.current.isEmpty()) {
-            return avisoError("Es mandatorio plasmar tu firma para administrar el pack.");
-        }
         /**
          * `isEmpty()` NO basta: en signature_pad 2.3.2 deja de estar vacío al
          * dibujar UN PUNTO, así que un dedo que roza el recuadro ya pasaba por
          * firma. Medido: 227 dosis firmadas con menos de 1.000 px² sobre una
-         * mediana de 27.965. Ver src/lib/firma.ts.
+         * mediana de 27.965. Los cuatro pasos —¿vacío?, recortar, juzgar, pasar
+         * a PNG— están una sola vez, en src/lib/firma.ts.
          */
-        const recorte = packSigCanvas.current.getTrimmedCanvas();
-        const veredicto = juzgarFirma(recorte);
-        if (!veredicto.valida) return avisoError(veredicto.motivo);
-        const signatureBase64 = recorte.toDataURL('image/png');
+        const firma = leerFirma(packSigCanvas.current, 'Es mandatorio plasmar tu firma para administrar el pack.');
+        if (!firma.valida || !firma.dataUrl) return avisoError(firma.motivo);
+        const signatureBase64 = firma.dataUrl;
 
         // Solo lo PENDIENTE. Antes iba pack.meds entero, incluido lo que se
         // acababa de omitir, y el servidor abortaba el pack completo con un
@@ -2281,9 +2278,8 @@ export default function ZendityCareTabletPage() {
     const submitPRN = async () => {
         if (!prnMedId) return avisoError(" Elija qué medicamento se administró.");
         if (prnNote.trim().length < 5) return avisoError(" Falta para qué se administró.");
-        if (!sigCanvas.current || sigCanvas.current.isEmpty()) {
-            return avisoError(" Es mandatorio plasmar su Firma Electrónica para administrar medicamentos.");
-        }
+        const firma = leerFirma(sigCanvas.current, ' Es mandatorio plasmar su Firma Electrónica para administrar medicamentos.');
+        if (!firma.valida || !firma.dataUrl) return avisoError(firma.motivo);
         setSubmitting(true);
         try {
             const res = await fetch("/api/care/meds/bulk", {
@@ -2292,7 +2288,7 @@ export default function ZendityCareTabletPage() {
                     action: 'PRN',
                     medicationIds: [prnMedId],
                     prnMotivo: prnNote.trim(),
-                    signatureBase64: sigCanvas.current.getTrimmedCanvas().toDataURL('image/png'),
+                    signatureBase64: firma.dataUrl,
                 }),
             });
             const data = await res.json();
@@ -2306,7 +2302,30 @@ export default function ZendityCareTabletPage() {
             } else {
                 avisoError(" " + (data.error || 'No se pudo registrar'));
             }
-        } catch (e) { console.error(e); } finally { setSubmitting(false); }
+        } catch (e) {
+            /**
+             * Esto era `catch (e) { console.error(e) }` a secas: si se caía la
+             * red, la cuidadora veía pararse el botón y NADA más. Sin mensaje no
+             * hay manera de saber si quedó registrado, así que se vuelve a
+             * pulsar — y eso es justo lo que produce el duplicado que el
+             * antipatrón #1 de CLAUDE.md lleva cuatro veces costando.
+             *
+             * Quedan SIETE más igual en este mismo fichero: responderPRN,
+             * handleBathLog, registrarComida, reportarCambio,
+             * handlePressurePointAlert, handlePosturalChange y
+             * handlePreventiveSubmit. Aquí se toca este porque es el de la firma.
+             *
+             * OJO CON LO QUE DICE EL MENSAJE. Al pack se le puede prometer que
+             * un segundo toque no duplica, porque `conciliarPack` firma sobre la
+             * fila que ya existe. Al PRN NO: la guarda de /api/care/meds/bulk
+             * está dentro de `if ((isPack || isOmit) && scheduleTime)`, y un PRN
+             * no manda franja, así que cada envío CREA una fila nueva. Mientras
+             * eso siga así, aquí no se promete idempotencia — se dice lo que se
+             * sabe y nada más.
+             */
+            console.error(e);
+            avisoError(' No se pudo guardar. Revisa la conexión y vuelve a intentarlo.');
+        } finally { setSubmitting(false); }
     };
 
     const cargarPrnSinEfecto = useCallback(async (patientId?: string) => {
