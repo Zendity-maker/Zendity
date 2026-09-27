@@ -2089,8 +2089,15 @@ export default function ZendityCareTabletPage() {
             setTimeout(() => setPackJustCompleted(null), 1200);
             refreshPatientsSilently(selectedColor!);
         } catch (e) {
+            /**
+             * «Error de red» son tres palabras que no dicen lo unico que hace
+             * falta saber: si la dosis quedo escrita o no. Quien lo lee vuelve a
+             * firmar por si acaso — y ese segundo intento es el que producia el
+             * rojo de «ya fue procesado». La frase buena ya estaba escrita
+             * sesenta lineas mas arriba, en el catch de submitLog.
+             */
             console.error(e);
-            avisoError("Error de red");
+            avisoError('No se pudo guardar. Revisa la conexión y vuelve a firmar: si ya había entrado, no se duplica.');
         } finally {
             setSubmitting(false);
         }
@@ -5541,7 +5548,29 @@ export default function ZendityCareTabletPage() {
                             const activePack = activePackIdx >= 0 ? packs[activePackIdx] : null;
                             const totalPacks = packs.length;
                             const completedPacks = packs.filter(p => isPackComplete(p));
-                            const allComplete = totalPacks > 0 && activePackIdx < 0;
+                            /**
+                             * EL VERDE MENTIROSO. Lo rompi yo el 22-sep-2026.
+                             *
+                             * El commit 0be7ca98 aniadio `&& !todaviaNoToca` al findIndex de
+                             * arriba para que no se pueda firmar un pack antes de su hora. Esto
+                             * se quedo como estaba desde abril: `activePackIdx < 0`. Y esas dos
+                             * cosas juntas dicen una mentira — un pack que TODAVIA NO TOCA hace
+                             * que activePackIdx sea -1, y entonces la pantalla pinta el circulo
+                             * verde con el visto: «Todos los medicamentos del turno
+                             * administrados», con CERO firmados.
+                             *
+                             * Medido el 27-sep-2026: 29 de 29 residentes durante 1h30 cada
+                             * maniana (06:00-07:29), 27 durante 2h30 cada tarde, y 11 durante
+                             * 4h30 de madrugada. Unas siete horas al dia en que la pantalla
+                             * afirma lo contrario de lo que pasa.
+                             *
+                             * Completado es completado: que TODOS los packs esten firmados. Un
+                             * pack que no ha llegado su hora no esta completo, esta esperando —
+                             * y eso lo dice la franja de abajo, no un visto verde.
+                             */
+                            const allComplete = totalPacks > 0 && completedPacks.length === totalPacks;
+                            /** Ni completo ni firmable todavia: esperando su hora. */
+                            const packsEsperando = packs.filter(p => !isPackComplete(p) && (p as any).todaviaNoToca);
                             const pendingInActivePack = activePack ? activePack.meds.filter((m: any) => !slotStatusToday(m, activePack.label)) : [];
 
                             return (
@@ -5572,6 +5601,49 @@ export default function ZendityCareTabletPage() {
                                         <p className="font-black text-emerald-700 text-lg">Todos los medicamentos del turno administrados</p>
                                         <p className="text-xs font-bold text-emerald-600 mt-1">{totalPacks} pack{totalPacks !== 1 ? 's' : ''} completado{totalPacks !== 1 ? 's' : ''}</p>
                                     </div>
+                                )}
+
+                                {/* ── CASO: TODAVÍA NO TOCA ──────────────────────────
+                                    Este bloque no existía, y su ausencia era la mitad del
+                                    problema. Un pack que aún no ha llegado su hora no sale
+                                    por `activePack` (se filtra a propósito desde el 22-sep)
+                                    ni por `completedPacks`. O sea que no se pintaba en
+                                    NINGÚN sitio: la cuidadora abría Medicamentos a las 7:15
+                                    y la pantalla no decía una palabra — ni un botón apagado,
+                                    ni la hora a la que abre, ni por qué.
+
+                                    Medido el 27-sep-2026: 90 minutos ciegos cada mañana
+                                    (06:00-07:29) para 19 residentes, y 270 cada madrugada.
+                                    Eso es literalmente «voy a registrar y no me deja»: no la
+                                    dejaba, y tampoco le decía que todavía no tocaba.
+
+                                    Se dice lo que es y cuándo abre. Nada más: no hay botón,
+                                    porque de verdad todavía no toca. */}
+                                {!allComplete && !activePack && packsEsperando.length > 0 && (
+                                    <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 text-center">
+                                        <p className="text-3xl mb-2">⏳</p>
+                                        <p className="font-black text-slate-700 text-base leading-tight">
+                                            Todavía no toca
+                                        </p>
+                                        <p className="text-sm font-bold text-slate-600 mt-2">
+                                            {packsEsperando.length === 1
+                                                ? `El pack de las ${packsEsperando[0].label} se abre 30 minutos antes.`
+                                                : `Los packs de ${packsEsperando.map(p => p.label).join(' y ')} se abren 30 minutos antes de su hora.`}
+                                        </p>
+                                        <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
+                                            Si ya se los diste, vuelve a esa hora y fírmalo —
+                                            o anótalo en Bitácora para que no se pierda.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* Y si hay un pack esperando ADEMÁS de uno activo, se dice
+                                    en una línea: sin esto, la cuidadora firma el de ahora y
+                                    se va creyendo que terminó el turno. */}
+                                {activePack && packsEsperando.length > 0 && (
+                                    <p className="text-[11px] font-bold text-slate-500 text-center">
+                                        ⏳ Después toca {packsEsperando.map(p => p.label).join(' y ')}.
+                                    </p>
                                 )}
 
                                 {/* Caso: pack activo */}

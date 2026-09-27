@@ -187,13 +187,35 @@ export async function POST(req: Request) {
             yaResueltos = yaHechos.size;
             idsAProcesar = medicationIds.filter((id: string) => !yaHechos.has(id));
 
-            // Solo si NO queda nada por hacer es un duplicado de verdad — la
-            // doble pulsación del botón, que es lo que esta guarda protegía.
+            /**
+             * ÉXITO CON LO QUE YA EXISTE, NO UN ROJO.
+             *
+             * Solo si NO queda nada por hacer es un duplicado de verdad: la doble
+             * pulsación del botón, que es lo que esta guarda protege.
+             *
+             * Pero devolvía 409 con `success: false`, y el cliente lo pinta como
+             * «Error: Este pack ya fue procesado hoy» en rojo seis segundos. Eso
+             * es exactamente lo que CLAUDE.md prohíbe, y por el motivo de
+             * siempre: quien pulsó hizo lo correcto, el expediente está bien, y
+             * un error en rojo le dice que lo intente otra vez — que es lo que
+             * produce el duplicado que la guarda venía a evitar.
+             *
+             * La copia buena de esta misma regla ya existe en /api/emar, que
+             * devuelve la fila que ya estaba resuelta. Estaba escrita dos veces
+             * y solo una la cumplía.
+             *
+             * Y no es teórico: medido el 27-sep-2026, de 771 packs en 30 días
+             * solo 2 son parciales y ninguno tiene dos firmantes, así que
+             * practicamente todo 409 que sale es un falso negativo — alguien
+             * viendo un error rojo sobre un trabajo que hizo bien.
+             */
             if (idsAProcesar.length === 0) {
-                return NextResponse.json(
-                    { success: false, error: 'Este pack ya fue procesado hoy' },
-                    { status: 409 },
-                );
+                return NextResponse.json({
+                    success: true,
+                    duplicada: true,
+                    yaResueltos,
+                    message: 'Este pack ya estaba firmado. No hizo falta hacer nada.',
+                });
             }
         }
 
