@@ -68,32 +68,62 @@ function getCurrentShift(): 'MORNING' | 'EVENING' | 'NIGHT' {
     if (hour >= 14 && hour < 22) return 'EVENING';
     return 'NIGHT';
 }
+/*
+ * AQUI VIVIA `parseTimeTo24h`, Y SE BORRA A PROPOSITO.
+ *
+ * Era un parser permisivo —`parseInt` de lo que hubiera, sin validar— y su
+ * unico consumidor era el contador de medicamentos del turno. Con el, «08:00 AM
+ * (Semanal)» se contaba como las 8:00 mientras el parser estricto que arma los
+ * packs la rechazaba: el numero decia uno mas de los que habia dentro.
+ *
+ * El contador ahora sale de `groupMedsByScheduleTime`, que usa
+ * `parseTimeToMinutes`. Dejar aqui una segunda forma de leer una hora es como
+ * vuelve el fallo: alguien la encuentra, le parece util, y hay otra vez dos
+ * reglas. Para etiquetas de franja, src/lib/franja-horaria.ts.
+ */
 
-function parseTimeTo24h(timeStr: string): number {
-    if (!timeStr) return 0;
-    const upper = timeStr.toUpperCase().trim();
-    const isPM = upper.includes('PM');
-    const isAM = upper.includes('AM');
-    const timePart = upper.replace('AM', '').replace('PM', '').trim();
-    const hours = parseInt(timePart.split(':')[0]);
 
-    if (isPM && hours !== 12) return hours + 12;
-    if (isAM && hours === 12) return 0;
-    return hours;
-}
-
-function getMedsForCurrentShift(medications: any[]) {
-    const shift = getCurrentShift();
-    return medications.filter(m => {
-        if (!m.scheduleTimes) return false;
-        const times = m.scheduleTimes.split(',').map((t: string) => t.trim());
-        return times.some((time: string) => {
-            const hour = parseTimeTo24h(time);
-            if (shift === 'NIGHT') return hour >= 22 || hour <= 5;
-            if (shift === 'MORNING') return hour >= 6 && hour <= 13;
-            return hour >= 14 && hour <= 21; // EVENING
-        });
-    });
+/**
+ * LO QUE QUEDA POR DAR EN ESTE TURNO. EL MISMO CALCULO QUE EL MODAL.
+ *
+ * ═══ LO QUE HABIA ═══
+ *
+ * `getMedsForCurrentShift` filtraba las recetas SOLO por su hora. No miraba
+ * `administrations`, no comprobaba si la receta toca hoy, y usaba el parser
+ * flojo. Alimentaba las dos cosas que la cuidadora mira de un vistazo: el
+ * numero rojo del boton «Medicamentos» y el chip de la tira de estado.
+ *
+ * Tres consecuencias, y las tres las dijeron en el seminario del 24-sep:
+ *
+ *   · EL NUMERO NO BAJABA NUNCA. Firmaba el pack entero y el 8 rojo seguia
+ *     ahi, y el chip seguia diciendo «Pendiente» hasta el final del turno. No
+ *     habia forma de saber desde la tarjeta si quedaba algo.
+ *   · CONTABA LO QUE NO TOCA HOY. Sin `tocaHoy`, una receta semanal se contaba
+ *     los siete dias.
+ *   · CONTABA LO QUE NO SE PUEDE FIRMAR. Con el parser flojo, «08:00 AM
+ *     (Semanal)» entraba en el numero; el parser estricto que arma los packs
+ *     la rechaza. El numero decia uno mas de los que habia dentro.
+ *
+ * ═══ POR QUE ASI ═══
+ *
+ * Se cuenta sobre `groupMedsByScheduleTime` —LA MISMA funcion que construye lo
+ * que se ve al abrir— y se descuenta lo ya resuelto con `slotStatusToday`. El
+ * numero y la lista salen del mismo sitio, asi que no pueden discrepar: es la
+ * leccion de esta semana, en la que cinco fallos distintos venian de una regla
+ * escrita dos veces.
+ *
+ * Cuenta tambien los packs que todavia no tocan: ella SI tiene que darlos este
+ * turno. La pantalla ya explica cuando se abren desde el arreglo de hoy.
+ */
+function medsPendientesDelTurno(medications: any[]): number {
+    const packs = groupMedsByScheduleTime(medications || []);
+    let n = 0;
+    for (const pack of packs) {
+        for (const m of pack.meds) {
+            if (!slotStatusToday(m, pack.label)) n++;
+        }
+    }
+    return n;
 }
 
 // ── Flujo de packs de medicamentos (tablet cuidador) ──────────────────────────
@@ -4676,7 +4706,7 @@ export default function ZendityCareTabletPage() {
 
                                     {/* ===== STATUS STRIP (4 cols) ===== */}
                                     {(() => {
-                                        const medsForShift = getMedsForCurrentShift(p.medications || []);
+                                        const medsPendientes = medsPendientesDelTurno(p.medications || []);
                                         const bathDone = p.bathLogs?.length > 0;
                                         const mealsCount = p.mealLogs?.length || 0;
                                         // Por la regla del schema, no por una sola bandera.
@@ -4700,8 +4730,13 @@ export default function ZendityCareTabletPage() {
                                                     <p className={`text-[12px] font-medium mt-1.5 leading-none ${rotationColor}`}>{rotationLabel}</p>
                                                 </div>
                                                 <div className="px-2.5 py-[10px]">
-                                                    <p className="text-[10px] uppercase tracking-wide text-[#a8a29e] font-medium leading-none flex items-center gap-1"><span className="text-sm">💊</span> Meds PM</p>
-                                                    <p className={`text-[12px] font-medium mt-1.5 leading-none ${medsForShift.length > 0 ? 'text-[#E5A93D]' : 'text-[#22A06B]'}`}>{medsForShift.length > 0 ? 'Pendiente' : 'Listo'}</p>
+                                                    {/* El rotulo decia «Meds PM» en los TRES turnos: a las siete
+                                                        de la maniana la tarjeta anunciaba los medicamentos de la
+                                                        tarde sobre los de las 8:00 AM. Es la queja D en miniatura
+                                                        —la pantalla nombra un horario que no es— y estaba escrito
+                                                        a mano. Ahora lo dice el turno. */}
+                                                    <p className="text-[10px] uppercase tracking-wide text-[#a8a29e] font-medium leading-none flex items-center gap-1"><span className="text-sm">💊</span> Meds {getCurrentShift() === 'MORNING' ? 'AM' : getCurrentShift() === 'EVENING' ? 'PM' : 'noche'}</p>
+                                                    <p className={`text-[12px] font-medium mt-1.5 leading-none ${medsPendientes > 0 ? 'text-[#E5A93D]' : 'text-[#22A06B]'}`}>{medsPendientes > 0 ? `Faltan ${medsPendientes}` : 'Listo'}</p>
                                                 </div>
                                             </div>
                                         );
@@ -4857,7 +4892,7 @@ export default function ZendityCareTabletPage() {
                                             registro como "salio con la familia". */}
                                         <p className="text-[10px] font-bold uppercase tracking-widest text-[#a8a29e] mb-1.5">Lo de siempre</p>
                                         {(() => {
-                                            const medsForShift = getMedsForCurrentShift(p.medications || []);
+                                            const medsPendientes = medsPendientesDelTurno(p.medications || []);
                                             return (
                                                 <button
                                                     onClick={() => { setActivePatient(p); setModalType('MEDS'); }}
@@ -4865,8 +4900,8 @@ export default function ZendityCareTabletPage() {
                                                 >
                                                     <span className="text-lg leading-none">💊</span>
                                                     <span>Medicamentos</span>
-                                                    {medsForShift.length > 0 && (
-                                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 bg-[#D9534F] text-white text-[11px] font-bold min-w-[22px] h-[22px] px-1.5 rounded-full flex items-center justify-center leading-none">{medsForShift.length}</span>
+                                                    {medsPendientes > 0 && (
+                                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 bg-[#D9534F] text-white text-[11px] font-bold min-w-[22px] h-[22px] px-1.5 rounded-full flex items-center justify-center leading-none">{medsPendientes}</span>
                                                     )}
                                                 </button>
                                             );
