@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import SignatureCanvas from "react-signature-canvas";
 import { AlertOctagon, AlertTriangle, CheckCircle, PenTool, Lock, ArrowRight, Loader2, Sparkles, FileText, HelpCircle, X, Eraser } from "lucide-react";
+import { juzgarFirma } from '@/lib/firma';
 
 export interface RespuestaAviso {
     codigo: string;
@@ -120,7 +121,19 @@ export default function ShiftClosureWizard({
     const handleSigEnd = () => {
         if (!sigCanvas.current || sigCanvas.current.isEmpty()) return;
         try {
-            const dataUrl = sigCanvas.current.getTrimmedCanvas().toDataURL('image/png');
+            /**
+             * Un punto no es una firma. `isEmpty()` deja de serlo al dibujar un
+             * solo punto (signature_pad 2.3.2, `_drawPoint`), y esto firma el
+             * relevo entero. Ver src/lib/firma.ts para la calibración.
+             *
+             * Aquí NO se avisa ni se bloquea: esto corre en `onEnd`, mientras
+             * la persona todavía está dibujando. Simplemente no se guarda hasta
+             * que haya trazo, y el botón de cerrar turno sigue desactivado —
+             * que es lo que ya pasaba con el canvas vacío.
+             */
+            const recorte = sigCanvas.current.getTrimmedCanvas();
+            if (!juzgarFirma(recorte).valida) { setSignature(null); return; }
+            const dataUrl = recorte.toDataURL('image/png');
             setSignature(dataUrl);
         } catch {
             // getTrimmedCanvas puede fallar si el trazo es de 0 px;

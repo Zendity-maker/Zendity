@@ -51,6 +51,7 @@ import { Toaster, toast } from 'sonner';
 import { aFahrenheit, evaluarVitales, nivelDe } from '@/lib/vitals-thresholds';
 import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
 import { etiquetaDeFranja, mismaFranja } from '@/lib/franja-horaria';
+import { juzgarFirma } from '@/lib/firma';
 
 /**
  * Ahora, en el formato de <input type="datetime-local"> (hora local).
@@ -2112,7 +2113,16 @@ export default function ZendityCareTabletPage() {
         if (!packSigCanvas.current || packSigCanvas.current.isEmpty()) {
             return avisoError("Es mandatorio plasmar tu firma para administrar el pack.");
         }
-        const signatureBase64 = packSigCanvas.current.getTrimmedCanvas().toDataURL('image/png');
+        /**
+         * `isEmpty()` NO basta: en signature_pad 2.3.2 deja de estar vacío al
+         * dibujar UN PUNTO, así que un dedo que roza el recuadro ya pasaba por
+         * firma. Medido: 227 dosis firmadas con menos de 1.000 px² sobre una
+         * mediana de 27.965. Ver src/lib/firma.ts.
+         */
+        const recorte = packSigCanvas.current.getTrimmedCanvas();
+        const veredicto = juzgarFirma(recorte);
+        if (!veredicto.valida) return avisoError(veredicto.motivo);
+        const signatureBase64 = recorte.toDataURL('image/png');
 
         // Solo lo PENDIENTE. Antes iba pack.meds entero, incluido lo que se
         // acababa de omitir, y el servidor abortaba el pack completo con un
