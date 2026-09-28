@@ -101,8 +101,32 @@ export async function GET(req: Request) {
 
         const hqIds = [...new Set(atRiskPatients.map(p => p.headquartersId))];
         const [escalationStaff, activeSessions, notifiedToday] = await Promise.all([
+            /**
+             * QUIÉN ESCALA — Y POR QUÉ NO BASTA EL ROL PRIMARIO.
+             *
+             * Esto era `role: { in: ['NURSE','SUPERVISOR'] }`, o sea SOLO el rol
+             * primario. Medido el 28-sep-2026 contra producción: alcanzaba a UNA
+             * persona, Mariangelie Rivera. Y NO alcanzaba a Celia Sierra, que es
+             * quien hace la enfermería de este hogar — su NURSE es secundario,
+             * su primario es DIRECTOR.
+             *
+             * O sea que la escalación de úlceras llevaba meses sin llegar a
+             * enfermería. Mirando también los secundarios, y sumando dirección
+             * —que es quien escribe los planes: 14 de las 17 curaciones son de
+             * Andrés—, alcanza a 4.
+             *
+             * Es el mismo error que ya está escrito en la memoria del proyecto:
+             * en este hogar el rol primario no dice quién hace el trabajo.
+             */
             prisma.user.findMany({
-                where: { headquartersId: { in: hqIds }, role: { in: ['NURSE', 'SUPERVISOR'] as any }, isActive: true, isDeleted: false },
+                where: {
+                    headquartersId: { in: hqIds },
+                    isActive: true, isDeleted: false,
+                    OR: [
+                        { role: { in: ['NURSE', 'SUPERVISOR', 'DIRECTOR'] as any } },
+                        { secondaryRoles: { hasSome: ['NURSE', 'SUPERVISOR'] } },
+                    ],
+                },
                 select: { id: true, headquartersId: true },
             }),
             prisma.shiftSession.findMany({
@@ -174,6 +198,96 @@ export async function GET(req: Request) {
             }
         }
 
+        /**
+         * ÚLCERAS ABIERTAS SIN PLAN DEL HOME CARE
+         * ────────────────────────────────────────
+         *
+         * ═══ POR QUÉ ═══
+         *
+         * Desde el 28-sep-2026 la cuidadora puede registrar una curación, pero
+         * SOLO si la úlcera tiene plan escrito: lo que se guarda es ese plan,
+         * literal, y ella confirma que lo hizo. Sin plan no hay nada que
+         * confirmar, así que la opción ni le aparece.
+         *
+         * Eso convierte un plan que falta en un cuidado que no se puede
+         * registrar. Y faltan: medido ese día, CUATRO de las seis úlceras
+         * activas no tienen plan —una de 83 días, y una SACRA ESTADIO 3 de 20—.
+         * Nadie se estaba enterando porque nada lo decía.
+         *
+         * ═══ TRES DÍAS ═══
+         *
+         * No es un número redondo por gusto: es el tiempo razonable para que la
+         * enfermera de fuera venga y alguien transcriba lo que indicó. Menos
+         * sería avisar de algo que todavía está en camino; más es dejar a una
+         * herida abierta sin tratamiento escrito.
+         *
+         * Las cuatro de hoy saltan desde el primer día, y está bien: las cuatro
+         * llevan más de nueve.
+         *
+         * ═══ EL RUIDO ═══
+         *
+         * Se repite a diario mientras el plan falte, como la alerta de rotación
+         * de arriba y por la misma llave de dedup (`userId|title`). Con la de 83
+         * días eso son muchos avisos — y la forma de callarlo es escribir el
+         * plan, que es exactamente lo que se pide. Un aviso que se lee una vez y
+         * se va es como dos observaciones de personal se quedaron 56 y 45 días
+         * paradas.
+         */
+        const TRES_DIAS_MS = 3 * 24 * 60 * 60 * 1000;
+        const sinPlan = await prisma.pressureUlcer.findMany({
+            where: {
+                status: { in: ['ACTIVE', 'HEALING'] },
+                resolvedAt: null,
+                OR: [{ planTratamiento: null }, { planTratamiento: '' }],
+                identifiedAt: { lte: new Date(now.getTime() - TRES_DIAS_MS) },
+                // Solo de quien sigue aquí: una úlcera de alguien que se fue no
+                // necesita plan, necesita cierre. Antipatrón #2 de CLAUDE.md.
+                patient: { status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] } },
+            },
+            select: {
+                id: true, stage: true, bodyLocation: true, identifiedAt: true,
+                patient: { select: { id: true, name: true, headquartersId: true } },
+            },
+        });
+
+        const hqSinPlan = [...new Set(sinPlan.map(u => u.patient!.headquartersId))];
+        const [staffSinPlan, avisadosHoy] = await Promise.all([
+            prisma.user.findMany({
+                where: {
+                    headquartersId: { in: hqSinPlan },
+                    isActive: true, isDeleted: false,
+                    OR: [
+                        { role: { in: ['NURSE', 'SUPERVISOR', 'DIRECTOR'] as any } },
+                        { secondaryRoles: { hasSome: ['NURSE', 'SUPERVISOR'] } },
+                    ],
+                },
+                select: { id: true, headquartersId: true },
+            }),
+            prisma.notification.findMany({
+                where: { type: 'SHIFT_ALERT', title: { startsWith: 'Úlcera sin plan' }, createdAt: { gte: todayStart } },
+                select: { userId: true, title: true },
+            }),
+        ]);
+        const yaAvisado = new Set(avisadosHoy.map(n => `${n.userId}|${n.title}`));
+        const staffPorHq = new Map<string, string[]>();
+        for (const u of staffSinPlan) {
+            if (!staffPorHq.has(u.headquartersId)) staffPorHq.set(u.headquartersId, []);
+            staffPorHq.get(u.headquartersId)!.push(u.id);
+        }
+
+        const ulcerasSinPlan: object[] = [];
+        for (const u of sinPlan) {
+            const dias = Math.floor((now.getTime() - u.identifiedAt.getTime()) / 86400000);
+            const nombre = u.patient!.name.trim();
+            const title = `Úlcera sin plan — ${nombre}`;
+            const message = `${u.bodyLocation}, estadio ${u.stage}. Lleva ${dias} días abierta y no tiene el plan del home care escrito. Sin plan, la cuidadora no puede registrar la curación — solo el cambio de apósito.`;
+            ulcerasSinPlan.push({ paciente: nombre, dias, estadio: u.stage, zona: u.bodyLocation });
+            for (const userId of staffPorHq.get(u.patient!.headquartersId) ?? []) {
+                if (yaAvisado.has(`${userId}|${title}`)) continue;
+                toCreate.push({ userId, type: 'SHIFT_ALERT', title, message, link: '/care/nursing', isRead: false });
+            }
+        }
+
         if (toCreate.length > 0) {
             await prisma.notification.createMany({ data: toCreate });
         }
@@ -184,6 +298,7 @@ export async function GET(req: Request) {
             scannedPatients: atRiskPatients.length,
             violationsDetected: violations.length,
             notificationsSent: toCreate.length,
+            ulcerasSinPlan,
             onShiftCaregivers: activeSessions.length,
             violations,
         });
