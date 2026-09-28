@@ -488,6 +488,50 @@ const ETIQUETA_SALIDA: Record<string, string> = {
     FALLECIMIENTO_REPORTADO: 'fallecimiento reportado',
 };
 
+/**
+ * UNA SOLA PETICIÓN DE RESIDENTES EN VUELO A LA VEZ.
+ *
+ * ═══ QUÉ PASABA ═══
+ *
+ * Esta pantalla pide `/api/care?color=…` desde CINCO sitios —el arranque con
+ * turno activo, el arranque desde localStorage, la elección de color,
+ * `fetchPatients` y `refreshPatientsSilently`— y varios se disparan a la vez.
+ * Medido en el registro de red del 28-sep-2026: **tres peticiones idénticas y
+ * simultáneas** en cada carga de la pantalla del piso.
+ *
+ * No es solo tráfico. Cada una repite en el servidor las cinco consultas de esa
+ * ruta, incluida la grande de residentes con todas sus relaciones, así que las
+ * tres compiten por las mismas conexiones y se hacen lentas entre ellas.
+ *
+ * ═══ QUÉ HACE ESTO ═══
+ *
+ * Si ya hay una petición EN VUELO para esa misma URL, devuelve su promesa en
+ * vez de abrir otra. Quien llega después se cuelga de la que ya iba, y todos
+ * reciben la misma respuesta.
+ *
+ * El mapa se limpia en cuanto la petición termina —bien o mal—, así que una
+ * llamada POSTERIOR sí pide de nuevo. Eso importa: `refreshPatientsSilently`
+ * se llama justo después de firmar un pack o registrar un baño, y ahí hay que
+ * traer datos frescos, no los de hace un segundo. Esto deduplica lo simultáneo,
+ * no cachea nada.
+ */
+const residentesEnVuelo = new Map<string, Promise<any>>();
+
+function pedirResidentes(url: string): Promise<any> {
+    const yaVa = residentesEnVuelo.get(url);
+    if (yaVa) return yaVa;
+    const peticion = (async () => {
+        try {
+            const res = await fetch(url);
+            return await res.json();
+        } finally {
+            residentesEnVuelo.delete(url);
+        }
+    })();
+    residentesEnVuelo.set(url, peticion);
+    return peticion;
+}
+
 export default function ZendityCareTabletPage() {
     const [isMounted, setIsMounted] = useState(false);
     useEffect(() => setIsMounted(true), []);
@@ -1360,8 +1404,7 @@ export default function ZendityCareTabletPage() {
                             } else {
                                 localStorage.removeItem('zendityCareShiftColor');
                             }
-                            const patientRes = await fetch(`/api/care?color=${encodeURIComponent(colorParam)}&hqId=${hq}`);
-                            const patientData = await patientRes.json();
+                            const patientData = await pedirResidentes(`/api/care?color=${encodeURIComponent(colorParam)}&hqId=${hq}`);
                             if (patientData.success) {
                                 setPatients(patientData.patients || []);
                                 setEvents(patientData.events || []);
@@ -1395,8 +1438,7 @@ export default function ZendityCareTabletPage() {
                     const storedColor = localStorage.getItem('zendityCareShiftColor');
                     if (storedColor) {
                         setSelectedColor(storedColor);
-                        const patientRes = await fetch(`/api/care?color=${storedColor}&hqId=${hq}`);
-                        const patientData = await patientRes.json();
+                        const patientData = await pedirResidentes(`/api/care?color=${storedColor}&hqId=${hq}`);
                         if (patientData.success) {
                             setPatients(patientData.patients || []);
                             setEvents(patientData.events || []);
@@ -1462,8 +1504,7 @@ export default function ZendityCareTabletPage() {
             setLoading(true);
             try {
                 const hq = user?.hqId || user?.headquartersId || "hq-demo-1";
-                const res = await fetch(`/api/care?color=${color}&hqId=${hq}`);
-                const data = await res.json();
+                const data = await pedirResidentes(`/api/care?color=${color}&hqId=${hq}`);
                 if (data.success) {
                     setPatients(data.patients);
                     setIsSoloMode(!!data.isSolo);
@@ -1804,8 +1845,7 @@ export default function ZendityCareTabletPage() {
         setLoading(true);
         try {
             const hq = user?.hqId || user?.headquartersId || "hq-demo-1";
-            const res = await fetch(`/api/care?color=${color}&hqId=${hq}`);
-            const data = await res.json();
+            const data = await pedirResidentes(`/api/care?color=${color}&hqId=${hq}`);
             if (data.success) {
                 setPatients(data.patients);
                 setEvents(data.events || []);
@@ -1821,8 +1861,7 @@ export default function ZendityCareTabletPage() {
     const refreshPatientsSilently = async (color: string) => {
         try {
             const hq = user?.hqId || user?.headquartersId || "hq-demo-1";
-            const res = await fetch(`/api/care?color=${color}&hqId=${hq}`);
-            const data = await res.json();
+            const data = await pedirResidentes(`/api/care?color=${color}&hqId=${hq}`);
             if (data.success) {
                 setPatients(data.patients);
                 setEvents(data.events || []);
