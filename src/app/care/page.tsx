@@ -530,6 +530,27 @@ export default function ZendityCareTabletPage() {
     const [activeSession, setActiveSession] = useState<any>(null);
     // Avisos del piso — reemplazan los 57 avisoOk() que bloqueaban la pantalla.
     const { aviso, ok: avisoOk, error: avisoError, atencion: avisoAtencion, cerrar: cerrarAviso } = useAviso();
+
+    /**
+     * QUÉ DECIR CUANDO SE CAE LA RED A MITAD DE UN REGISTRO.
+     *
+     * Ocho escrituras de esta pantalla terminaban en `catch (e) { console.error(e) }`
+     * y nada más. Si fallaba la red, la cuidadora veía pararse el botón y ni un
+     * mensaje: ni error, ni éxito. Sin saber si quedó registrado se vuelve a
+     * pulsar, que es exactamente lo que produce el duplicado que el antipatrón
+     * #1 de CLAUDE.md lleva cuatro veces costando.
+     *
+     * `sinDuplicar` NO es un adorno del texto: obliga a contestar antes de
+     * escribir el mensaje si ESE endpoint tiene guarda contra doble envío.
+     * Prometer que no se duplica donde sí se duplica es poner una mentira
+     * nueva en el sitio de la que se venía a quitar.
+     *
+     *   con guarda   /adls/bath (2 min) · /adls/meal · /incidents (5 min)
+     *                /postural · /meds/prn-efecto (es un update, idempotente)
+     *   sin guarda   /cambio-condicion · /preventive  ← y las dos CREAN fila
+     */
+    const avisoDeRed = (queNoSeGuardo: string, sinDuplicar: boolean) =>
+        avisoError(` No se pudo guardar ${queNoSeGuardo}. Revisa la conexión y vuelve a intentarlo${sinDuplicar ? ': si ya había entrado, no se duplica' : ''}.`);
     const [shiftNotes, setShiftNotes] = useState<string | null>(null);
     const [verifyingCensus, setVerifyingCensus] = useState(false);
     const [censusChecklist, setCensusChecklist] = useState<Record<string, string>>({});
@@ -2304,27 +2325,14 @@ export default function ZendityCareTabletPage() {
             }
         } catch (e) {
             /**
-             * Esto era `catch (e) { console.error(e) }` a secas: si se caía la
-             * red, la cuidadora veía pararse el botón y NADA más. Sin mensaje no
-             * hay manera de saber si quedó registrado, así que se vuelve a
-             * pulsar — y eso es justo lo que produce el duplicado que el
-             * antipatrón #1 de CLAUDE.md lleva cuatro veces costando.
-             *
-             * Quedan SIETE más igual en este mismo fichero: responderPRN,
-             * handleBathLog, registrarComida, reportarCambio,
-             * handlePressurePointAlert, handlePosturalChange y
-             * handlePreventiveSubmit. Aquí se toca este porque es el de la firma.
-             *
-             * OJO CON LO QUE DICE EL MENSAJE. Al pack se le puede prometer que
+             * `sinDuplicar: false` a propósito. Al pack se le puede prometer que
              * un segundo toque no duplica, porque `conciliarPack` firma sobre la
              * fila que ya existe. Al PRN NO: la guarda de /api/care/meds/bulk
              * está dentro de `if ((isPack || isOmit) && scheduleTime)`, y un PRN
-             * no manda franja, así que cada envío CREA una fila nueva. Mientras
-             * eso siga así, aquí no se promete idempotencia — se dice lo que se
-             * sabe y nada más.
+             * no manda franja, así que cada envío CREA una fila nueva.
              */
             console.error(e);
-            avisoError(' No se pudo guardar. Revisa la conexión y vuelve a intentarlo.');
+            avisoDeRed('la dosis PRN', false);
         } finally { setSubmitting(false); }
     };
 
@@ -2357,7 +2365,10 @@ export default function ZendityCareTabletPage() {
             } else {
                 avisoError(" " + (data.error || 'No se pudo registrar'));
             }
-        } catch (e) { console.error(e); } finally { setSubmitting(false); }
+        } catch (e) {
+            console.error(e);
+            avisoDeRed('si hizo efecto', true);
+        } finally { setSubmitting(false); }
     };
 
     /**
@@ -2458,7 +2469,10 @@ export default function ZendityCareTabletPage() {
             } else {
                 avisoError(` Alerta: ${data.message || data.error}`);
             }
-        } catch (e) { console.error(e); } finally { setSubmitting(false); }
+        } catch (e) {
+            console.error(e);
+            avisoDeRed('el baño', true);
+        } finally { setSubmitting(false); }
     };
 
     /**
@@ -2511,7 +2525,10 @@ export default function ZendityCareTabletPage() {
             } else {
                 avisoError(` Error Clínico: ${data.error}`);
             }
-        } catch (e) { console.error(e); } finally { setSubmitting(false); }
+        } catch (e) {
+            console.error(e);
+            avisoDeRed('la comida', true);
+        } finally { setSubmitting(false); }
     };
 
     /**
@@ -2538,7 +2555,10 @@ export default function ZendityCareTabletPage() {
             } else {
                 avisoError(` ${data.error}`);
             }
-        } catch (e) { console.error(e); } finally { setSubmitting(false); }
+        } catch (e) {
+            console.error(e);
+            avisoDeRed('el cambio de condición', false);
+        } finally { setSubmitting(false); }
     };
 
     const handleLaundryLog = () => {
@@ -2645,7 +2665,10 @@ export default function ZendityCareTabletPage() {
             if (data.success) {
                 avisoOk(" Alerta médica preventiva enviada a Enfermería.");
             }
-        } catch (e) { console.error(e); } finally { setSubmitting(false); }
+        } catch (e) {
+            console.error(e);
+            avisoDeRed('la alerta', true);
+        } finally { setSubmitting(false); }
     };
 
     /**
@@ -2745,7 +2768,10 @@ export default function ZendityCareTabletPage() {
             } else {
                 avisoError(` Error Clínico: ${data.error}`);
             }
-        } catch (e) { console.error(e); } finally { setSubmitting(false); }
+        } catch (e) {
+            console.error(e);
+            avisoDeRed('el cambio de posición', true);
+        } finally { setSubmitting(false); }
     };
 
     const SYMPTOM_CATEGORIES = {
@@ -2779,7 +2805,10 @@ export default function ZendityCareTabletPage() {
             } else {
                 avisoError(` Error Clínico: ${data.error}`);
             }
-        } catch (e) { console.error(e); } finally { setSubmitting(false); }
+        } catch (e) {
+            console.error(e);
+            avisoDeRed('la acción preventiva', false);
+        } finally { setSubmitting(false); }
     };
 
     const [printingFallId, setPrintingFallId] = useState<string | null>(null);
