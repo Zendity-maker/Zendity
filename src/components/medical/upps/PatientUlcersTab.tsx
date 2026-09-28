@@ -151,6 +151,31 @@ export default function PatientUlcersTab({ patientId }: { patientId?: string }) 
                                 </div>
                             </div>
 
+                            {/**
+                              * REGISTRAR, NO SOLO MIRAR.
+                              *
+                              * Esta pestaña enseñaba la úlcera y su historial y no daba
+                              * NINGUNA forma de anotar nada: ni curación, ni apósito, ni
+                              * valoración. Andrés abrió el perfil de Carmen Vélez —úlcera
+                              * activa desde hace 83 días— y no encontró el botón, porque
+                              * aquí no hay.
+                              *
+                              * No se escribe el formulario por segunda vez. El que existe
+                              * está en /care/nursing y ya decide por rol qué puede anotar
+                              * cada quien (TIPOS_UPP en src/lib/upp.ts): una cuidadora abre
+                              * directamente en «Cambié el apósito», enfermería ve además
+                              * curación y valoración. Dos copias del mismo formulario son
+                              * dos sitios donde arreglar la misma regla.
+                              *
+                              * `?ulcera=` abre esa úlcera sola al llegar.
+                              */}
+                            <a
+                                href={`/care/nursing?patientId=${patientId}&ulcera=${ulcer.id}`}
+                                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold px-5 py-3 rounded-xl transition-colors shadow-sm"
+                            >
+                                🩹 Registrar curación o cambio de apósito
+                            </a>
+
                             {/* Timeline de logs */}
                             {ulcer.logs.length > 0 && (
                                 <div className="pl-4 mt-5">

@@ -60,8 +60,24 @@ export async function construirReporteDireccion(sedeId: string, sedeNombre: stri
             where: { patient: { headquartersId: sedeId, status: 'ACTIVE' }, isActive: true },
             select: { scheduleTimes: true, frequency: true, medication: { select: { name: true } }, patient: { select: { name: true } } },
         }),
+        /**
+         * SOLO DE QUIEN SIGUE AQUÍ.
+         *
+         * Esto listaba las úlceras abiertas sin mirar el estado del residente,
+         * así que el reporte de dirección contaba la de José A. Troche Santiago
+         * —sacra, estadio 3— noventa días después de su fallecimiento. Es una
+         * LISTA para una pantalla, no una búsqueda por id: la regla de CLAUDE.md
+         * dice que filtra.
+         *
+         * Medido el 28-sep-2026: 8 úlceras en la base, 6 sin resolver, y una de
+         * ellas de un residente fallecido.
+         */
         prisma.pressureUlcer.findMany({
-            where: { patient: { headquartersId: sedeId }, resolvedAt: null, status: { not: 'RESOLVED' } },
+            where: {
+                patient: { headquartersId: sedeId, status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] } },
+                resolvedAt: null,
+                status: { not: 'RESOLVED' },
+            },
             select: { stage: true, patient: { select: { name: true } } },
         }),
         prisma.incidentReport.findMany({

@@ -141,6 +141,19 @@ export default function NursingRotationPage() {
     // exactamente el tipo de promesa vacia que venimos retirando.
     const paramsBusqueda = useSearchParams();
     const residenteDestacado = paramsBusqueda.get('patientId');
+    /**
+     * ENLACE DIRECTO A UNA ÚLCERA.
+     *
+     * El perfil del residente (pestaña «Registro UPPs») enseñaba las úlceras y
+     * sus curaciones, pero era de SOLO LECTURA: ni un botón para registrar. Y
+     * el formulario que sí existe es este, aquí abajo.
+     *
+     * La salida no es escribirlo por segunda vez —que es exactamente como se
+     * separan dos copias de la misma regla— sino que el perfil enlace aquí con
+     * `?ulcera=<id>` y esta pantalla lo abra sola.
+     */
+    const ulceraDestacada = paramsBusqueda.get('ulcera');
+    const [ulceraYaAbierta, setUlceraYaAbierta] = useState(false);
     const router = useRouter();
     const { user, loading: authLoading } = useAuth();
 
@@ -273,6 +286,25 @@ export default function NursingRotationPage() {
         setPlanTexto(ulcera.planTratamiento ?? '');
         setPlanQuien(ulcera.planEstablecidoPor ?? '');
     };
+
+    /**
+     * Abre sola la úlcera que venía en la URL. Una sola vez: si se cierra el
+     * formulario a propósito, no vuelve a saltar en el siguiente refresco.
+     */
+    useEffect(() => {
+        if (!ulceraDestacada || ulceraYaAbierta || !data?.patients) return;
+        for (const p of data.patients) {
+            const u = (p.activeUlcers ?? []).find(x => x.id === ulceraDestacada);
+            if (u) {
+                abrirCuracion(u, p.name, p.roomNumber);
+                setUlceraYaAbierta(true);
+                return;
+            }
+        }
+        // No está entre las activas —se cerró, o es de otra sede—. Se marca
+        // visto igual para no reintentar en cada poll.
+        setUlceraYaAbierta(true);
+    }, [ulceraDestacada, ulceraYaAbierta, data]);
 
     const guardarPlan = async () => {
         if (!curando) return;
