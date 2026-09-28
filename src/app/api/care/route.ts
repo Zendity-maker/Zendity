@@ -180,7 +180,54 @@ export async function GET(req: Request) {
 
         const patientsRaw = await prisma.patient.findMany({
             where,
-            include: {
+            /**
+             * SELECT EXPLICITO. LO QUE LA TABLETA USA Y NADA MAS.
+             *
+             * Esto era `include` a secas, o sea que cada poll de la pantalla del
+             * piso se llevaba la FILA ENTERA de cada residente. Medido el
+             * 28-sep-2026 sobre los 31 residentes de Cupey: **4.386 kB**, y los
+             * includes anidados —medicamentos, vitales, banos, ulceras— no eran
+             * el peso: los residentes SOLOS ya eran 4.386 de los 4.593 totales.
+             *
+             * Cuatro columnas eran el 99 %, y no son URLs aunque se llamen asi:
+             * son documentos escaneados en base64 dentro de la fila.
+             *
+             *     photoUrl .......... 1.339 kB   43 kB por residente   SE USA (el avatar)
+             *     medicalPlanUrl .... 1.275 kB   41 kB                 0 usos en /care
+             *     idCardUrl ......... 1.141 kB   mediana 169.187 car.  0 usos en /care
+             *     medicareCardUrl ...   585 kB                         0 usos en /care
+             *
+             * Y ADEMAS, POR SER `include`, VIAJABA TODO LO DEMAS. De los 62
+             * campos escalares de Patient, /api/care y la tableta usan 21.
+             * Los otros 41 incluyen `achAccountNumber`, `achRoutingNumber`,
+             * `ssnLastFour`, `medicareNumber`, `medicaidNumber`, `idNumber`,
+             * `insurancePolicyNumber` y `monthlyFee`: el numero de cuenta y de
+             * ruta bancaria de cada residente, en la tableta de cada cuidadora,
+             * en cada poll, para pintar una pantalla que no los enseña.
+             *
+             * Los 21 no son a ojo: son los que aparecen de verdad en esta ruta,
+             * en care/page.tsx, en components/care/* y en los cuatro componentes
+             * que care/page importa de fuera (EmergencyPdfButton,
+             * FallIncidentPrint, DietPrescription, ZendiAssist) — de ahi salen
+             * `dateOfBirth`, `dietPegKcalMl` y `downtonRisk`, que la ruta sola
+             * no usaba.
+             *
+             * OJO AL ANADIR UN CAMPO: con `select` explicito, una columna nueva
+             * de Patient NO llega sola a la tableta. Hay que ponerla aqui. Es el
+             * precio de no mandar el numero de cuenta de nadie, y se paga.
+             *
+             * Las tres pantallas que SI necesitan los documentos escaneados
+             * —intake, /corporate/medical/patients/[id] y el resumen— tienen su
+             * propia ruta: /api/corporate/patients/[id].
+             */
+            select: {
+                id: true, headquartersId: true, name: true, roomNumber: true,
+                dateOfBirth: true, diet: true, dietTexture: true, dietDiabetic: true,
+                dietLowSodium: true, dietRenal: true, dietVegetarian: true, dietPegKcalMl: true,
+                downtonRisk: true, nortonRisk: true, requiresPosturalChanges: true, colorGroup: true,
+                status: true, leaveType: true, photoUrl: true, needsDialysis: true,
+                createdAt: true,
+
                 medications: {
                     where: {
                         isActive: true,
