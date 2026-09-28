@@ -46,13 +46,31 @@ export function SignaturePad({
     const [fillRatio, setFillRatio] = useState(0);
 
     // ─── Setup canvas con dpr (retina) ──────────────────────────────────
-    const setupCanvas = useCallback(() => {
+    /**
+     * `preservar` copia lo que ya estaba dibujado y lo repone después de
+     * reescalar. Ver el comentario largo del efecto de abajo para por qué hizo
+     * falta, y por qué se repone ESTIRADO y no recortado.
+     */
+    const setupCanvas = useCallback((preservar = false) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
         const dpr = window.devicePixelRatio || 1;
         const rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
+        const anchoQueToca = Math.trunc(rect.width * dpr);
+        const altoQueToca = Math.trunc(rect.height * dpr);
+        // Oculto o aún sin medir: no se mide, no se toca.
+        if (anchoQueToca === 0 || altoQueToca === 0) return;
+
+        let copia: HTMLCanvasElement | null = null;
+        if (preservar && canvas.width > 0 && canvas.height > 0) {
+            copia = document.createElement('canvas');
+            copia.width = canvas.width;
+            copia.height = canvas.height;
+            copia.getContext('2d')?.drawImage(canvas, 0, 0);
+        }
+
+        canvas.width = anchoQueToca;
+        canvas.height = altoQueToca;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
         ctx.scale(dpr, dpr);
@@ -63,14 +81,9 @@ export function SignaturePad({
         // Fondo blanco — fundamental para que el base64 PNG no salga transparente
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, rect.width, rect.height);
-    }, []);
 
-    useEffect(() => {
-        setupCanvas();
-        const onResize = () => setupCanvas();
-        window.addEventListener('resize', onResize);
-        return () => window.removeEventListener('resize', onResize);
-    }, [setupCanvas]);
+        if (copia) ctx.drawImage(copia, 0, 0, rect.width, rect.height);
+    }, []);
 
     // ─── Pointer handlers (mouse + touch unified) ──────────────────────
     const getPoint = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -134,6 +147,63 @@ export function SignaturePad({
         setFillRatio(ratio);
     }, []);
 
+    /**
+     * EL RESIZE BORRABA LA FIRMA Y DEJABA «ACEPTAR» ENCENDIDO.
+     *
+     * Antes esto era:
+     *
+     *     const onResize = () => setupCanvas();
+     *
+     * y `setupCanvas` reasigna `canvas.width`, que vacía el bitmap, y encima
+     * repinta el fondo blanco. La firma desaparecía. Pero `hasInk` y
+     * `fillRatio` son estado de React y NO se enteraban: seguían en `true` y en
+     * el valor de antes, así que `canAccept` seguía siendo cierto.
+     *
+     * Este es el ÚNICO de los siete recuadros de firma del repo que no se
+     * negaba: los otros seis se quedaban en blanco y decían «falta la firma»
+     * —molesto, pero honesto—. Aquí la trabajadora social pulsaba «Aceptar»
+     * sobre un recuadro vacío y `handleAccept` mandaba `canvas.toDataURL()` de
+     * un PNG completamente blanco como su firma en una evaluación clínica.
+     * Un documento firmado por nadie, con su nombre y su número de colegiado
+     * al lado.
+     *
+     * Dos cambios:
+     *
+     *   1. Si el recuadro mide lo mismo, no se toca nada. En una tableta ese es
+     *      el caso mayoritario —la barra del navegador que se colapsa, el
+     *      teclado que se abre—: cambia el alto de la VENTANA, no el del
+     *      recuadro. `canvas.width = x` borra el bitmap aunque `x` sea el mismo
+     *      valor que ya tenía, así que la comprobación tiene que ir antes.
+     *   2. Si cambió de verdad, se copia el trazo, se reescala y se repone.
+     *
+     * POR QUÉ SE REPONE ESTIRADO. Este canvas guarda píxeles, no puntos: a
+     * diferencia de `CanvasDeFirma`, no hay un `fromData` con el que redibujar
+     * el trazo en sus coordenadas. Las dos opciones eran reponer a 1:1 —que
+     * recorta en silencio lo que se sale si el recuadro estrechó— o estirar.
+     * Se estira: la firma queda algo deformada en un giro, pero entera. Perder
+     * un trozo del trazo sin avisar es el tipo de fallo que no se ve.
+     *
+     * Y se recalcula `fillRatio` después, para que lo que habilita el botón se
+     * corresponda con lo que de verdad hay pintado.
+     */
+    useEffect(() => {
+        setupCanvas();
+        const alRedimensionar = () => {
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            const anchoQueToca = Math.trunc(rect.width * dpr);
+            const altoQueToca = Math.trunc(rect.height * dpr);
+            if (anchoQueToca === 0 || altoQueToca === 0) return;
+            if (canvas.width === anchoQueToca && canvas.height === altoQueToca) return;
+            setupCanvas(true);
+            recomputeFillRatio();
+        };
+        window.addEventListener('resize', alRedimensionar);
+        return () => window.removeEventListener('resize', alRedimensionar);
+    }, [setupCanvas, recomputeFillRatio]);
+
     // ─── Limpiar ────────────────────────────────────────────────────────
     const handleClear = () => {
         const canvas = canvasRef.current;
@@ -151,6 +221,30 @@ export function SignaturePad({
     const handleAccept = () => {
         const canvas = canvasRef.current;
         if (!canvas) return;
+
+        /**
+         * Se vuelve a MIRAR el canvas, no el estado, justo antes de emitir.
+         *
+         * `canAccept` sale de `hasInk` y `fillRatio`, que son estado de React y
+         * por tanto pueden ir por detrás de lo que hay pintado — que es
+         * exactamente lo que pasaba con el resize. Esto no sustituye al arreglo
+         * de arriba: lo que hace es que, pase lo que pase con el estado, de
+         * aquí no salga un PNG en blanco con el nombre de la trabajadora
+         * social debajo.
+         */
+        const ctx = canvas.getContext('2d');
+        if (ctx && canvas.width > 0 && canvas.height > 0) {
+            const d = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            let inked = 0;
+            for (let i = 0; i < d.length; i += 4) if (d[i] < 240) inked++;
+            const ratio = inked / (canvas.width * canvas.height);
+            setFillRatio(ratio);
+            if (ratio < minFillRatio) {
+                setHasInk(false);
+                return;
+            }
+        }
+
         const base64 = canvas.toDataURL('image/png');
         // base64 incluye el prefijo "data:image/png;base64," — el caller decide
         // si lo strip antes de enviar al endpoint.
