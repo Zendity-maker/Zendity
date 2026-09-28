@@ -546,7 +546,8 @@ export default function ZendityCareTabletPage() {
      * nueva en el sitio de la que se venía a quitar.
      *
      *   con guarda   /adls/bath (2 min) · /adls/meal · /incidents (5 min)
-     *                /postural · /meds/prn-efecto (es un update, idempotente)
+     *                /postural · /meds/bulk (pack por conciliación, PRN 5 min)
+     *                /meds/prn-efecto (es un update, idempotente)
      *   sin guarda   /cambio-condicion · /preventive  ← y las dos CREAN fila
      */
     const avisoDeRed = (queNoSeGuardo: string, sinDuplicar: boolean) =>
@@ -2314,7 +2315,9 @@ export default function ZendityCareTabletPage() {
             });
             const data = await res.json();
             if (data.success) {
-                avisoOk(" Dosis PRN registrada. Después habrá que decir si hizo efecto.");
+                avisoOk(data.duplicada
+                    ? " " + (data.message || 'Esta dosis PRN ya estaba registrada.')
+                    : " Dosis PRN registrada. Después habrá que decir si hizo efecto.");
                 setPrnNote(""); setPrnMedId(null); setPrnTodos(false);
                 setActiveMedAction(null);
                 sigCanvas.current?.clear();
@@ -2324,15 +2327,8 @@ export default function ZendityCareTabletPage() {
                 avisoError(" " + (data.error || 'No se pudo registrar'));
             }
         } catch (e) {
-            /**
-             * `sinDuplicar: false` a propósito. Al pack se le puede prometer que
-             * un segundo toque no duplica, porque `conciliarPack` firma sobre la
-             * fila que ya existe. Al PRN NO: la guarda de /api/care/meds/bulk
-             * está dentro de `if ((isPack || isOmit) && scheduleTime)`, y un PRN
-             * no manda franja, así que cada envío CREA una fila nueva.
-             */
             console.error(e);
-            avisoDeRed('la dosis PRN', false);
+            avisoDeRed('la dosis PRN', true);
         } finally { setSubmitting(false); }
     };
 

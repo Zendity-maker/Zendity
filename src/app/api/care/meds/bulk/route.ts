@@ -108,6 +108,57 @@ export async function POST(req: Request) {
                     error: 'Falta para qué se administró (mínimo 5 caracteres).',
                 }, { status: 400 });
             }
+
+            /**
+             * EL DOBLE TOQUE DEL PRN.
+             *
+             * La guarda de más abajo —la de `conciliarPack`— NO cubre esto:
+             * vive dentro de `if ((isPack || isOmit) && scheduleTime)`, y un PRN
+             * no manda franja porque no la tiene. Así que hasta hoy cada envío
+             * de PRN creaba una fila nueva, y un doble toque —o un reintento
+             * porque la pantalla se vio lenta— dejaba DOS dosis registradas de
+             * la misma benzodiacepina.
+             *
+             * POR QUÉ CINCO MINUTOS. Se elige por el acto, no por costumbre. No
+             * existe un PRN con intervalo mínimo de cinco minutos: lo que se
+             * receta es q4h, q6h, q8h. Dos registros del MISMO medicamento para
+             * la MISMA persona separados por menos de cinco minutos no son dos
+             * dosis, son una escrita dos veces. Y cinco minutos dan de sobra
+             * para el caso feo de verdad: el envío que sí entró pero cuya
+             * respuesta no llegó, y que se reintenta medio minuto después.
+             *
+             * Si un día hace falta dar una segunda dosis antes de cinco minutos,
+             * el número está aquí y se cambia en una línea.
+             *
+             * Se compara `createdAt` y no `administeredAt`: el PRN no admite
+             * fecha retroactiva —el cliente no manda ninguna— así que la fecha
+             * de escritura ES la del acto. Y `administeredAt` es nulo en todo lo
+             * que no sea ADMINISTERED (CLAUDE.md, la fecha que está nula justo
+             * donde importa).
+             *
+             * Y devuelve ÉXITO con la que ya existe, no un 409. Quien pulsó hizo
+             * lo correcto; un error en rojo le dice que lo intente otra vez, que
+             * es justo lo que produce el duplicado.
+             */
+            const VENTANA_PRN_MS = 5 * 60 * 1000;
+            const yaRegistrada = await prisma.medicationAdministration.findFirst({
+                where: {
+                    patientMedicationId: idsAProcesarPRN(medicationIds)[0],
+                    status: 'ADMINISTERED',
+                    prnMotivo: { not: null },
+                    createdAt: { gte: new Date(Date.now() - VENTANA_PRN_MS) },
+                },
+                select: { id: true, createdAt: true, prnMotivo: true },
+                orderBy: { createdAt: 'desc' },
+            });
+            if (yaRegistrada) {
+                return NextResponse.json({
+                    success: true,
+                    duplicada: true,
+                    administracionId: yaRegistrada.id,
+                    message: 'Esta dosis PRN ya estaba registrada. No hizo falta hacer nada.',
+                });
+            }
         }
 
         /**
