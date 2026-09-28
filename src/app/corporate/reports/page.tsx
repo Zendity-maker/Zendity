@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { CanvasDeFirma } from '@/components/CanvasDeFirma';
+import { leerFirma } from '@/lib/firma';
 import { useAuth } from '@/context/AuthContext';
 import { ClipboardList, CheckCircle2, Clock, Sun, Moon, Sunset, Loader2, FileText, PenTool, X, Eye } from 'lucide-react';
 
@@ -157,14 +158,21 @@ export default function CorporateReportsPage() {
 
     const handleSign = async () => {
         if (!signingFor) return;
-        if (!sigPad.current || sigPad.current.isEmpty()) {
-            setError('Por favor dibuja tu firma antes de continuar.');
+        /**
+         * `isEmpty()` deja de ser cierto al dibujar UN PUNTO —así está escrito
+         * `_drawPoint` en signature_pad 2.3.2—, así que un dedo que roza el
+         * recuadro pasaba por firma de supervisión. La regla de qué cuenta como
+         * firma está una sola vez, en src/lib/firma.ts.
+         */
+        const firma = leerFirma(sigPad.current, 'Por favor dibuja tu firma antes de continuar.');
+        if (!firma.valida || !firma.dataUrl) {
+            setError(firma.motivo);
             return;
         }
         setSubmitting(true);
         setError(null);
         try {
-            const signature = sigPad.current.getTrimmedCanvas().toDataURL('image/png');
+            const signature = firma.dataUrl;
             const res = await fetch(`/api/care/reports/${signingFor.id}/sign`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

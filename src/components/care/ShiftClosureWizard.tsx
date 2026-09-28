@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { CanvasDeFirma } from "@/components/CanvasDeFirma";
 import { AlertOctagon, AlertTriangle, CheckCircle, PenTool, Lock, ArrowRight, Loader2, Sparkles, FileText, HelpCircle, X, Eraser } from "lucide-react";
-import { juzgarFirma } from '@/lib/firma';
+import { leerFirma } from '@/lib/firma';
 
 export interface RespuestaAviso {
     codigo: string;
@@ -119,32 +119,23 @@ export default function ShiftClosureWizard({
     const sigCanvas = useRef<any>(null);
 
     const handleSigEnd = () => {
-        if (!sigCanvas.current || sigCanvas.current.isEmpty()) return;
-        try {
-            /**
-             * Un punto no es una firma. `isEmpty()` deja de serlo al dibujar un
-             * solo punto (signature_pad 2.3.2, `_drawPoint`), y esto firma el
-             * relevo entero. Ver src/lib/firma.ts para la calibración.
-             *
-             * Aquí NO se avisa ni se bloquea: esto corre en `onEnd`, mientras
-             * la persona todavía está dibujando. Simplemente no se guarda hasta
-             * que haya trazo, y el botón de cerrar turno sigue desactivado —
-             * que es lo que ya pasaba con el canvas vacío.
-             */
-            const recorte = sigCanvas.current.getTrimmedCanvas();
-            if (!juzgarFirma(recorte).valida) { setSignature(null); return; }
-            const dataUrl = recorte.toDataURL('image/png');
-            setSignature(dataUrl);
-        } catch {
-            // getTrimmedCanvas puede fallar si el trazo es de 0 px;
-            // fallback al canvas completo.
-            try {
-                const dataUrl = sigCanvas.current.toDataURL('image/png');
-                setSignature(dataUrl);
-            } catch (e) {
-                console.error('[ShiftClosureWizard] no se pudo capturar firma', e);
-            }
-        }
+        /**
+         * Un punto no es una firma. `isEmpty()` deja de serlo al dibujar un
+         * solo punto (signature_pad 2.3.2, `_drawPoint`), y esto firma el
+         * relevo entero. Ver src/lib/firma.ts para la calibración.
+         *
+         * Aquí NO se avisa ni se bloquea: esto corre en `onEnd`, mientras la
+         * persona todavía está dibujando. Simplemente no se guarda hasta que
+         * haya trazo, y el botón de cerrar turno sigue desactivado — que es lo
+         * que ya pasaba con el canvas vacío.
+         *
+         * El `catch` de antes reponía el canvas SIN RECORTAR cuando
+         * `getTrimmedCanvas` fallaba. Eso es cientos de kB de blanco, y sobre
+         * todo: si no se puede medir el trazo, no se puede juzgar. `leerFirma`
+         * lo rechaza en vez de aceptarlo a ciegas.
+         */
+        const firma = leerFirma(sigCanvas.current);
+        setSignature(firma.valida ? firma.dataUrl : null);
     };
 
     const handleClearSignature = () => {

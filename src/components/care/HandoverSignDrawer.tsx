@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRef, useState } from "react";
 import type SignatureCanvas from "react-signature-canvas";
 import { CanvasDeFirma } from "@/components/CanvasDeFirma";
+import { leerFirma } from "@/lib/firma";
 import { CheckCircle, PenTool, Eraser, X, Loader2, ExternalLink } from "lucide-react";
 import { ExpandableText } from "@/components/ui/ExpandableText";
 
@@ -70,14 +71,19 @@ export function HandoverSignDrawer({ handover, onClose, onSigned }: HandoverSign
     const [error, setError] = useState<string | null>(null);
 
     const handleSigEnd = () => {
-        try {
-            const trimmed = sigCanvas.current?.getTrimmedCanvas();
-            if (trimmed && trimmed.width > 0 && trimmed.height > 0) {
-                setSignature(trimmed.toDataURL("image/png"));
-            }
-        } catch (e) {
-            console.error("[HandoverSignDrawer] capture signature", e);
-        }
+        /**
+         * `width > 0 && height > 0` NO filtraba nada: `trim-canvas` sobre un
+         * recuadro en blanco devuelve un canvas de 1×1, no de 0×0, así que la
+         * condición era cierta hasta para un canvas vacío. Y un toque del dedo
+         * sin mover deja un punto de 4×4, que también pasaba.
+         *
+         * Aquí la firma se captura a estado en cada `onEnd`, así que si el
+         * veredicto es que no hay trazo hay que DESHACER la captura: si no, un
+         * trazo bueno seguido de un toque dejaría el borde verde de «firmado»
+         * puesto sobre lo que ya no vale.
+         */
+        const firma = leerFirma(sigCanvas.current);
+        setSignature(firma.valida ? firma.dataUrl : null);
     };
 
     const handleClear = () => {

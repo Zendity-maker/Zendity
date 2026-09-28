@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { CanvasDeFirma } from "@/components/CanvasDeFirma";
+import { leerFirma } from "@/lib/firma";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { Loader2, ArrowLeft, PenTool, Download, CheckCircle2 } from "lucide-react";
@@ -45,8 +46,15 @@ export default function DocumentSignerPage() {
     };
 
     const handleSignAndSeal = async () => {
-        if (sigPad.current?.isEmpty()) {
-            setError("Por favor dibuje su firma en el recuadro antes de continuar.");
+        /**
+         * `isEmpty()` deja de ser cierto al dibujar UN PUNTO en signature_pad
+         * 2.3.2. Esto es un documento legal que un familiar firma desde su
+         * teléfono: un toque accidental no puede valer por su firma. La regla
+         * está una sola vez, en src/lib/firma.ts.
+         */
+        const firma = leerFirma(sigPad.current, "Por favor dibuje su firma en el recuadro antes de continuar.");
+        if (!firma.valida || !firma.dataUrl) {
+            setError(firma.motivo);
             return;
         }
 
@@ -55,7 +63,7 @@ export default function DocumentSignerPage() {
 
         try {
             // 1. Extraer la firma vectorial en Base64
-            const signatureBase64 = sigPad.current.getTrimmedCanvas().toDataURL("image/png");
+            const signatureBase64 = firma.dataUrl;
 
             // 2. Enviar la firma al servidor para sellar la BD
             const res = await fetch(`/api/family/documents/${docId}/sign`, {
