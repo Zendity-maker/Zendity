@@ -43,30 +43,52 @@ El guard:
 
 ## 🔐 Variables de Entorno
 
-- `.env` actualmente apunta directo a **producción** (Neon)
+- `.env` apunta directo a **producción** (Neon). Tratarlo como **read-only de producción**
 - Cualquier comando que cargue `.env` y toque DB → impacta producción
-- Hasta que haya una **rama de Neon para desarrollo**, tratar `.env` como **read-only de producción**
+- **`.env.local` apunta a la rama de desarrollo** y gana sobre `.env` en Next.js
 
-### `npm run dev` también habla con producción — 27-sep-2026
+### Ya hay rama de desarrollo — 27-sep-2026
 
-`npm run dev` pasa por `scripts/dev-guard.sh`, que dice en alto a qué host va a
-hablar la app y de qué fichero salió la `DATABASE_URL`, y **no arranca contra
-producción** sin `DEV_CONTRA_PROD=SI` (vale en el shell o en `.env.local`).
+Proyecto Zendity `sweet-cloud-50963332`, rama **`desarrollo`**, copia de `main`
+hecha el 27-sep. Su endpoint es `ep-silent-silence-aebwfpsh`; producción es
+`ep-wispy-queen-ae20881h`. Son distintos, y de ahí sale todo lo demás.
 
-Qué se encontró ese día: `.env.local` gana sobre `.env` en Next.js y llevaba una
-`DATABASE_URL` con la contraseña caducada — por eso `npm run dev` no conectaba —
-apuntando al host de producción **sin pooler**. O sea que arreglar esa contraseña,
-que es un cambio de una línea, habría puesto el servidor de desarrollo a escribir
-en la base del hogar sin que nada lo dijera. La contraseña rota estaba tapando el
-problema de verdad. Quedó comentada; `DATABASE_URL` sale ahora de `.env`.
+| | dónde vive | a qué habla |
+|---|---|---|
+| `npm run dev` | `.env.local` gana | **rama de desarrollo** |
+| `npx tsx script.ts` con `@/lib/prisma` | Prisma carga `.env`, no `.env.local` | **producción** |
+| `npm run db:push` / `db:migrate` | la env var del shell | lo que le pases |
 
-**La salida de verdad es una rama de Neon.** Tiene otro endpoint, así que ni este
-guard ni el de `db:push` la bloquean: el día que `DATABASE_URL` apunte a una rama,
-se borra `DEV_CONTRA_PROD` de `.env.local` y esto deja de avisar solo.
+Esa segunda fila es la trampa: un script de medición sigue leyendo producción, que
+es lo que se quiere para medir — pero **si escribe, escribe en producción**. Para
+apuntar un script a la rama hay que pasarle la URL a mano.
+
+Comprobado el día de crearla: las dos bases traen lo mismo (49 residentes, 41
+usuarios, 30.464 administraciones, 1.629 turnos, 2 sedes) y una tabla creada en
+desarrollo **no aparece** en producción.
+
+Los datos son una **foto del 27-sep** y no se actualizan solos. Para refrescarla se
+borra la rama y se vuelve a crear (`npx neonctl branches delete/create`).
+
+### El guard de `npm run dev`
+
+`scripts/dev-guard.sh` dice en alto a qué host va a hablar la app y de qué fichero
+salió la `DATABASE_URL`, y **no arranca contra producción** sin `DEV_CONTRA_PROD=SI`
+(vale en el shell o en un `.env`). Con la rama puesta no dice nada: una rama no casa
+con el patrón de producción.
+
+Por qué existe: antes del 27-sep, `.env.local` llevaba una `DATABASE_URL` con la
+contraseña caducada —por eso `npm run dev` no conectaba— apuntando al host de
+producción **sin pooler**. Arreglar esa contraseña, que es un cambio de una línea,
+habría puesto el servidor de desarrollo a escribir en la base del hogar sin que nada
+lo dijera. La contraseña rota estaba tapando el problema de verdad.
 
 El patrón que distingue producción (`ep-wispy-queen-ae20881h`) vive **en un solo
 sitio**, `scripts/lib/host-produccion.sh`, del que tiran los tres guards. Estaba
 escrito dos veces.
+
+Y ojo con `.gitignore`: `scripts/*` ignora todo lo nuevo de esa carpeta. Un guard
+recién escrito se queda fuera del repo sin avisar. Cada uno necesita su `!línea`.
 
 ---
 
