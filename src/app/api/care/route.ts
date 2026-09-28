@@ -335,10 +335,11 @@ export async function GET(req: Request) {
                     where: { status: { in: ['ACTIVE', 'HEALING'] } },
                     select: { id: true, bodyLocation: true, stage: true, planTratamiento: true, planEstablecidoPor: true },
                 },
-                posturalChanges: {
-                    orderBy: { performedAt: 'desc' },
-                    take: 1
-                },
+                /**
+                 * `posturalChanges` YA NO VA AQUÍ. Ver `ultimaRotacion` más
+                 * abajo: el `take: 1` anidado de Prisma se traía las 19.336
+                 * filas del historial completo.
+                 */
                 vitalsOrders: {
                     /**
                      * PENDING **Y** LA REVISIÓN DE OBSERVACIÓN YA VENCIDA.
@@ -419,10 +420,62 @@ export async function GET(req: Request) {
             orderBy: { name: 'asc' }
         });
 
+        /**
+         * LA ÚLTIMA ROTACIÓN DE CADA RESIDENTE, SIN TRAER EL HISTORIAL ENTERO.
+         *
+         * ═══ QUÉ HACÍA PRISMA ═══
+         *
+         * Esto era una relación más del `select`:
+         *
+         *     posturalChanges: { orderBy: { performedAt: 'desc' }, take: 1 }
+         *
+         * Parece inocente y no lo es. El SQL que Prisma emite para un `take: 1`
+         * anidado NO LLEVA LIMIT — capturado el 28-sep-2026 con el log de
+         * consultas contra producción:
+         *
+         *     SELECT <todas las columnas> FROM "PosturalChangeLog"
+         *     WHERE "patientId" IN ($1…$31)
+         *     ORDER BY "performedAt" DESC
+         *     OFFSET $32
+         *
+         * O sea que se trae **las 19.336 filas** del historial de rotaciones de
+         * esos 31 residentes y hace el «quédate con la primera de cada uno» EN
+         * MEMORIA, en el servidor de Next. En cada poll de la pantalla del piso.
+         *
+         * ═══ MEDIDO CONTRA PRODUCCIÓN, mediana de 5 pasadas ═══
+         *
+         *     take: 1 anidado de Prisma ......... 2.033 ms
+         *     DISTINCT ON en Postgres ...........   136 ms      ← 15x
+         *
+         *     y dentro de la consulta grande, esa sola relación costaba 1.287 ms
+         *     de los ~2.000 totales: más que todas las demás juntas.
+         *
+         * El índice ya existía —`(patientId, performedAt DESC)`— y `DISTINCT ON`
+         * lo usa; el problema nunca fue la base, sino el SQL que se le mandaba.
+         *
+         * Va en paralelo con la consulta grande: se acota por sede y estado, que
+         * es un superconjunto de los residentes que se devuelven, así que no
+         * hace falta esperar a tener sus ids.
+         */
+        const ultimaRotacionPorResidente = prisma.$queryRaw<Array<{
+            id: string; patientId: string; nurseId: string; position: string;
+            performedAt: Date; createdAt: Date; isComplianceAlert: boolean | null;
+            esImputable: boolean | null;
+        }>>`
+            SELECT DISTINCT ON (pc."patientId") pc.*
+            FROM "PosturalChangeLog" pc
+            JOIN "Patient" p ON p.id = pc."patientId"
+            WHERE p."headquartersId" = ${hqId}
+              AND p.status IN ('ACTIVE', 'TEMPORARY_LEAVE')
+            ORDER BY pc."patientId", pc."performedAt" DESC
+        `;
+
         // FASE 80: Residentes en hospital permanecen en el censo (con badge),
         // pero sus medicamentos NO aparecen en el eMAR activo del turno.
         // Sprint N.4: anexar overrideInfo al residente que está cubierto por
         // redistribución (para pintar el badge "COBERTURA [COLOR]" en el tablet).
+        const rotaciones = new Map((await ultimaRotacionPorResidente).map(r => [r.patientId, r]));
+
         const patients = patientsRaw.map(p => {
             const override = overrideByPatientId.get(p.id);
             /**
@@ -433,7 +486,14 @@ export async function GET(req: Request) {
              * y `null` sigue significando «no tiene foto».
              */
             const v = versionFoto.get(p.id);
-            const conFoto = { ...p, photoUrl: v ? `/api/care/foto/${p.id}?v=${v}` : null };
+            // `posturalChanges` conserva la forma que la tableta ya leía: un
+            // array con la última rotación, o vacío si no hay ninguna.
+            const rot = rotaciones.get(p.id);
+            const conFoto = {
+                ...p,
+                photoUrl: v ? `/api/care/foto/${p.id}?v=${v}` : null,
+                posturalChanges: rot ? [rot] : [],
+            };
             const base = p.status === 'TEMPORARY_LEAVE' ? { ...conFoto, medications: [] } : conFoto;
             if (override) {
                 return {
