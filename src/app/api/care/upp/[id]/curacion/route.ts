@@ -43,7 +43,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSessionUser } from '@/lib/api-auth';
 import { notifyRoles } from '@/lib/notifications';
-import { TIPOS_UPP, puedeRegistrar, avisoAEnfermeria, etiquetaDeMotivo, etiquetaDeCierre, MOTIVOS_CAMBIO, MOTIVOS_CIERRE, ESTADOS_UPP, type TipoRegistroUpp } from '@/lib/upp';
+import { TIPOS_UPP, puedeRegistrar, escribeElTratamiento, avisoAEnfermeria, etiquetaDeMotivo, etiquetaDeCierre, MOTIVOS_CAMBIO, MOTIVOS_CIERRE, ESTADOS_UPP, type TipoRegistroUpp } from '@/lib/upp';
 
 export const dynamic = 'force-dynamic';
 
@@ -107,9 +107,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         if (cerrandoSinResolver && motivoCierre === 'OTRO' && !notes) {
             return NextResponse.json({ success: false, error: 'Escribe la razón del cierre' }, { status: 400 });
         }
-        if (!cerrando && def.pideTratamiento && !treatmentApplied) {
-            return NextResponse.json({ success: false, error: 'Falta qué se aplicó' }, { status: 400 });
-        }
+        // La validación de «qué se aplicó» vive más abajo: depende del plan de
+        // la úlcera, que todavía no se ha leído.
         if (def.pideMotivo && !MOTIVOS_CAMBIO.some(m => m.codigo === motivo)) {
             return NextResponse.json({ success: false, error: 'Falta por qué se cambió el apósito' }, { status: 400 });
         }
@@ -129,6 +128,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             where: { id, patient: { headquartersId: auth.headquartersId } },
             select: {
                 id: true, stage: true, status: true, bodyLocation: true, resolvedAt: true,
+                planTratamiento: true, planEstablecidoPor: true,
                 patient: { select: { id: true, name: true } },
             },
         });
@@ -137,6 +137,44 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         }
         if (ulcera.resolvedAt) {
             return NextResponse.json({ success: false, error: 'Esta úlcera ya está cerrada.' }, { status: 409 });
+        }
+
+        /**
+         * QUÉ SE APLICÓ — Y QUIÉN PUEDE DECIRLO.
+         *
+         * Desde el 28-sep-2026 una cuidadora puede registrar una CURACION. Lo
+         * que no puede es decidir el tratamiento: a ella no se le pregunta qué
+         * aplicó, se le copia el PLAN DEL HOME CARE, literal.
+         *
+         * Así el expediente dice qué se puso y quién lo indicó, y no recoge un
+         * tratamiento que nadie recetó — que era el motivo, bueno, por el que
+         * este circuito la dejaba fuera.
+         *
+         * Sin plan escrito no hay nada que confirmar. Se la manda a «Cambié el
+         * apósito», que es lo que sí puede afirmar por sí misma. Medido el
+         * 28-sep: cuatro de las seis úlceras activas no tienen plan.
+         */
+        const decideTratamiento = escribeElTratamiento([auth.role, ...auth.secondaryRoles]);
+        let tratamientoFinal = treatmentApplied;
+
+        if (!cerrando && def.pideTratamiento) {
+            if (decideTratamiento) {
+                if (!treatmentApplied) {
+                    return NextResponse.json({ success: false, error: 'Falta qué se aplicó' }, { status: 400 });
+                }
+            } else {
+                const plan = (ulcera.planTratamiento ?? '').trim();
+                if (!plan) {
+                    return NextResponse.json({
+                        success: false,
+                        error: 'Esta úlcera todavía no tiene el plan del home care escrito, así que no hay tratamiento que confirmar. Registra «Cambié el apósito» y avisa a enfermería para que lo escriba.',
+                    }, { status: 409 });
+                }
+                // Literal, y con quién lo indicó dentro. No se le pide nada.
+                tratamientoFinal = ulcera.planEstablecidoPor
+                    ? `${plan} — según el plan de ${ulcera.planEstablecidoPor}`
+                    : `${plan} — según el plan del home care`;
+            }
         }
 
         const empeora = nuevoEstadio !== null && nuevoEstadio > ulcera.stage;
@@ -150,7 +188,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
                     // "cerrada porque falleció", no "curación sin tratamiento".
                     tipo: cerrando ? 'CIERRE' : tipo,
                     motivo: cerrandoSinResolver ? motivoCierre : def.pideMotivo ? motivo : null,
-                    treatmentApplied: !cerrando && def.pideTratamiento ? treatmentApplied.slice(0, 500) : null,
+                    treatmentApplied: !cerrando && def.pideTratamiento ? tratamientoFinal.slice(0, 500) : null,
                     // `notes` es obligatorio en el modelo. Si no se escribe nada,
                     // se guarda lo que dé sentido a la fila —lo aplicado, o el
                     // motivo— en vez de un string vacío que nadie sabe leer.
@@ -158,7 +196,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
                         notes
                         || (cerrandoSinResolver ? etiquetaDeCierre(motivoCierre) : '')
                         || (nuevoEstado === 'RESOLVED' ? 'La úlcera sanó.' : '')
-                        || treatmentApplied
+                        || tratamientoFinal
                         || etiquetaDeMotivo(motivo)
                     ).slice(0, 2000),
                     woundSize: woundSize.slice(0, 60) || null,
@@ -195,7 +233,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
                 title: `UPP empeoró — ${ulcera.patient.name.trim()}`,
                 message: `${ulcera.bodyLocation}: pasó de estadio ${ulcera.stage} a ${nuevoEstadio}. `
                     + `Registrado por ${auth.name ?? 'personal'}.`
-                    + (treatmentApplied ? ` Aplicado: ${treatmentApplied.slice(0, 120)}` : ''),
+                    + (tratamientoFinal ? ` Aplicado: ${tratamientoFinal.slice(0, 120)}` : ''),
                 link: '/care/nursing',
             }, auth.id).catch(e => console.error('Aviso de UPP que empeora:', e));
         }

@@ -2792,17 +2792,44 @@ export default function ZendityCareTabletPage() {
     const [motivoAposito, setMotivoAposito] = useState('');
     const [notaAposito, setNotaAposito] = useState('');
     const [guardandoAposito, setGuardandoAposito] = useState(false);
+    /**
+     * LA CUIDADORA TAMBIÉN CURA.
+     *
+     * Hasta hoy desde la tableta solo se podía registrar «Cambié el apósito».
+     * La curación estaba cerrada a enfermería, y con un motivo bueno: si se le
+     * pregunta a la cuidadora QUÉ APLICÓ, el expediente se llena de
+     * tratamientos que nadie recetó.
+     *
+     * Pero la regla no describía el hogar. Medido el 28-sep sobre los 33
+     * registros de úlcera: 17 curaciones, y las escribieron Andrés (14) y Celia
+     * (3). Quien cura de verdad —la enfermera de Nova Infusion, la de Hospicio
+     * la Paz— no tiene cuenta, y la cuidadora que la asiste no tenía dónde
+     * anotarlo. Y a /care/nursing, donde sí está el formulario completo, una
+     * cuidadora ni siquiera puede entrar: es de enfermería y supervisión.
+     *
+     * Así que se abre AQUÍ, y SOLO cuando la úlcera tiene plan escrito: no se
+     * le pregunta qué aplicó, se guarda el plan literal y ella confirma que eso
+     * fue lo que hizo. Sin plan no hay nada que confirmar, y la opción no sale.
+     */
+    const [tipoAposito, setTipoAposito] = useState<'CAMBIO_APOSITO' | 'CURACION'>('CAMBIO_APOSITO');
 
     const abrirAposito = (residente: any) => {
         const u = residente.pressureUlcers?.[0];
         if (!u) return;
         setAposito({ residente, ulcera: u });
         setMotivoAposito(''); setNotaAposito('');
+        // Siempre abre en el apósito: es lo que hace cada día. La curación es
+        // la excepción y hay que escogerla.
+        setTipoAposito('CAMBIO_APOSITO');
     };
 
     const guardarAposito = async () => {
-        if (!aposito || !motivoAposito) return;
-        if (motivoAposito === 'OTRO' && !notaAposito.trim()) {
+        if (!aposito) return;
+        const esCuracion = tipoAposito === 'CURACION';
+        // El motivo es del apósito. Una curación no tiene «por qué hubo que
+        // cambiarlo»: se hace porque toca.
+        if (!esCuracion && !motivoAposito) return;
+        if (!esCuracion && motivoAposito === 'OTRO' && !notaAposito.trim()) {
             avisoError('Escribe qué pasó.');
             return;
         }
@@ -2811,11 +2838,17 @@ export default function ZendityCareTabletPage() {
             const res = await fetch(`/api/care/upp/${aposito.ulcera.id}/curacion`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tipo: 'CAMBIO_APOSITO', motivo: motivoAposito, notes: notaAposito.trim() }),
+                body: JSON.stringify(
+                    esCuracion
+                        // Sin `treatmentApplied`: el servidor copia el plan literal.
+                        // Ver `escribeElTratamiento` en src/lib/upp.ts.
+                        ? { tipo: 'CURACION', notes: notaAposito.trim() }
+                        : { tipo: 'CAMBIO_APOSITO', motivo: motivoAposito, notes: notaAposito.trim() },
+                ),
             });
             const d = await res.json();
             if (!d.success) { avisoError(d.error || 'No se pudo registrar'); return; }
-            avisoOk(d.mensaje || 'Cambio de apósito registrado.');
+            avisoOk(d.mensaje || (esCuracion ? 'Curación registrada.' : 'Cambio de apósito registrado.'));
             setAposito(null);
         } catch {
             avisoError('Error de red');
@@ -7326,7 +7359,7 @@ export default function ZendityCareTabletPage() {
                                 <button onClick={() => setAposito(null)} className="text-slate-400 hover:text-slate-600 shrink-0 text-2xl leading-none px-2">×</button>
                             </div>
                             <p className="mt-3 text-xs text-slate-600 leading-relaxed bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
-                                {TIPOS_UPP.CAMBIO_APOSITO.queEs}
+                                {TIPOS_UPP[tipoAposito].queEs}
                             </p>
                         </div>
 
@@ -7351,6 +7384,45 @@ export default function ZendityCareTabletPage() {
                                 </div>
                             )}
 
+                            {/* Solo con plan escrito: sin plan no hay nada que
+                                confirmar, y la opción no debe existir. */}
+                            {aposito.ulcera.planTratamiento && (
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        onClick={() => setTipoAposito('CAMBIO_APOSITO')}
+                                        className={`min-h-[52px] rounded-xl font-bold text-[13px] px-3 transition-colors border-2 ${
+                                            tipoAposito === 'CAMBIO_APOSITO'
+                                                ? 'bg-[#1F2D3A] text-white border-[#1F2D3A]'
+                                                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                                        }`}
+                                    >
+                                        Cambié el apósito
+                                    </button>
+                                    <button
+                                        onClick={() => setTipoAposito('CURACION')}
+                                        className={`min-h-[52px] rounded-xl font-bold text-[13px] px-3 transition-colors border-2 ${
+                                            tipoAposito === 'CURACION'
+                                                ? 'bg-[#0F6B78] text-white border-[#0F6B78]'
+                                                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                                        }`}
+                                    >
+                                        Hice la curación
+                                    </button>
+                                </div>
+                            )}
+
+                            {tipoAposito === 'CURACION' && (
+                                <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-3 py-2.5">
+                                    <p className="text-sm text-slate-800 font-medium leading-snug">
+                                        Al guardar queda anotado que hiciste <span className="font-black">lo que dice el plan de arriba</span>.
+                                    </p>
+                                    <p className="text-xs text-slate-600 mt-1">
+                                        Si hiciste otra cosa, no lo registres como curación: usa «Cambié el apósito» y escríbelo en la nota.
+                                    </p>
+                                </div>
+                            )}
+
+                            {tipoAposito === 'CAMBIO_APOSITO' && (
                             <div>
                                 <p className="text-xs font-black text-slate-600 uppercase tracking-wide mb-1.5">¿Por qué hubo que cambiarlo?</p>
                                 <div className="space-y-1.5">
@@ -7367,10 +7439,11 @@ export default function ZendityCareTabletPage() {
                                     ))}
                                 </div>
                             </div>
+                            )}
 
                             <div>
                                 <p className="text-xs font-black text-slate-600 uppercase tracking-wide mb-1.5">
-                                    Cómo la viste <span className="font-medium normal-case text-slate-400">{motivoAposito === 'OTRO' ? '(escribe qué pasó)' : '(opcional)'}</span>
+                                    Cómo la viste <span className="font-medium normal-case text-slate-400">{tipoAposito === 'CAMBIO_APOSITO' && motivoAposito === 'OTRO' ? '(escribe qué pasó)' : '(opcional)'}</span>
                                 </p>
                                 <textarea
                                     value={notaAposito}
@@ -7384,10 +7457,12 @@ export default function ZendityCareTabletPage() {
 
                             <button
                                 onClick={guardarAposito}
-                                disabled={guardandoAposito || !motivoAposito}
-                                className="w-full min-h-[52px] bg-[#D9534F] hover:bg-[#c0392b] disabled:bg-slate-200 disabled:text-slate-400 text-white font-black rounded-2xl transition-colors"
+                                disabled={guardandoAposito || (tipoAposito === 'CAMBIO_APOSITO' && !motivoAposito)}
+                                className={`w-full min-h-[52px] disabled:bg-slate-200 disabled:text-slate-400 text-white font-black rounded-2xl transition-colors ${
+                                    tipoAposito === 'CURACION' ? 'bg-[#0F6B78] hover:bg-[#0d5a66]' : 'bg-[#D9534F] hover:bg-[#c0392b]'
+                                }`}
                             >
-                                {guardandoAposito ? 'Guardando…' : 'Registrar el cambio'}
+                                {guardandoAposito ? 'Guardando…' : tipoAposito === 'CURACION' ? 'Registrar la curación' : 'Registrar el cambio'}
                             </button>
                         </div>
                     </div>

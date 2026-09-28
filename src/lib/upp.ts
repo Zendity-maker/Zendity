@@ -99,8 +99,27 @@ export interface DefinicionTipo {
 export const TIPOS_UPP: Record<TipoRegistroUpp, DefinicionTipo> = {
     CURACION: {
         etiqueta: 'Curación',
-        queEs: 'El tratamiento del plan del home care. Lo hace la enfermera.',
-        roles: ['NURSE', 'DIRECTOR', 'ADMIN'],
+        queEs: 'El tratamiento del plan del home care.',
+        /**
+         * LA CUIDADORA TAMBIÉN CURA — 28-sep-2026.
+         *
+         * Hasta hoy esto era `['NURSE','DIRECTOR','ADMIN']`, con un motivo
+         * escrito y bueno: preguntarle a la cuidadora QUÉ APLICÓ la obligaría a
+         * inventarse una respuesta, y el expediente se llenaría de tratamientos
+         * que nadie indicó.
+         *
+         * Pero la regla no describía el hogar. Medido el 28-sep sobre los 33
+         * registros de úlcera que hay: 17 curaciones, y las escribieron Andrés
+         * (14) y Celia (3). Las cuidadoras del piso hicieron DOS registros en
+         * tres meses y medio, los dos de apósito. Quien cura de verdad —la
+         * enfermera de Nova Infusion, la de Hospicio la Paz— no tiene cuenta, y
+         * la cuidadora que la asiste no tenía dónde anotarlo.
+         *
+         * Se abre, PERO NO SE LE PREGUNTA QUÉ APLICÓ. Eso sigue valiendo. Ver
+         * `pideTratamiento` abajo: para ella el tratamiento sale del PLAN
+         * escrito, no de su cabeza.
+         */
+        roles: ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'],
         pideTratamiento: true,
         pideMotivo: false,
         puedeCambiarEstadio: true,
@@ -138,6 +157,28 @@ export const TIPOS_UPP: Record<TipoRegistroUpp, DefinicionTipo> = {
 export function puedeRegistrar(tipo: TipoRegistroUpp, roles: (string | null | undefined)[]): boolean {
     const permitidos = TIPOS_UPP[tipo].roles;
     return roles.some(r => !!r && permitidos.includes(r));
+}
+
+/** Los roles con criterio clínico para decir QUÉ se aplicó sobre una herida. */
+const DECIDEN_TRATAMIENTO = ['NURSE', 'DIRECTOR', 'ADMIN'];
+
+/**
+ * ¿SE LE PREGUNTA A ESTA PERSONA QUÉ APLICÓ?
+ *
+ * A enfermería sí: escribe el tratamiento, que es su decisión clínica.
+ *
+ * A la cuidadora no. Ella hace la curación que dice el plan del home care, y lo
+ * que se guarda es ESE plan, copiado literal. Así el expediente dice qué se
+ * puso y quién lo indicó, y no recoge un tratamiento que nadie recetó — que es
+ * justo lo que este circuito llevaba tres meses evitando al dejarla fuera.
+ *
+ * Si la úlcera NO tiene plan escrito, no hay nada que confirmar: se le ofrece
+ * «Cambié el apósito», que es lo que sí puede afirmar por sí misma. Medido el
+ * 28-sep: cuatro de las seis úlceras activas no tienen plan, así que esto no es
+ * un caso raro — es el caso que hay que resolver escribiendo los planes.
+ */
+export function escribeElTratamiento(roles: (string | null | undefined)[]): boolean {
+    return roles.some(r => !!r && DECIDEN_TRATAMIENTO.includes(r));
 }
 
 /**

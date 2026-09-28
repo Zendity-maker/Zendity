@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import DeclareUlcerModal from "@/components/medical/upps/DeclareUlcerModal";
 import { descargarFormularioUppPDF } from "@/lib/formulario-tratamiento-upp";
-import { TIPOS_UPP, MOTIVOS_CAMBIO, MOTIVOS_CIERRE, DIAS_SIN_CURACION, puedeRegistrar, etiquetaDeMotivo, type TipoRegistroUpp } from "@/lib/upp";
+import { TIPOS_UPP, MOTIVOS_CAMBIO, MOTIVOS_CIERRE, DIAS_SIN_CURACION, puedeRegistrar, escribeElTratamiento, etiquetaDeMotivo, type TipoRegistroUpp } from "@/lib/upp";
 import {
     AlertTriangle, Clock, CheckCircle2, AlertOctagon, Loader2, RefreshCw,
     Bandage, ShieldAlert, Activity, Bed, Heart, ArrowLeft, Building2, HelpCircle,
@@ -271,6 +271,12 @@ export default function NursingRotationPage() {
     };
 
     const rolesDelUsuario = [user?.role ?? '', ...(user?.secondaryRoles ?? [])];
+    /**
+     * A enfermería se le pregunta QUÉ APLICÓ; a la cuidadora no. Ella confirma
+     * el plan del home care, que es lo que de verdad puede afirmar. Ver
+     * `escribeElTratamiento` en src/lib/upp.ts.
+     */
+    const escriboElTratamiento = escribeElTratamiento(rolesDelUsuario);
     const tiposDisponibles = (Object.keys(TIPOS_UPP) as TipoRegistroUpp[])
         .filter(t => puedeRegistrar(t, rolesDelUsuario));
     const def = TIPOS_UPP[tipoRegistro];
@@ -332,7 +338,8 @@ export default function NursingRotationPage() {
     const cerrando = cierre !== '';
     const listoParaGuardar = !!curando
         // Cerrar no exige inventarse una curación: es un acto en sí mismo.
-        && (cerrando || !def.pideTratamiento || !!tratamiento.trim())
+        && (cerrando || !def.pideTratamiento
+            || (escriboElTratamiento ? !!tratamiento.trim() : !!curando?.ulcera.planTratamiento?.trim()))
         && (cerrando || !def.pideMotivo || !!motivo)
         && !(!cerrando && motivo === 'OTRO' && !notaCura.trim())
         && !(cierre === 'SIN_RESOLVER' && !motivoCierre)
@@ -1043,7 +1050,7 @@ export default function NursingRotationPage() {
                                 </div>
                             )}
 
-                            {def.pideTratamiento && (
+                            {def.pideTratamiento && escriboElTratamiento && (
                                 <div>
                                     <label className="text-xs font-black text-slate-600 uppercase tracking-wide block mb-1.5">
                                         ¿Qué se aplicó?
@@ -1057,6 +1064,35 @@ export default function NursingRotationPage() {
                                         className="w-full p-3 border-2 border-slate-200 rounded-xl text-sm outline-none focus:border-rose-400"
                                     />
                                 </div>
+                            )}
+
+                            {/* A la cuidadora no se le pregunta: se le enseña el
+                                plan y ella confirma que eso fue lo que hizo. Lo
+                                que se guarda es este texto, literal. */}
+                            {def.pideTratamiento && !escriboElTratamiento && (
+                                curando?.ulcera.planTratamiento?.trim() ? (
+                                    <div className="bg-slate-50 border-2 border-slate-200 rounded-xl p-4">
+                                        <p className="text-xs font-black text-slate-600 uppercase tracking-wide mb-1.5">
+                                            Esto es lo que dice el plan
+                                        </p>
+                                        <p className="text-sm text-slate-800 whitespace-pre-wrap">{curando.ulcera.planTratamiento}</p>
+                                        {curando.ulcera.planEstablecidoPor && (
+                                            <p className="text-xs text-slate-500 mt-2">Lo indicó {curando.ulcera.planEstablecidoPor}</p>
+                                        )}
+                                        <p className="text-xs text-slate-500 mt-3">
+                                            Al guardar queda anotado que hiciste esto. Si hiciste otra cosa, no lo registres como
+                                            curación — usa «Cambié el apósito» y dilo en la nota.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
+                                        <p className="text-sm font-bold text-amber-900">Esta úlcera todavía no tiene plan escrito</p>
+                                        <p className="text-xs text-amber-800 mt-1.5">
+                                            Sin plan no hay tratamiento que confirmar. Registra «Cambié el apósito» y avisa a
+                                            enfermería para que escriba el plan del home care.
+                                        </p>
+                                    </div>
+                                )
                             )}
 
                             <div className={def.puedeCambiarEstadio ? "grid grid-cols-2 gap-3" : ""}>

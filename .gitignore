@@ -52,6 +52,7 @@ scripts/*
 # que no existe. Cada guard nuevo necesita su linea aqui.
 !scripts/db-push-guard.sh
 !scripts/dev-guard.sh
+!scripts/cerrar-ulceras-residentes-idos.ts
 # La carpeta primero: git no entra en un directorio excluido, asi que negar solo
 # el fichero de dentro no serviria de nada.
 !scripts/lib/
