@@ -1763,6 +1763,27 @@ export default function ZendityCareTabletPage() {
         setBriefingMode(false);
         fetchPatients(selectedColor!);
         fetchMyReports();
+
+        /**
+         * AQUÍ SE RECIBE EL TURNO. SIN UN TOQUE DE MÁS.
+         *
+         * Acaba de leer el reporte de quien salió y pulsa «Adelante, Iniciar
+         * Cuidados». Eso ES recibir el turno; lo único que faltaba era anotarlo.
+         * Medido el 28-sep-2026: de 1.080 relevos, UNO tenía quien lo recibiera.
+         *
+         * Va SIN `await` y sin bloquear a propósito. Si falla la red, ella entra
+         * al piso igual: el acuse no puede quedarse entre una cuidadora y los
+         * residentes. El servidor decide lo demás —no pisa a quien ya lo recibió
+         * y no anota nada si el relevo es suyo—. Ver la ruta.
+         */
+        const relevo = briefingData?.colorHandover?.id;
+        if (relevo) {
+            fetch('/api/care/briefing/recibido', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ handoverId: relevo }),
+            }).catch(e => console.error('[relevo] no se pudo anotar el recibo', e));
+        }
     };
 
     const fetchMyReports = async () => {
@@ -3909,9 +3930,20 @@ export default function ZendityCareTabletPage() {
                                 </button>
                             )}
                             {(showQuickRead || !isSpeaking) && (
-                                <button onClick={enterCareFloor} className="px-10 py-5 bg-teal-500 text-slate-900 font-black text-xl rounded-full hover:scale-105 active:scale-95 shadow-xl shadow-teal-500/20 transition-all animate-bounce">
-                                    Adelante, Iniciar Cuidados
-                                </button>
+                                <div className="flex flex-col items-center gap-2">
+                                    <button onClick={enterCareFloor} className="px-10 py-5 bg-teal-500 text-slate-900 font-black text-xl rounded-full hover:scale-105 active:scale-95 shadow-xl shadow-teal-500/20 transition-all animate-bounce">
+                                        Adelante, Iniciar Cuidados
+                                    </button>
+                                    {/* Se dice lo que va a pasar ANTES de que pase.
+                                        Anotar un acuse sin avisar es hacerle firmar
+                                        algo que no sabe que firma. Solo cuando hay
+                                        relevo de otra persona que recibir. */}
+                                    {briefingData?.colorHandover?.id && (
+                                        <p className="text-xs text-slate-400 font-medium">
+                                            Al continuar queda anotado que recibiste este relevo.
+                                        </p>
+                                    )}
+                                </div>
                             )}
                         </div>
 
