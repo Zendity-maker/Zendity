@@ -1,14 +1,30 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
+import { ROLES_DE_PISO } from '@/lib/roles-clinicos';
 import { applyScoreEvent } from '@/lib/score-event';
 
-const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+// Ver el comentario largo de /api/care/meds/bulk: la regla es el ROL DE PISO, no
+// el turno abierto. `requireRole` ya mira los roles secundarios.
+const ALLOWED_ROLES = ROLES_DE_PISO as unknown as string[];
 
 export async function POST(req: Request) {
     try {
         const auth = await requireRole(ALLOWED_ROLES);
-        if (auth instanceof NextResponse) return auth;
+        if (auth instanceof NextResponse) {
+            /**
+             * El 403 de `requireRole` dice «Rol no autorizado», que no le enseña
+             * nada a quien lo lee. Las otras dos rutas del piso explican qué
+             * falta y por qué; esta dice lo mismo.
+             */
+            if (auth.status === 403) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Para reportar una acción preventiva hace falta rol de Cuidadora o Enfermería. Estás mirando el piso, no cubriéndolo.',
+                }, { status: 403 });
+            }
+            return auth;
+        }
 
         const { patientId, symptom, aiNote } = await req.json();
         // HIPAA — el actor sale de la sesión (antes caregiverId del body → impersonación + puntos a cualquiera).

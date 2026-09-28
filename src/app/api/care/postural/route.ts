@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
+import { puedeAbrirTurno } from '@/lib/roles-clinicos';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { huboRechazoEnElHueco } from '@/lib/rotacion-no-realizada';
@@ -11,7 +12,8 @@ import { evaluarRotacion } from '@/lib/rotacion-imputable';
 
 export const dynamic = 'force-dynamic';
 
-const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+// Ver el comentario largo de /api/care/meds/bulk: la regla es el ROL DE PISO,
+// no el turno abierto, y se mide en src/lib/roles-clinicos.ts.
 
 export async function POST(req: Request) {
     try {
@@ -23,8 +25,11 @@ export async function POST(req: Request) {
         const invokerRole = (session.user as any).role;
         const invokerHqId = (session.user as any).headquartersId;
 
-        if (!ALLOWED_ROLES.includes(invokerRole)) {
-            return NextResponse.json({ success: false, error: 'Rol no autorizado para rotaciones posturales' }, { status: 403 });
+        if (!puedeAbrirTurno(invokerRole, (session.user as any).secondaryRoles)) {
+            return NextResponse.json({
+                success: false,
+                error: 'Para registrar una rotación hace falta rol de Cuidadora o Enfermería. Estás mirando el piso, no cubriéndolo.',
+            }, { status: 403 });
         }
 
         const { patientId, caregiverId, position, performedAt: horaDeclarada } = await req.json();

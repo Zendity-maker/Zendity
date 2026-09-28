@@ -3,6 +3,7 @@ import { resolverHoraReal } from '@/lib/hora-real';
 import { NextResponse } from 'next/server';
 import { MedStatus } from '@prisma/client';
 import { getServerSession } from 'next-auth/next';
+import { puedeAbrirTurno } from '@/lib/roles-clinicos';
 import { authOptions } from '@/lib/auth';
 import { notifyRoles } from '@/lib/notifications';
 import { todayStartAST } from '@/lib/dates';
@@ -10,7 +11,46 @@ import { estadoParaOmision, esMotivoOmisionValido } from '@/lib/omision-medicame
 import { conciliarPack } from '@/lib/emar-conciliar';
 
 // CAREGIVER puede firmar el pack del turno. NURSE/SUP/DIR/ADMIN también.
-const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+/**
+ * QUIEN REGISTRA EN EL PISO, CUBRE EL PISO.
+ *
+ * Antes esta ruta aceptaba `['CAREGIVER','NURSE','SUPERVISOR','DIRECTOR','ADMIN']`,
+ * o sea que un DIRECTOR podia escribir en el expediente de un residente desde la
+ * tableta sin tener turno, sin cubrir a nadie y sin que nada se lo impidiera. El
+ * cliente lo frena desde el 28-sep en modo «solo mirar», pero un cliente no es
+ * una guarda: basta con un POST a mano.
+ *
+ * ═══ POR QUE POR ROL DE PISO Y NO POR TURNO ABIERTO ═══
+ *
+ * La regla obvia —exigir una ShiftSession abierta— es la equivocada, y los datos
+ * lo dicen. Medido contra produccion el 28-sep-2026, cruzando cada escritura con
+ * las sesiones de su autor:
+ *
+ *     /meds/bulk  ..... 1.414 de 1.573 (90%) se escribieron SIN turno abierto
+ *     /postural   .... 19.171 de 22.558 (85%)     idem
+ *
+ * Y no es historico: es septiembre entero, con 236 turnos abiertos ese mes y una
+ * duracion mediana normal de 7,7 h. Exigir turno abierto habria bloqueado a
+ * Jediel, a Carlos, a Neylianne y a todas las demas haciendo su trabajo.
+ *
+ * La regla que SI distingue «mirando» de «cubriendo» es el rol de piso. Medido
+ * sobre 54.421 escrituras historicas —30.268 firmas de medicamentos, 22.558
+ * rotaciones y 22 acciones preventivas—: CERO las hizo alguien sin CAREGIVER o
+ * NURSE, principal o secundario. La regla no rompe ni una.
+ *
+ * ═══ Y POR QUE `puedeAbrirTurno` Y NO UN `includes` ═══
+ *
+ * Porque esto miraba SOLO el rol primario. Con la lista recortada a
+ * ['CAREGIVER','NURSE'], un `includes` dejaria fuera a Celia —DIRECTOR con NURSE
+ * de secundario, que es quien hace la enfermeria aqui— y a Mariangelie
+ * —SUPERVISOR con CAREGIVER—. En este hogar el rol primario no dice quien hace
+ * el trabajo.
+ *
+ * /api/care/incidents queda FUERA de esta regla a proposito: la comparten
+ * /corporate/incidents y /corporate/medical/handovers, donde un DIRECTOR reporta
+ * de verdad. Ahi el freno es el del cliente y nada mas.
+ */
+// La lista vive en src/lib/roles-clinicos.ts, la misma que usa /care.
 
 // Actions:
 //  - 'ADMINISTER_PACK' — firma única para un grupo de meds del mismo slot ("8:00 AM")
@@ -37,8 +77,10 @@ export async function POST(req: Request) {
         const invokerName = (session.user as any).name || 'Cuidador';
         const invokerRole = (session.user as any).role;
         const hqId = (session.user as any).headquartersId;
-        if (!ALLOWED_ROLES.includes(invokerRole)) {
-            return NextResponse.json({ error: 'Rol no autorizado para administración masiva de medicamentos' }, { status: 403 });
+        if (!puedeAbrirTurno(invokerRole, (session.user as any).secondaryRoles)) {
+            return NextResponse.json({
+                error: 'Para firmar medicamentos hace falta rol de Cuidadora o Enfermería. Estás mirando el piso, no cubriéndolo.',
+            }, { status: 403 });
         }
 
         const { action, medicationIds, scheduleTime, notes, signatureBase64, reason, prnMotivo, motivoCodigo, administeredAt: horaDeclarada } = await req.json();
