@@ -29,6 +29,7 @@
 import { prisma } from '@/lib/prisma';
 import { verificarSede, type Hallazgo, type CodigoChequeo } from '@/lib/verificaciones';
 import { HORAS_PARA_EXIGIR_EFECTO } from '@/lib/prn';
+import { relevoPendienteDeVerdad } from '@/lib/relevos';
 
 const DIAS_SIN_CURACION = 7;
 
@@ -127,7 +128,8 @@ export async function construirReporte(sedeId: string, sedeNombre: string): Prom
             select: { area: true, reportadoAt: true, patient: { select: { name: true } } },
             orderBy: { reportadoAt: 'asc' },
         }),
-        prisma.shiftHandover.count({ where: { headquartersId: sedeId, status: 'PENDING' } }),
+        // Sin los prólogos del cron. Ver src/lib/relevos.ts.
+        prisma.shiftHandover.count({ where: relevoPendienteDeVerdad(sedeId) }),
         prisma.patient.findMany({
             where: { headquartersId: sedeId, status: 'ACTIVE' },
             select: { lifePlans: { select: { status: true, emailSentAt: true, nextReview: true } } },

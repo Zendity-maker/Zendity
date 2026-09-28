@@ -24,6 +24,7 @@ import { HORAS_PARA_EXIGIR_EFECTO } from '@/lib/prn';
 import { PUEDEN_REVISAR_CAMBIO } from '@/lib/cambios-de-condicion';
 import { DIAS_SIN_CURACION, DIAS_SIN_VALORACION, ULCERA_ABIERTA } from '@/lib/upp';
 import { HORAS_PARA_REVISAR_CAMBIO, pasoElCompromiso, horasEsperando, detectarPatrones, etiquetaArea } from '@/lib/cambios-de-condicion';
+import { relevoPendienteDeVerdad } from '@/lib/relevos';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,7 +84,9 @@ export async function GET() {
                 },
                 orderBy: { reportadoAt: 'asc' },
             }),
-            prisma.shiftHandover.count({ where: { headquartersId: hqId, status: 'PENDING' } }),
+            // Sin los prólogos del cron. Ver src/lib/relevos.ts: esta línea
+            // llegó a decir «62 relevos sin aceptar» sin que hubiera ninguno.
+            prisma.shiftHandover.count({ where: relevoPendienteDeVerdad(hqId) }),
             // Rotación vencida: quien la necesita y lleva más de 135 minutos.
             prisma.patient.findMany({
                 where: {

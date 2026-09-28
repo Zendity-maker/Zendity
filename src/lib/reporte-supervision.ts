@@ -25,6 +25,7 @@
  */
 import { prisma } from '@/lib/prisma';
 import type { ReporteSemanal, BloqueReporte } from '@/lib/reporte-enfermeria';
+import { relevoPendienteDeVerdad } from '@/lib/relevos';
 
 /** Desde aquí, una sesión abierta dejó de ser "todavía en turno". */
 const DIAS_SESION_ABIERTA = 14;
@@ -65,7 +66,9 @@ export async function construirReporteSupervision(sedeId: string, sedeNombre: st
             select: { startTime: true, caregiver: { select: { name: true } } },
             orderBy: { startTime: 'asc' },
         }),
-        prisma.shiftHandover.count({ where: { headquartersId: sedeId, status: 'PENDING' } }),
+        // Sin los prólogos del cron. Ver src/lib/relevos.ts: contaba 103 de
+        // deuda cuando los relevos de personas pendientes eran CERO.
+        prisma.shiftHandover.count({ where: relevoPendienteDeVerdad(sedeId) }),
 
         // ── 2 ──
         prisma.posturalChangeLog.count({
