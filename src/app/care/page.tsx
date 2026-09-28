@@ -612,6 +612,18 @@ export default function ZendityCareTabletPage() {
 
     // Zendi Welcome Briefing (Fase 10)
     const [briefingMode, setBriefingMode] = useState(false);
+
+    /**
+     * MIRAR EL PISO SIN CUBRIRLO.
+     *
+     * Un DIRECTOR no abre turno —y hace bien: los turnos de prueba generaban
+     * VitalsOrder fantasma para toda la sede— pero sí necesita ver la pantalla
+     * que ve el piso, que es donde está lo que pasa. Antes chocaba con un 403
+     * al final del censo; desde hoy entra por aquí, sin turno y sin censo.
+     *
+     * Lo que NO hace es escribir. Ver `useEffect` del cortafuegos más abajo.
+     */
+    const [soloMirar, setSoloMirar] = useState(false);
     const [briefingData, setBriefingData] = useState<any>(null);
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [showQuickRead, setShowQuickRead] = useState(false);
@@ -664,6 +676,9 @@ export default function ZendityCareTabletPage() {
     const [coverageNudgeShown, setCoverageNudgeShown] = useState(false);
     useEffect(() => {
         if (coverageNudgeShown) return;
+        // Quien mira no cubre: ofrecerle tomar un color huérfano es ofrecerle
+        // algo que el servidor le va a negar.
+        if (soloMirar) return;
         if (!selectedColor || briefingMode || verifyingCensus) return;
         const absent: string[] = coverage?.absentColors || [];
         if (absent.length === 0) return;
@@ -671,7 +686,7 @@ export default function ZendityCareTabletPage() {
         // posiblemente 'ALL' por isSolo) → ofrece claim explícito.
         setCoveragePickerOpen(true);
         setCoverageNudgeShown(true);
-    }, [coverage, selectedColor, briefingMode, verifyingCensus, coverageNudgeShown]);
+    }, [coverage, selectedColor, briefingMode, verifyingCensus, coverageNudgeShown, soloMirar]);
 
     // Modals Data
     const [activePatient, setActivePatient] = useState<any>(null);
@@ -1692,6 +1707,56 @@ export default function ZendityCareTabletPage() {
         setIsSpeaking(false);
         setShowQuickRead(true);
     };
+
+    /**
+     * EL CORTAFUEGOS DE «SOLO MIRAR». FALLA CERRADO, A PROPÓSITO.
+     *
+     * ═══ POR QUÉ NO SE GUARDAN LOS 38 BOTONES UNO A UNO ═══
+     *
+     * Esta pantalla tiene TREINTA Y OCHO funciones que escriben. Poner la
+     * guarda en cada una es mecánico, y esa es exactamente su trampa: el día
+     * que se añada la treinta y nueve y alguien no se acuerde, el fallo no es
+     * un error en rojo — es un DIRECTOR firmando un pack de medicamentos en el
+     * expediente de un residente mientras creía estar mirando.
+     *
+     * Con la guarda AQUÍ, en el único sitio por el que pasan todas, una
+     * escritura nueva nace bloqueada. Se equivoca hacia el lado seguro.
+     *
+     * Y por eso NO se hace escondiendo botones: un botón escondido es una
+     * promesa de que no se puede escribir, y la promesa la tiene que cumplir
+     * algo que no dependa de acordarse.
+     *
+     * ═══ POR QUÉ NO BASTA EL SERVIDOR ═══
+     *
+     * Porque hoy deja pasar. Comprobado el 28-sep-2026: /api/care/adls/bath
+     * acepta `['CAREGIVER','NURSE','SUPERVISOR','DIRECTOR','ADMIN']`, y
+     * /api/care/meds/bulk, /postural, /incidents y /preventive ni siquiera
+     * piden un turno abierto. Bath y meal sí exigen `shiftSessionId`, así que
+     * esas fallarían solas — las otras no.
+     *
+     * Lo que toca de verdad es que el servidor sepa distinguir «mirando» de
+     * «cubriendo». Mientras no lo sepa, esto lo sostiene el cliente y se dice
+     * en alto que es el cliente quien lo sostiene.
+     */
+    useEffect(() => {
+        if (!soloMirar) return;
+        const original = window.fetch;
+        /** Lo único que puede escribir quien mira: sus propios avisos. */
+        const PERMITIDO = ['/api/notifications'];
+        window.fetch = async (entrada: any, init?: any) => {
+            const metodo = String(init?.method ?? entrada?.method ?? 'GET').toUpperCase();
+            const url = typeof entrada === 'string' ? entrada : (entrada?.url ?? String(entrada));
+            if (metodo !== 'GET' && !PERMITIDO.some(p => url.includes(p))) {
+                avisoAtencion('Estás mirando el piso, no cubriéndolo. Para registrar algo hay que abrir turno.');
+                return new Response(
+                    JSON.stringify({ success: false, error: 'Modo solo mirar: no se registró nada.' }),
+                    { status: 403, headers: { 'Content-Type': 'application/json' } },
+                );
+            }
+            return original(entrada, init);
+        };
+        return () => { window.fetch = original; };
+    }, [soloMirar, avisoAtencion]);
 
     const enterCareFloor = () => {
         setIsSpeaking(false);
@@ -3360,7 +3425,7 @@ export default function ZendityCareTabletPage() {
      * turno ABIERTO, esta pantalla lo dejaría encerrado sin poder entregarlo.
      * Quien ya tiene turno sigue su camino hasta cerrarlo.
      */
-    if (!isActingAsCaregiver && !activeSession) {
+    if (!isActingAsCaregiver && !activeSession && !soloMirar) {
         return (
             <div className="fixed inset-0 bg-slate-900 flex items-center justify-center p-6 z-50">
                 <div className="bg-white rounded-3xl p-10 max-w-lg w-full text-center shadow-2xl animate-in zoom-in-95">
@@ -3376,8 +3441,22 @@ export default function ZendityCareTabletPage() {
                     </p>
                     <div className="flex flex-col gap-3">
                         <button
-                            onClick={() => router.push('/')}
+                            onClick={() => {
+                                // Sin turno y sin censo: se entra a mirar. El color
+                                // es ALL porque quien mira no cubre una zona.
+                                setSoloMirar(true);
+                                setSelectedColor('ALL');
+                                setVerifyingCensus(false);
+                                setBriefingMode(false);
+                                fetchPatients('ALL');
+                            }}
                             className="w-full py-4 bg-[#0F6B78] hover:bg-[#0d5a66] text-white font-black rounded-2xl shadow-lg transition-colors"
+                        >
+                            Ver el piso (solo mirar)
+                        </button>
+                        <button
+                            onClick={() => router.push('/')}
+                            className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl transition-colors"
                         >
                             Ir a mi pantalla
                         </button>
@@ -3385,7 +3464,7 @@ export default function ZendityCareTabletPage() {
                             onClick={() => router.push('/care/supervisor')}
                             className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl transition-colors"
                         >
-                            Ver el piso sin abrir turno
+                            Panel de supervisión
                         </button>
                         <button
                             onClick={() => logout()}
@@ -3487,7 +3566,7 @@ export default function ZendityCareTabletPage() {
                         </div>
                     )}
 
-                    {needsCoveragePicker && (
+                    {needsCoveragePicker && !soloMirar && (
                         <button
                             onClick={() => setCoveragePickerOpen(true)}
                             className="mb-5 w-full px-5 py-3 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-900 font-bold text-sm flex items-center justify-center gap-2 hover:bg-amber-100 active:scale-95 transition-all"
@@ -4675,6 +4754,27 @@ export default function ZendityCareTabletPage() {
                             </div>
                         ) : (
                             <>
+                            {/* Aviso permanente — estás mirando, no cubriendo.
+                                Va ARRIBA de todo y no se puede cerrar: quien mira
+                                tiene que saberlo mientras mira, no al pulsar. */}
+                            {soloMirar && (
+                                <div className="mb-4 bg-[#1F2D3A] rounded-2xl p-4 flex items-center gap-3 shadow-lg">
+                                    <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0 text-xl">👁️</div>
+                                    <div className="flex-1">
+                                        <p className="text-sm font-black text-white leading-tight">Estás mirando el piso, no cubriéndolo</p>
+                                        <p className="text-xs text-white/70 font-medium mt-0.5">
+                                            No tienes turno abierto. Nada de lo que toques aquí queda registrado — si hay que registrar algo, lo hace quien está en turno.
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => { setSoloMirar(false); setSelectedColor(null); }}
+                                        className="text-xs font-bold text-white/80 hover:text-white underline shrink-0"
+                                    >
+                                        Salir
+                                    </button>
+                                </div>
+                            )}
+
                             {/* Banner — modo cuidadora solitaria (Nivel 2) */}
                             {isSoloMode && (
                                 <div className="mb-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3 shadow-sm">
@@ -4690,7 +4790,7 @@ export default function ZendityCareTabletPage() {
                                 Funciona EN COMBINACIÓN con isSolo: el "ver todos"
                                 es la red de seguridad, este banner ofrece tomar
                                 explícitamente el color huérfano. */}
-                            {(coverage?.absentColors?.length ?? 0) > 0 && (
+                            {(coverage?.absentColors?.length ?? 0) > 0 && !soloMirar && (
                                 <button
                                     onClick={() => setCoveragePickerOpen(true)}
                                     className="mb-4 w-full bg-gradient-to-r from-rose-50 to-rose-100 border-2 border-rose-300 rounded-2xl p-4 flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow text-left"
