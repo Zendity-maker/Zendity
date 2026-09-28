@@ -5,6 +5,7 @@ import { ACTIVE_PRESENCE_MAX_HOURS } from '@/lib/shift-coverage';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { requireRole } from '@/lib/api-auth';
+import { QUIEN_VE_EL_PISO } from '@/lib/roles-clinicos';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { logError } from '@/lib/logger';
 import { MOTIVO_OBSERVACION, VENTANA_CIERRE_MS } from '@/lib/observacion-vitales';
@@ -27,19 +28,10 @@ export const revalidate = 0;
  * los roles secundarios, asi que Celia (DIRECTOR + NURSE) y las dos
  * supervisoras con CAREGIVER secundario entran por cualquiera de los dos.
  */
-const QUIEN_CUIDA_EL_PISO = [
-    // El piso. Esta ruta ES su tableta: eligen color, firman dosis y registran
-    // el cambio de aposito sobre esta misma respuesta.
-    'CAREGIVER', 'NURSE', 'SUPERVISOR',
-    // Responden por el cuidado y aterrizan en "/", que pide esta ruta con
-    // ?color=ALL para el widget de estado de residentes.
-    'DIRECTOR', 'ADMIN', 'CLINICAL_DIRECTOR', 'HQ_OWNER', 'SUPER_ADMIN',
-    // Trabajo social: dos cuentas activas, con contacto directo con el
-    // residente, y AuthContext no las rebota de "/". Entra para no dejarles el
-    // widget en ceros; si se decide que no necesitan medicacion ni estadio de
-    // ulcera, lo que toca es una ruta mas flaca, no un panel que miente.
-    'SOCIAL_WORKER',
-];
+// La lista vive en src/lib/roles-clinicos.ts porque desde el 28-sep la comparte
+// /api/care/foto/[patientId]: si se separan, una ruta ensena la cara de un
+// residente a quien la otra no deja ver su nombre.
+const QUIEN_CUIDA_EL_PISO = QUIEN_VE_EL_PISO;
 
 /**
  * Fuera a proposito, y por que:
@@ -178,6 +170,30 @@ export async function GET(req: Request) {
                 ...baseStatusFilter,
             };
 
+        /**
+         * LA VERSIÓN DE CADA FOTO, SIN TRAERSE NINGUNA FOTO.
+         *
+         * `photoUrl` ya no viaja: son 43 kB de JPEG en base64 por residente,
+         * 1.339 kB en total, reenviados enteros en cada poll porque dentro de
+         * un JSON el navegador no puede cachear nada. Ahora cada cara tiene su
+         * propia URL —/api/care/foto/[id]— y el navegador la guarda.
+         *
+         * Pero una URL fija con caché de un día dejaría a quien acaba de tomar
+         * la foto viendo la vieja. Así que la URL lleva los 8 primeros
+         * caracteres del md5 del contenido: si la foto cambia, la URL cambia.
+         *
+         * El md5 lo calcula Postgres, así que por el cable van 8 caracteres por
+         * residente en vez de 43 kB. Y el `IS NOT NULL` hace de bandera: quien
+         * no sale de aquí no tiene foto, y la tableta pinta sus iniciales —que
+         * es lo que ya hacía cuando `photoUrl` venía en null.
+         */
+        const versionesDeFoto = await prisma.$queryRaw<{ id: string; v: string }[]>`
+            SELECT id, substring(md5("photoUrl"), 1, 8) AS v
+            FROM "Patient"
+            WHERE "headquartersId" = ${hqId} AND "photoUrl" IS NOT NULL
+        `;
+        const versionFoto = new Map(versionesDeFoto.map(r => [r.id, r.v]));
+
         const patientsRaw = await prisma.patient.findMany({
             where,
             /**
@@ -225,7 +241,7 @@ export async function GET(req: Request) {
                 dateOfBirth: true, diet: true, dietTexture: true, dietDiabetic: true,
                 dietLowSodium: true, dietRenal: true, dietVegetarian: true, dietPegKcalMl: true,
                 downtonRisk: true, nortonRisk: true, requiresPosturalChanges: true, colorGroup: true,
-                status: true, leaveType: true, photoUrl: true, needsDialysis: true,
+                status: true, leaveType: true, needsDialysis: true,
                 createdAt: true,
 
                 medications: {
@@ -409,7 +425,16 @@ export async function GET(req: Request) {
         // redistribución (para pintar el badge "COBERTURA [COLOR]" en el tablet).
         const patients = patientsRaw.map(p => {
             const override = overrideByPatientId.get(p.id);
-            const base = p.status === 'TEMPORARY_LEAVE' ? { ...p, medications: [] } : p;
+            /**
+             * `photoUrl` conserva el NOMBRE y cambia el VALOR: antes traía los
+             * 43 kB del JPEG, ahora la URL de donde bajarlo. Así el único sitio
+             * que lo consume —ZendiCameraEnhancer, que hace
+             * `{currentPhotoUrl ? <img/> : iniciales}`— no cambia ni una línea,
+             * y `null` sigue significando «no tiene foto».
+             */
+            const v = versionFoto.get(p.id);
+            const conFoto = { ...p, photoUrl: v ? `/api/care/foto/${p.id}?v=${v}` : null };
+            const base = p.status === 'TEMPORARY_LEAVE' ? { ...conFoto, medications: [] } : conFoto;
             if (override) {
                 return {
                     ...base,

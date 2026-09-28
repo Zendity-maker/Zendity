@@ -33,3 +33,22 @@ export function puedeAbrirTurno(
     if (rol && lista.includes(rol)) return true;
     return (secundarios ?? []).some(r => lista.includes(r));
 }
+
+/**
+ * QUIÉN PUEDE VER LA PANTALLA DEL PISO — y por tanto la cara de un residente.
+ *
+ * Vivía dentro de /api/care/route.ts. Se muda aquí porque desde hoy la usa
+ * también /api/care/foto/[patientId]: si las dos listas se separan, una ruta
+ * enseña la foto de un residente a quien la otra no deja ver su nombre.
+ */
+export const QUIEN_VE_EL_PISO = [
+    // El piso. /api/care ES su tableta: eligen color, firman dosis y registran
+    // el cambio de apósito sobre esa misma respuesta.
+    'CAREGIVER', 'NURSE', 'SUPERVISOR',
+    // Responden por el cuidado y aterrizan en "/", que pide esa ruta con
+    // ?color=ALL para el widget de estado de residentes.
+    'DIRECTOR', 'ADMIN', 'CLINICAL_DIRECTOR', 'HQ_OWNER', 'SUPER_ADMIN',
+    // Trabajo social: dos cuentas activas, con contacto directo con el
+    // residente, y AuthContext no las rebota de "/".
+    'SOCIAL_WORKER',
+];
