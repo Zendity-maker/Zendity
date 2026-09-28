@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { useRef, useState } from "react";
-import SignatureCanvas from "react-signature-canvas";
+import type SignatureCanvas from "react-signature-canvas";
+import { CanvasDeFirma } from "@/components/CanvasDeFirma";
 import { CheckCircle, PenTool, Eraser, X, Loader2, ExternalLink } from "lucide-react";
 import { ExpandableText } from "@/components/ui/ExpandableText";
 
@@ -250,7 +251,7 @@ export function HandoverSignDrawer({ handover, onClose, onSigned }: HandoverSign
                             )}
                         </div>
                         <div className={`relative rounded-xl border-2 overflow-hidden ${signature ? "border-emerald-500 bg-emerald-50" : "border-dashed border-slate-300 bg-white"}`}>
-                            <SignatureCanvas
+                            <CanvasDeFirma
                                 ref={sigCanvas}
                                 penColor="#0F6E56"
                                 onEnd={handleSigEnd}

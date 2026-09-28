@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import SignatureCanvas from "react-signature-canvas";
+import { CanvasDeFirma } from "@/components/CanvasDeFirma";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { Loader2, ArrowLeft, PenTool, Download, CheckCircle2 } from "lucide-react";
@@ -128,7 +128,7 @@ export default function DocumentSignerPage() {
                         </h3>
 
                         <div className="bg-white border-2 border-dashed border-gray-300 rounded-xl overflow-hidden shadow-sm relative">
-                            <SignatureCanvas
+                            <CanvasDeFirma
                                 ref={sigPad}
                                 penColor="black"
                                 canvasProps={{ className: "w-full h-48 cursor-crosshair" }}

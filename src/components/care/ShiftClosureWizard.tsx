@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import SignatureCanvas from "react-signature-canvas";
+import { CanvasDeFirma } from "@/components/CanvasDeFirma";
 import { AlertOctagon, AlertTriangle, CheckCircle, PenTool, Lock, ArrowRight, Loader2, Sparkles, FileText, HelpCircle, X, Eraser } from "lucide-react";
 import { juzgarFirma } from '@/lib/firma';
 
@@ -732,7 +732,7 @@ export default function ShiftClosureWizard({
                             >
                                 {/* línea base sutil tipo papel */}
                                 <div className="absolute left-4 right-4 bottom-6 border-b border-dashed border-slate-200 pointer-events-none"></div>
-                                <SignatureCanvas
+                                <CanvasDeFirma
                                     ref={sigCanvas}
                                     penColor="#0F6E56"
                                     onEnd={handleSigEnd}

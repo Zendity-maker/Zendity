@@ -14,7 +14,7 @@ import ZendiMomentsWidget from "@/components/care/zendi/ZendiMomentsWidget";
 import MyObservationsWidget from "@/components/care/MyObservationsWidget";
 import { esOrdenDeObservacion } from "@/lib/observacion-vitales";
 import ZendiCameraEnhancer from "@/components/care/ZendiCameraEnhancer";
-import SignatureCanvas from "react-signature-canvas";
+import { CanvasDeFirma } from "@/components/CanvasDeFirma";
 import HoraDelRegistro from '@/components/care/HoraDelRegistro';
 import ShiftClosureWizard from "@/components/care/ShiftClosureWizard";
 import FallIncidentPrint from "@/components/medical/fall-risk/FallIncidentPrint";
@@ -5888,7 +5888,7 @@ export default function ZendityCareTabletPage() {
                                                         </div>
                                                         <div className="bg-slate-50 border-2 border-slate-200 rounded-xl overflow-hidden touch-none relative">
                                                             <div className="absolute top-1/2 left-0 w-full border-b border-dashed border-slate-300 pointer-events-none"></div>
-                                                            <SignatureCanvas
+                                                            <CanvasDeFirma
                                                                 ref={packSigCanvas}
                                                                 penColor="#0F6B78"
                                                                 canvasProps={{className: 'w-full h-28 cursor-crosshair'}}
@@ -6037,7 +6037,7 @@ export default function ZendityCareTabletPage() {
 
                                             <div className="bg-white border-2 border-amber-200 rounded-xl overflow-hidden touch-none relative">
                                                 <div className="absolute top-1/2 left-0 w-full border-b border-dashed border-amber-200 pointer-events-none"></div>
-                                                <SignatureCanvas ref={sigCanvas} penColor="#b45309" canvasProps={{className: 'w-full h-24 cursor-crosshair'}} />
+                                                <CanvasDeFirma ref={sigCanvas} penColor="#b45309" canvasProps={{className: 'w-full h-24 cursor-crosshair'}} />
                                             </div>
                                             <div className="flex gap-2">
                                                 <button onClick={() => sigCanvas.current?.clear()} className="px-3 py-2 text-[11px] font-bold text-amber-700 underline">Limpiar firma</button>

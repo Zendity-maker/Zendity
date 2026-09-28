@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import SignatureCanvas from 'react-signature-canvas';
+import { CanvasDeFirma } from '@/components/CanvasDeFirma';
 import { useAuth } from '@/context/AuthContext';
 import { ClipboardList, CheckCircle2, Clock, Sun, Moon, Sunset, Loader2, FileText, PenTool, X, Eye } from 'lucide-react';
 
@@ -388,7 +388,7 @@ export default function CorporateReportsPage() {
                                     Firma
                                 </label>
                                 <div className="border-2 border-dashed border-[#e7e5e4] rounded-xl bg-white">
-                                    <SignatureCanvas
+                                    <CanvasDeFirma
                                         ref={sigPad}
                                         penColor="#1F2D3A"
                                         canvasProps={{ className: 'w-full h-40 rounded-xl' }}
