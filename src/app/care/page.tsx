@@ -548,7 +548,8 @@ export default function ZendityCareTabletPage() {
      *   con guarda   /adls/bath (2 min) · /adls/meal · /incidents (5 min)
      *                /postural · /meds/bulk (pack por conciliación, PRN 5 min)
      *                /meds/prn-efecto (es un update, idempotente)
-     *   sin guarda   /cambio-condicion · /preventive  ← y las dos CREAN fila
+     *                /cambio-condicion (10 min) · /preventive (10 min)
+     *   sin guarda   ninguna de las ocho, desde el 27-sep-2026
      */
     const avisoDeRed = (queNoSeGuardo: string, sinDuplicar: boolean) =>
         avisoError(` No se pudo guardar ${queNoSeGuardo}. Revisa la conexión y vuelve a intentarlo${sinDuplicar ? ': si ya había entrado, no se duplica' : ''}.`);
@@ -2553,7 +2554,7 @@ export default function ZendityCareTabletPage() {
             }
         } catch (e) {
             console.error(e);
-            avisoDeRed('el cambio de condición', false);
+            avisoDeRed('el cambio de condición', true);
         } finally { setSubmitting(false); }
     };
 
@@ -2793,7 +2794,12 @@ export default function ZendityCareTabletPage() {
             });
             const data = await res.json();
             if (data.success) {
-                avisoOk(` Acción Preventiva reportada exitosamente.\n +${data.pointsDelta} Puntos Zendity añadidos a tu perfil.`);
+                avisoOk(data.duplicada
+                    ? ` ${data.mensaje || 'Esta acción preventiva ya estaba registrada.'}`
+                    // `pointsDelta` llega en 0 cuando la guarda devolvió la que ya
+                    // existía: los cinco puntos se pagaron con la primera, y
+                    // cantar "+0 Puntos" sería anunciar un premio que no hay.
+                    : ` Acción Preventiva reportada exitosamente.\n +${data.pointsDelta} Puntos Zendity añadidos a tu perfil.`);
                 setModalType(null);
                 setSelectedSymptom(null);
                 setPreventiveNote("");
@@ -2803,7 +2809,7 @@ export default function ZendityCareTabletPage() {
             }
         } catch (e) {
             console.error(e);
-            avisoDeRed('la acción preventiva', false);
+            avisoDeRed('la acción preventiva', true);
         } finally { setSubmitting(false); }
     };
 

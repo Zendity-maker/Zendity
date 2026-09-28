@@ -55,13 +55,71 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: 'Residente no encontrado' }, { status: 404 });
         }
 
+        const texto = descripcion.slice(0, 2000);
+
+        /**
+         * EL DOBLE TOQUE.
+         *
+         * Este POST creaba fila sin mirar si ya existía la misma. Un doble
+         * toque, o un reintento porque la pantalla se vio lenta, dejaba el
+         * mismo cambio reportado dos veces — y lo que esto alimenta es el badge
+         * de enfermería, o sea DOS trabajos pendientes donde había uno.
+         *
+         * MEDIDO el 27-sep-2026 sobre las 38 filas que hay (23-may → 27-sep):
+         * CERO pares del mismo residente en menos de 60 minutos. No ha pasado
+         * todavía. Esto es prevención, no reparación, y se dice así.
+         *
+         * LA LLAVE ES EL TEXTO, no solo el residente y el rato. Una persona
+         * puede reportar dos cosas distintas del mismo residente con segundos
+         * de diferencia, y eso son dos observaciones de verdad: en las acciones
+         * preventivas —la tabla hermana— hay tres pares a DIEZ SEGUNDOS que son
+         * diarrea, vómito, poco apetito y mareos, cuatro cosas distintas de la
+         * misma persona. Una llave de «mismo residente + poco rato» se habría
+         * tragado tres.
+         *
+         * Y lleva `reportadoPorId`: si dos personas distintas observan lo mismo,
+         * son dos observaciones que se corroboran, no una repetida.
+         *
+         * DIEZ MINUTOS. Con el texto exacto dentro de la llave, la ventana
+         * puede ser generosa sin riesgo: nadie escribe la misma descripción
+         * palabra por palabra dos veces en diez minutos queriendo decir dos
+         * cosas. Y da de sobra para el reintento de un envío que sí entró pero
+         * cuya respuesta no llegó.
+         */
+        const VENTANA_MS = 10 * 60 * 1000;
+        const yaReportado = await prisma.cambioDeCondicion.findFirst({
+            where: {
+                patientId,
+                reportadoPorId: auth.id,
+                area,
+                descripcion: texto,
+                reportadoAt: { gte: new Date(Date.now() - VENTANA_MS) },
+            },
+            select: { id: true, reportadoAt: true },
+            orderBy: { reportadoAt: 'desc' },
+        });
+        if (yaReportado) {
+            /**
+             * ÉXITO con la que ya existe, nunca un error en rojo. Quien pulsó
+             * hizo lo correcto y el expediente está bien; un rojo le dice que
+             * lo intente otra vez, que es lo que produce el duplicado.
+             * Y no se vuelve a notificar: el aviso ya salió con el primero.
+             */
+            return NextResponse.json({
+                success: true,
+                duplicada: true,
+                cambio: yaReportado,
+                mensaje: 'Este cambio ya estaba reportado. No hizo falta hacer nada.',
+            });
+        }
+
         const cambio = await prisma.cambioDeCondicion.create({
             data: {
                 headquartersId: auth.headquartersId,
                 patientId,
                 reportadoPorId: auth.id,
                 area,
-                descripcion: descripcion.slice(0, 2000),
+                descripcion: texto,
             },
             select: { id: true, reportadoAt: true },
         });
