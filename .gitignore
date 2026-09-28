@@ -46,7 +46,16 @@ next-env.d.ts
 test-results/
 playwright-report/
 scripts/*
+# Los guards que protegen produccion SI se versionan. `scripts/*` ignora todo lo
+# nuevo que caiga en esta carpeta, asi que un guard recien escrito se queda fuera
+# del repo sin avisar — y en el proximo clon `npm run dev` llamaria a un fichero
+# que no existe. Cada guard nuevo necesita su linea aqui.
 !scripts/db-push-guard.sh
+!scripts/dev-guard.sh
+# La carpeta primero: git no entra en un directorio excluido, asi que negar solo
+# el fichero de dentro no serviria de nada.
+!scripts/lib/
+!scripts/lib/*.sh
 !scripts/seed-sw-template.ts
 !scripts/corregir-plantilla-sw.ts
 !scripts/limpiar-concierge-prepago.ts

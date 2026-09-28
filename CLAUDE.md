@@ -45,7 +45,28 @@ El guard:
 
 - `.env` actualmente apunta directo a **producción** (Neon)
 - Cualquier comando que cargue `.env` y toque DB → impacta producción
-- Hasta que se separe en `.env.local` (dev) y `.env.production` (prod), tratar `.env` como **read-only de producción**
+- Hasta que haya una **rama de Neon para desarrollo**, tratar `.env` como **read-only de producción**
+
+### `npm run dev` también habla con producción — 27-sep-2026
+
+`npm run dev` pasa por `scripts/dev-guard.sh`, que dice en alto a qué host va a
+hablar la app y de qué fichero salió la `DATABASE_URL`, y **no arranca contra
+producción** sin `DEV_CONTRA_PROD=SI` (vale en el shell o en `.env.local`).
+
+Qué se encontró ese día: `.env.local` gana sobre `.env` en Next.js y llevaba una
+`DATABASE_URL` con la contraseña caducada — por eso `npm run dev` no conectaba —
+apuntando al host de producción **sin pooler**. O sea que arreglar esa contraseña,
+que es un cambio de una línea, habría puesto el servidor de desarrollo a escribir
+en la base del hogar sin que nada lo dijera. La contraseña rota estaba tapando el
+problema de verdad. Quedó comentada; `DATABASE_URL` sale ahora de `.env`.
+
+**La salida de verdad es una rama de Neon.** Tiene otro endpoint, así que ni este
+guard ni el de `db:push` la bloquean: el día que `DATABASE_URL` apunte a una rama,
+se borra `DEV_CONTRA_PROD` de `.env.local` y esto deja de avisar solo.
+
+El patrón que distingue producción (`ep-wispy-queen-ae20881h`) vive **en un solo
+sitio**, `scripts/lib/host-produccion.sh`, del que tiran los tres guards. Estaba
+escrito dos veces.
 
 ---
 

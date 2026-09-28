@@ -37,7 +37,11 @@ set -euo pipefail
 # Substring distintivo. Cacha tanto el directo como el -pooler:
 #   ep-wispy-queen-ae20881h.c-2.us-east-2.aws.neon.tech
 #   ep-wispy-queen-ae20881h-pooler.c-2.us-east-2.aws.neon.tech
-PROD_HOST_PATTERN="ep-wispy-queen-ae20881h"
+# El patron vive en scripts/lib/host-produccion.sh: es la regla que decide si
+# un comando toca la base de la que vive el hogar, y estaba escrita dos veces.
+RAIZ_GUARD="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=lib/host-produccion.sh
+source "$RAIZ_GUARD/scripts/lib/host-produccion.sh"
 
 # ─── Detectar y consumir --guard-dry-run del argv antes de pasar al child ──
 DRY_RUN=false

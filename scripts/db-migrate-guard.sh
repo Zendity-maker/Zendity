@@ -83,7 +83,10 @@ fi
 HOST="$(printf '%s' "$URL" | sed -E 's|.*://[^@]*@([^/:?]+).*|\1|')"
 
 # Mismo patrón que db-push-guard.sh. Si cambia el endpoint, cambian los dos.
-PROD_HOST_PATTERN='ep-wispy-queen-ae20881h'
+# El patron vive en scripts/lib/host-produccion.sh. Estaba escrito dos veces.
+RAIZ_GUARD="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=lib/host-produccion.sh
+source "$RAIZ_GUARD/scripts/lib/host-produccion.sh"
 IS_PROD=false
 [[ "$HOST" == *"$PROD_HOST_PATTERN"* ]] && IS_PROD=true
 
