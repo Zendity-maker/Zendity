@@ -5,6 +5,7 @@ import { todayStartAST } from '@/lib/dates';
 import { resolveCaregiverCurrentColors, resolveCaregiverColors, isSoloCaregiver, inferShiftTypeFromAST } from '@/lib/shift-coverage';
 import { ColorGroup } from '@prisma/client';
 import { requireRole } from '@/lib/api-auth';
+import { ROLES_DE_PISO } from '@/lib/roles-clinicos';
 import { logError, logWarn } from '@/lib/logger';
 import { VITALS_WINDOW_MS } from '@/lib/vitals-window';
 
@@ -15,7 +16,9 @@ export const dynamic = 'force-dynamic';
 // sesiones de prueba que generaban VitalsOrder fantasma para toda la sede.
 // FASE 51: se extiende a usuarios con secondaryRoles que incluya CAREGIVER/NURSE
 // (ej. SUPERVISOR + CAREGIVER como Zuleyka Valcarcel).
-const CAREGIVER_ROLES = ['CAREGIVER', 'NURSE'];
+// La lista vive en src/lib/roles-clinicos.ts: es la MISMA que usa /care para
+// decidir si ensena el camino. Estaba escrita dos veces.
+const CAREGIVER_ROLES = ROLES_DE_PISO as unknown as string[];
 
 // El plazo vive en un solo sitio — ver src/lib/vitals-window.ts.
 

@@ -52,6 +52,7 @@ import { aFahrenheit, evaluarVitales, nivelDe } from '@/lib/vitals-thresholds';
 import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
 import { etiquetaDeFranja, mismaFranja } from '@/lib/franja-horaria';
 import { leerFirma } from '@/lib/firma';
+import { puedeAbrirTurno } from '@/lib/roles-clinicos';
 
 /**
  * Ahora, en el formato de <input type="datetime-local"> (hora local).
@@ -498,10 +499,12 @@ export default function ZendityCareTabletPage() {
     // Usar este flag en lugar de `user?.role === 'CAREGIVER'` para que los
     // usuarios con rol secundario de cuidadora accedan a todas las funciones
     // clínicas del tablet (iniciar turno, ver residentes, vitales, etc.).
-    const CLINICAL_ROLES = ['CAREGIVER', 'NURSE'];
-    const isActingAsCaregiver =
-        CLINICAL_ROLES.includes(user?.role as string) ||
-        (user?.secondaryRoles || []).some(r => CLINICAL_ROLES.includes(r));
+    //
+    // La lista vive en src/lib/roles-clinicos.ts, que es la MISMA que usa
+    // /api/care/shift/start. Estaba escrita aquí y allá: una decidía lo que el
+    // servidor acepta y la otra lo que la pantalla enseña, y al separarse lo
+    // que sale es una pantalla que invita a algo que el servidor va a negar.
+    const isActingAsCaregiver = puedeAbrirTurno(user?.role, user?.secondaryRoles);
 
     // Quien puede abrir el PAI. Coincide con ALLOWED_ROLES de
     // /api/corporate/patients/[id]/pai — una cuidadora que entrara ahi solo
@@ -3290,6 +3293,68 @@ export default function ZendityCareTabletPage() {
                     >
                         Cerrar sesión
                     </button>
+                </div>
+            </div>
+        );
+    }
+
+    /**
+     * QUIEN NO PUEDE ABRIR TURNO NO ENTRA AL EMBUDO.
+     *
+     * `/api/care/shift/start` solo acepta CAREGIVER y NURSE —primario o
+     * secundario—, y hace bien: un DIRECTOR abriendo turnos de prueba generaba
+     * VitalsOrder fantasma para toda la sede. Pero la pantalla no lo sabía, así
+     * que dejaba recorrer el embudo entero: elegir color, confirmar cobertura y
+     * marcar uno por uno el censo de los diez residentes. Solo al final, al
+     * ponchar, llegaba el 403 — y la única señal era un aviso que se va en seis
+     * segundos sobre una pantalla que no se mueve.
+     *
+     * Trabajo tirado al fondo de un callejón. Descubierto el 27-sep-2026
+     * entrando yo mismo con la cuenta de Andrés, que es DIRECTOR sin secundario.
+     *
+     * La regla ya estaba escrita en este fichero, cuarenta líneas más abajo de
+     * donde hacía falta, para el PAI: «una cuidadora que entrara ahí solo
+     * recibiría un 403, así que no se le muestra el camino». Aquí es lo mismo al
+     * revés.
+     *
+     * `&& !activeSession` a propósito: si a alguien le cambian el rol con el
+     * turno ABIERTO, esta pantalla lo dejaría encerrado sin poder entregarlo.
+     * Quien ya tiene turno sigue su camino hasta cerrarlo.
+     */
+    if (!isActingAsCaregiver && !activeSession) {
+        return (
+            <div className="fixed inset-0 bg-slate-900 flex items-center justify-center p-6 z-50">
+                <div className="bg-white rounded-3xl p-10 max-w-lg w-full text-center shadow-2xl animate-in zoom-in-95">
+                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-slate-100 text-4xl mb-5">🪪</div>
+                    <h1 className="text-3xl font-black text-slate-800 mb-3">Esta pantalla es del piso</h1>
+                    <p className="text-slate-600 font-medium mb-2">
+                        Tu cuenta es <span className="font-black text-slate-800">{user?.role ?? 'sin rol'}</span>, y
+                        el turno lo abren cuidadoras y enfermería.
+                    </p>
+                    <p className="text-sm text-slate-500 mb-7">
+                        Si hoy vas a cubrir el piso, pide que te añadan <span className="font-bold">Cuidadora</span> como
+                        rol secundario — con eso entras sin perder tu rol de siempre.
+                    </p>
+                    <div className="flex flex-col gap-3">
+                        <button
+                            onClick={() => router.push('/')}
+                            className="w-full py-4 bg-[#0F6B78] hover:bg-[#0d5a66] text-white font-black rounded-2xl shadow-lg transition-colors"
+                        >
+                            Ir a mi pantalla
+                        </button>
+                        <button
+                            onClick={() => router.push('/care/supervisor')}
+                            className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl transition-colors"
+                        >
+                            Ver el piso sin abrir turno
+                        </button>
+                        <button
+                            onClick={() => logout()}
+                            className="text-sm text-slate-500 hover:text-rose-500 font-bold mt-1 transition-colors"
+                        >
+                            Cerrar sesión
+                        </button>
+                    </div>
                 </div>
             </div>
         );
