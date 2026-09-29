@@ -122,31 +122,22 @@ export function avisoDeAdelanto(franja: string, adelantoMin: number): string {
  * datos no distinguen una cosa de la otra. Lo que sí es cierto sin interpretar
  * nada es que el camino se cierra a una hora que no significa nada aquí.
  *
- * ═══ QUÉ SE ARREGLÓ AQUÍ Y QUÉ NO — 29-SEP-2026 ═══
+ * ═══ CÓMO SE ARREGLÓ, EN DOS PASOS — 29-SEP-2026 ═══
  *
- * NO se movió la frontera. Se intentó llevarla a las 19 h de `MAX_ATRAS_HORAS`
- * y se revirtió al comprobar el efecto: `/api/care` acota `administrations` al
- * DÍA NATURAL AST (`inicioDelDiaAST`, route.ts:111). A la una de la madrugada
- * la tableta ya no recibe las dosis de ayer por la tarde, así que el pack se
- * ofrecería pero `isPackComplete` no podría darlo nunca por cerrado: un pack
- * zombi en la pantalla de medicamentos, peor que el hueco.
+ * PRIMERO la identidad: el pack manda su INSTANTE y el servidor lo valida con
+ * `instanteDeclaradoValido` en vez de reconstruir la franja desde su propio
+ * reloj. Esa reconstrucción era la razón TÉCNICA del corte a medianoche: sin
+ * ella el servidor no puede saber, a las 02:00, si "8:00 PM" son las de anoche
+ * o las de esta noche.
  *
- * Tampoco vale acotar por jornada clínica: 16 de las 126 dosis del pack de las
- * 5:00 AM se firman FUERA de su propia jornada, hacia las 3 de la tarde. Un
- * cierre por jornada las dejaría sin sitio, y ese camino sí se usa.
- *
- * Lo que SÍ queda hecho es la mitad que no se ve: el pack manda su INSTANTE y
- * el servidor lo valida en vez de reconstruirlo desde su propio reloj. Hoy da
- * exactamente lo mismo —comprobado en los ocho casos borde— porque el cliente
- * solo ofrece packs del día natural. Pero la reconstrucción era la razón
- * técnica del corte a medianoche, y ya no lo es.
- *
- * Mover la frontera de verdad es moverla en la tableta ENTERA —payload de
- * /api/care, `slotStatusToday`, `isPackComplete`— de la medianoche natural a
- * la jornada clínica. Es una pieza, no un parche.
+ * DESPUÉS la frontera, que es la razón de PRODUCTO: ver
+ * `ventanaDeDosisDeLaTableta` más abajo. El primer intento fue llevarla a las
+ * 19 h de `MAX_ATRAS_HORAS` y se revirtió, porque `/api/care` acotaba las
+ * administraciones al día natural y el pack se habría ofrecido sin que la
+ * tableta recibiera sus dosis — un pack zombi, imposible de dar por cerrado.
+ * La ventana buena mueve las dos cosas a la vez y se define una sola vez.
  */
 import { astDateTime } from '@/lib/dates';
-import { MAX_ATRAS_HORAS } from '@/lib/hora-real';
 
 /**
  * Qué instante significa esta franja ahora mismo.
@@ -178,6 +169,7 @@ export function instanteDeclaradoValido(
     hour: number,
     minute: number,
     ahora: Date,
+    ventana: { desde: Date; hasta: Date },
 ): Date | null {
     if (typeof crudo !== 'string' || !crudo.trim()) return null;
     const instante = new Date(crudo);
@@ -185,7 +177,98 @@ export function instanteDeclaradoValido(
     // La hora de pared AST del instante tiene que ser la de la franja.
     if (astDateTime(instante, hour, minute).getTime() !== instante.getTime()) return null;
     const adelantoMin = (instante.getTime() - ahora.getTime()) / 60_000;
-    if (adelantoMin > MARGEN_ANTES_MIN) return null;            // demasiado por delante
-    if (adelantoMin < -MAX_ATRAS_HORAS * 60) return null;       // demasiado por detras
+    if (adelantoMin > MARGEN_ANTES_MIN) return null;   // demasiado por delante
+    /**
+     * Y POR DETRÁS, EXACTAMENTE LA VENTANA DE LA TABLETA. NI UN MINUTO MENOS.
+     *
+     * Aquí había `MAX_ATRAS_HORAS` (19 h), que es el límite de la HORA
+     * DECLARABLE en hora-real.ts — otra cosa. Con la ventana vieja nunca se
+     * rozaban: el pack atrasado más viejo que la tableta podía ofrecer estaba a
+     * 17 h 59 min, así que el 19 no se alcanzaba nunca. Con la ventana nueva se
+     * cruzan, y el resultado era que la tableta ofrecía un pack que el servidor
+     * no podía identificar.
+     *
+     * Medido minuto a minuto: **179 combinaciones** de minuto × franja en que el
+     * servidor no hacía lo que la pantalla ofrecía. La primera, a las 03:01: el
+     * pack de las 8:00 AM de AYER: la tableta lo ofrece y el servidor contesta
+     * «todavía no toca, faltan 4 h 59 min» sobre una dosis de hace veinte horas.
+     *
+     * Si la tableta puede ofrecerlo, el servidor tiene que poder identificarlo.
+     * La ventana se calcula con la MISMA función en los dos lados.
+     */
+    if (instante < ventana.desde) return null;
     return instante;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * LA VENTANA DE DOSIS DE LA TABLETA — DEFINIDA UNA VEZ
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * QUÉ DOSIS PUEDE VER Y TOCAR LA TABLETA DE PISO AHORA MISMO.
+ *
+ * ═══ POR QUÉ HACÍA FALTA MOVER ESTO ═══
+ *
+ * La tableta trabajaba con el DÍA NATURAL AST (00:00 a 00:00) y el resto del
+ * sistema con la JORNADA CLÍNICA (06:00 a 06:00). De las dos fronteras, la
+ * natural es la que no significa nada aquí: a nadie le cambia el turno a
+ * medianoche. Y cortaba justo donde dolía — el pack de las 8:00 PM se podía
+ * recuperar 4,5 h y a las 00:00 desaparecía PARA SIEMPRE, porque a las 06:00
+ * ya no cumplía `min < ahoraMin` y no volvía a ofrecerse jamás.
+ *
+ * ═══ POR QUÉ NO ES, SIN MÁS, LA JORNADA CLÍNICA ═══
+ *
+ * Porque la jornada clínica parte en dos el pack de las 5:00 AM: la dosis de
+ * las 5:00 del día D pertenece a la jornada D−1. Eso ya rompió la ronda de
+ * tiroides del 16-sep-2026, y por eso `/api/care` se pasó al día natural.
+ *
+ * Y no es teórico: medido contra producción, **16 de las 126** dosis del pack
+ * de las 5:00 AM se firman FUERA de su propia jornada, hacia las 3 de la tarde.
+ * Un cierre por jornada las dejaría sin sitio.
+ *
+ * ═══ LA VENTANA QUE SIRVE PARA LAS DOS COSAS ═══
+ *
+ * Empieza en la MEDIANOCHE NATURAL DEL DÍA EN QUE ARRANCÓ LA JORNADA CLÍNICA
+ * EN CURSO. Es decir, seis horas antes del arranque de la jornada.
+ *
+ *     a las 15:00 del día D → jornada D → [D 00:00, D+1 00:00)   24 h
+ *     a la  01:00 del día D → jornada D−1 → [D−1 00:00, D+1 00:00)  48 h
+ *
+ * Las seis horas de más por debajo son exactamente las que contienen el pack
+ * de las 5:00 AM de la jornada anterior. No son un margen: son ese pack.
+ *
+ * ═══ QUÉ CAMBIA Y QUÉ NO, MEDIDO EL 29-SEP-2026 ═══
+ *
+ *     hora simulada   filas de hoy   filas con esta ventana
+ *     01:00 AST .............. 162 ... 439   (+277, ~33 kB)
+ *     05:00 AST .............. 162 ... 439   (+277)
+ *     09:00 AST .............. 162 ... 162   (+0)
+ *     15:00 AST .............. 162 ... 162   (+0)
+ *     23:00 AST .............. 162 ... 162   (+0)
+ *
+ * O sea: las ÚNICAS horas cuyo comportamiento cambia son las 00:00–05:59, que
+ * son exactamente las que estaban rotas. El resto del día es idéntico.
+ *
+ * ═══ EL PRECIO, Y POR QUÉ SE PAGA EN OTRO SITIO ═══
+ *
+ * Con 48 h dentro, la etiqueta de reloj deja de identificar una dosis. Y el
+ * fallo no es el obvio: casi nunca hay dos filas peleándose por la etiqueta —
+ * hay UNA SOLA, y es la de la jornada de ayer. A las 02:00, el pack de las
+ * 5:00 AM de esta madrugada se pintaría COMO YA DADO, con la firma de ayer.
+ *
+ * Medido sobre las 1.125 filas del 24 al 27-sep, reconstruyendo cada momento:
+ * **360 minutos cada noche, de 00:00 a 05:55, y 792 casos de medicamento ×
+ * minuto**. Por eso `slotStatusToday` casa por INSTANTE, y solo cae a la
+ * etiqueta en filas sin `scheduledTime`.
+ *
+ * Eso es seguro porque el instante está al 100 % donde importa: de las 1.846
+ * filas resueltas de los últimos 7 días, las 1.846 lo traen. (A 120 días solo
+ * el 13,8 %, porque el cron empezó a escribirlo el 15-sep — pero esta ventana
+ * nunca mira tan atrás.)
+ */
+export function ventanaDeDosisDeLaTableta(ahora: Date, inicioDeLaJornada: Date): { desde: Date; hasta: Date } {
+    return {
+        desde: astDateTime(inicioDeLaJornada, 0, 0),
+        hasta: new Date(astDateTime(ahora, 0, 0).getTime() + 24 * 60 * 60 * 1000),
+    };
 }

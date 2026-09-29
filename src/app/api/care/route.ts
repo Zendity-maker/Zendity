@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { todayStartAST, astDateTime } from '@/lib/dates';
+import { todayStartAST } from '@/lib/dates';
+import { ventanaDeDosisDeLaTableta } from '@/lib/margen-firma';
 import { ACTIVE_PRESENCE_MAX_HOURS } from '@/lib/shift-coverage';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
@@ -101,15 +102,30 @@ export async function GET(req: Request) {
         const todayEnd = new Date();
 
         /**
-         * El DIA CALENDARIO de Puerto Rico, de medianoche a medianoche.
+         * QUE DOSIS PUEDE VER Y TOCAR LA TABLETA AHORA MISMO.
          *
-         * No es lo mismo que `todayStartAST()`, que devuelve el arranque del DIA
-         * CLINICO — las 6:00 AM. Esa frontera parte en dos el pack de las 5:00 AM,
-         * que es exactamente lo que rompio la ronda de tiroides del 16-sep. Para
-         * decidir si una dosis pautada es "de hoy" hace falta el dia natural.
+         * Aqui habia un DIA CALENDARIO de Puerto Rico, de medianoche a
+         * medianoche, y su comentario explicaba bien por que NO era la jornada
+         * clinica: las 6:00 AM parten en dos el pack de las 5:00 AM, que es
+         * exactamente lo que rompio la ronda de tiroides del 16-sep.
+         *
+         * Ese razonamiento sigue en pie y esta ventana lo respeta — arranca en
+         * la MEDIANOCHE NATURAL, no a las 6:00. Lo que le faltaba al dia natural
+         * era alcance por ABAJO: a la una de la madrugada ya no traia las dosis
+         * de ayer por la tarde, que son las de la jornada EN CURSO y las que la
+         * cuidadora de noche todavia puede firmar. Por eso el pack de las 8:00 PM
+         * desaparecia a las 00:00 y no volvia nunca.
+         *
+         * La ventana arranca en la medianoche natural del dia en que empezo la
+         * jornada en curso. Fuera de 00:00-05:59 es IDENTICA a lo de antes:
+         * medido, +0 filas a las 09:00, 15:00 y 23:00, y +277 de madrugada.
+         *
+         * Vive en un solo sitio porque la tableta usa la MISMA para decidir que
+         * pack ofrece: si divergieran, ofreceria un pack cuyas dosis no ha
+         * recibido y que no podria dar por cerrado nunca. Ver
+         * src/lib/margen-firma.ts.
          */
-        const inicioDelDiaAST = astDateTime(todayEnd, 0, 0);
-        const finDelDiaAST = new Date(inicioDelDiaAST.getTime() + 24 * 60 * 60 * 1000);
+        const ventanaDosis = ventanaDeDosisDeLaTableta(todayEnd, todayStart);
         // Cap UNIFICADO de presencia (16h sliding). Alineado con
         // isSoloCaregiver y caregiver-rounds — los 3 call-sites que cuentan
         // "presencia" en piso usan el mismo umbral.
@@ -278,7 +294,7 @@ export async function GET(req: Request) {
                         administrations: {
                             where: {
                                 OR: [
-                                    { scheduledTime: { gte: inicioDelDiaAST, lt: finDelDiaAST } },
+                                    { scheduledTime: { gte: ventanaDosis.desde, lt: ventanaDosis.hasta } },
                                     { scheduledTime: null, createdAt: { gte: todayStart, lte: todayEnd } },
                                 ],
                                 // HELD incluido desde sep-2026: una omision por
@@ -286,7 +302,13 @@ export async function GET(req: Request) {
                                 // Ver src/lib/omision-medicamento.ts.
                                 status: { in: ['ADMINISTERED', 'OMITTED', 'REFUSED', 'HELD'] }
                             },
-                            select: { id: true, status: true, scheduleTime: true, createdAt: true, notes: true }
+                            // `scheduledTime` (el INSTANTE) va en el select desde el
+                            // 29-sep-2026: con dos dias dentro de la ventana, dos
+                            // filas comparten etiqueta y `slotStatusToday` tiene que
+                            // poder distinguirlas. Sin el en el select seria null en
+                            // TODAS las filas — que se lee igual que "ninguna lo
+                            // tiene" (CLAUDE.md, antipatron 9).
+                            select: { id: true, status: true, scheduleTime: true, scheduledTime: true, createdAt: true, notes: true }
                         }
                     }
                 },

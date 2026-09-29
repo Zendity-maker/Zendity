@@ -310,7 +310,33 @@ export async function POST(req: Request) {
          * lo que evita que dentro de un mes solo una de las dos copias esté
          * bien. Ver src/lib/margen-firma.ts.
          */
-        if (status === 'ADMINISTERED' && scheduledFor) {
+        /**
+         * NINGUN estado se escribe sobre una franja que todavia no ha llegado.
+         *
+         * Esto decia `status === 'ADMINISTERED'`, y el razonamiento estaba mal:
+         * di por hecho que marcar por adelantado que una dosis se va a retener
+         * era un acto clinico legitimo, y que bloquearlo quitaba una capacidad.
+         *
+         * No anota una intencion: OCUPA LA FILA. Con
+         * `@@unique([patientMedicationId, scheduledTime])`, la fila nace con el
+         * instante de la dosis futura; el cron de las 04:00 hace `upsert` con
+         * `update: {}` (emar-schedule.ts), asi que la respeta y NO crea la
+         * PENDING; y esa noche `conciliarPack` la ve resuelta —OMITTED no esta
+         * en ABIERTOS— y la tableta no ofrece el medicamento. La dosis real no
+         * se puede dar ni firmar, y no queda traza en el log del cron.
+         *
+         * El camino: a la 01:30 la ronda "08:00 PM" sale entera SIN_PROGRAMAR
+         * —las filas de hoy no existen hasta las 04:00 y la de anoche cae fuera
+         * de la ventana de esta pantalla— y no se distingue de una en la que de
+         * verdad falte firmar. Un toque en «Omitir» y la dosis de ESTA noche
+         * nace omitida 18 h 30 min antes de tocar, mientras la omision de
+         * anoche, que era lo que se queria anotar, sigue sin anotarse.
+         *
+         * Exposicion, no hemorragia: la ruta lleva 4 filas en toda la historia
+         * y ninguna tiene esa forma. Se cierra la puerta antes de que el turno
+         * de noche aprenda a empujarla.
+         */
+        if (scheduledFor) {
             const adelanto = minutosDeAdelanto(instanteDeLaFranja(scheduledFor, ahora), ahora);
             if (adelanto !== null) {
                 return NextResponse.json(

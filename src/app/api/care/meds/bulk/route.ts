@@ -11,7 +11,7 @@ import { estadoParaOmision, esMotivoOmisionValido } from '@/lib/omision-medicame
 import { conciliarPack } from '@/lib/emar-conciliar';
 import { instanteDeLaFranja as instanteDe } from '@/lib/emar-conciliar';
 import { parseTimeOfDay } from '@/lib/dates';
-import { minutosDeAdelanto, avisoDeAdelanto, instanteDeclaradoValido } from '@/lib/margen-firma';
+import { minutosDeAdelanto, avisoDeAdelanto, instanteDeclaradoValido, ventanaDeDosisDeLaTableta } from '@/lib/margen-firma';
 import { mismaFranja } from '@/lib/franja-horaria';
 
 // CAREGIVER puede firmar el pack del turno. NURSE/SUP/DIR/ADMIN también.
@@ -283,10 +283,40 @@ export async function POST(req: Request) {
         const ahoraGuarda = new Date();
         let instanteDelPack: Date | null = null;
         if (scheduleTime && franjaInstante) {
+            let esHora = true;
             try {
                 const { hour, minute } = parseTimeOfDay(String(scheduleTime).trim());
-                instanteDelPack = instanteDeclaradoValido(franjaInstante, hour, minute, ahoraGuarda);
-            } catch { /* la franja no es una hora (PRN, semanal): no hay nada que conciliar */ }
+                instanteDelPack = instanteDeclaradoValido(
+                    franjaInstante, hour, minute, ahoraGuarda,
+                    ventanaDeDosisDeLaTableta(ahoraGuarda, todayStartAST()),
+                );
+            } catch { esHora = false; /* PRN, semanal: no hay franja que conciliar */ }
+            /**
+             * SI LA TABLETA DIJO DE QUE DOSIS HABLA Y NO CUADRA, NO SE ADIVINA.
+             *
+             * Aqui se caia a reconstruir la franja desde el reloj del servidor.
+             * Parecia prudente —"fallar hacia el comportamiento anterior"— y es
+             * lo contrario: reconstruir cuando el cliente SI declaro un instante
+             * escribe en OTRA dosis sin que nadie vea un error.
+             *
+             * El camino exacto, medido: a las 03:30, omitir el pack de las 8:00
+             * AM de ayer. El instante declarado se rechazaba, se reconstruia
+             * "8:00 AM" sobre HOY, el cron de las 04:00 todavia no habia creado
+             * esa fila, asi que `sinFila` la creaba nueva con `scheduledTime` de
+             * HOY y devolvia `success: true`. La dosis de esta manana nacia
+             * omitida, la omision de ayer seguia sin anotarse, y el `upsert` del
+             * cron con `update: {}` no dejaba ni traza en el log.
+             *
+             * Con el arreglo de la ventana esto ya no deberia dispararse nunca.
+             * Que este igual es el punto: una guarda que solo funciona mientras
+             * otra cosa este bien no es una guarda.
+             */
+            if (esHora && !instanteDelPack) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'No se pudo identificar de qué dosis se trata. Recarga la pantalla y vuelve a intentarlo.',
+                }, { status: 409 });
+            }
         }
         let idsAProcesar: string[] = medicationIds;
         let yaResueltos = 0;
@@ -388,7 +418,11 @@ export async function POST(req: Request) {
          * el caso nocturno 22:00 → "5:00 AM" resuelve al pasado y lo sigue
          * cubriendo `alContinuoDeNoche` en el cliente.
          */
-        if (adminStatus === 'ADMINISTERED' && scheduleTime) {
+        // Tampoco aqui se distingue por estado: omitir por adelantado ocupa
+        // la fila igual que firmar por adelantado. Ver la nota de /api/emar.
+        // Con `franjaInstante` esto ya no puede llegar —el instante se valida
+        // antes— pero un cliente viejo en cache no lo manda.
+        if (scheduleTime) {
             const adelanto = minutosDeAdelanto(instanteDelPack ?? instanteDe(scheduleTime, now), now);
             if (adelanto !== null) {
                 return NextResponse.json(
