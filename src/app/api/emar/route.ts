@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { resolverHoraReal } from '@/lib/hora-real';
 import { format } from 'date-fns';
-import { todayStartAST, astDateTime } from '@/lib/dates';
+import { todayStartAST, parseTimeOfDay } from '@/lib/dates';
 import { withPhiAccessLog } from '@/lib/phi-audit';
 import { requireRole } from '@/lib/api-auth';
 import { conciliarUna, instanteDeLaFranja } from '@/lib/emar-conciliar';
-import { minutosDeAdelanto, avisoDeAdelanto } from '@/lib/margen-firma';
+import { minutosDeAdelanto, avisoDeAdelanto, instanteDeclaradoValido, ventanaDelRosterDeDireccion, ocurrenciaEnVentana } from '@/lib/margen-firma';
 import { mismaFranja } from '@/lib/franja-horaria';
 
 /**
@@ -59,10 +59,46 @@ async function getEmarRosterHandler(req: Request) {
         const hqId = auth.headquartersId;
         const todayStart = todayStartAST();
         const todayEnd = new Date();
-        // El dia NATURAL de Puerto Rico. `todayStartAST()` es el dia CLINICO
-        // (arranca a las 6 AM) y parte en dos el pack de las 5:00 AM.
-        const inicioDelDiaAST = astDateTime(todayEnd, 0, 0);
-        const finDelDiaAST = new Date(inicioDelDiaAST.getTime() + 24 * 60 * 60 * 1000);
+        /**
+         * ESTE ROSTER SIGUE EN EL DIA NATURAL, Y NO ES UN OLVIDO.
+         *
+         * El 29-sep-2026 se movio la frontera en la tableta (/api/care) a
+         * `ventanaDeDosisDeLaTableta`. Se intento traerla aqui el mismo dia y se
+         * revirtio al verificarla: arregla una cosa y rompe dos.
+         *
+         * LO QUE ARREGLABA, medido simulando este GET contra produccion el
+         * 27-sep sobre 293 franjas: de 00:00 a 04:00 esta pantalla pintaba
+         * **293 de 293** franjas como SIN_PROGRAMAR —las filas de hoy no existen
+         * hasta que el cron corre a las 04:00 y las de anoche caian fuera— y eso
+         * no se distinguia de una jornada en la que de verdad faltara firmarlo
+         * todo. Con la ventana nueva bajaba a 7.
+         *
+         * LO QUE ROMPIA, medido igual:
+         *
+         *   · La franja de las 5:00 AM. Su dosis de la jornada en curso cae al
+         *     dia natural SIGUIENTE, asi que la unica ocurrencia ya pasada es la
+         *     de la jornada ANTERIOR. A las 02:00 pasaba de {SIN_PROGRAMAR: 11}
+         *     a {ADMINISTERED: 10} con la firma de ayer — y la pantalla, al
+         *     verla resuelta, QUITA los tres botones. Cambia un "no sabemos" que
+         *     dejaba actuar por una afirmacion falsa que no deja.
+         *   · El panel rojo de esta pantalla dice "N dosis de HOY sin
+         *     administrar". De madrugada, **393 de 414** entradas eran de un dia
+         *     de calendario anterior. El titular miente y no hay fecha en la
+         *     lista.
+         *
+         * Las dos salen del mismo sitio: la ventana alcanza otro dia y la
+         * PANTALLA no sabe de que dia es cada dosis. Moverla de verdad pide
+         * trabajo de interfaz aqui —fecha por dosis, titular del panel, y una
+         * decision de producto sobre que significa la franja de las 5:00 AM en
+         * un roster de dia natural— y eso no se hace de paso.
+         *
+         * Lo que SI quedo hecho es la mitad de identidad: la pantalla manda el
+         * instante y el servidor lo valida en vez de deducirlo de su reloj. Con
+         * esta ventana de 24 h las dos vias coinciden siempre, asi que hoy no
+         * cambia nada; pero cuando la frontera se mueva, esta parte ya esta.
+         * Mismo orden que se siguio en la tableta (commits 70083427 y 1f840c78).
+         */
+        const ventanaDosis = ventanaDelRosterDeDireccion(todayEnd);
 
         // 1. Obtener todos los residentes de la HQ que tengan medicación activa
         // Excluye DISCHARGED y DECEASED (alineado con convención estándar
@@ -102,7 +138,7 @@ async function getEmarRosterHandler(req: Request) {
                         administrations: {
                             where: {
                                 OR: [
-                                    { scheduledTime: { gte: inicioDelDiaAST, lt: finDelDiaAST } },
+                                    { scheduledTime: { gte: ventanaDosis.desde, lt: ventanaDosis.hasta } },
                                     { scheduledTime: null, administeredAt: { gte: todayStart, lte: todayEnd } },
                                 ],
                             },
@@ -169,11 +205,50 @@ async function getEmarRosterHandler(req: Request) {
                          * quedó sin arreglar — el mismo patrón que el propio
                          * comentario de ese fichero describe.
                          */
-                        const fila = pm.administrations.find((a: any) => mismaFranja(a.scheduledFor, franja))
-                            // Respaldo para lo anterior al cron, que guardaba la franja en `scheduleTime`.
+                        /**
+                         * Y AHORA POR INSTANTE PRIMERO, PORQUE LA ETIQUETA YA NO
+                         * IDENTIFICA UNA DOSIS.
+                         *
+                         * Con la ventana de 48 h de la madrugada, "08:00 PM"
+                         * casa con DOS filas: la de anoche y la de esta noche.
+                         * `find` devuelve la primera del `orderBy: asc`, o sea
+                         * SIEMPRE la mas vieja. Un director mirando a la 01:00
+                         * veria el estado de anteanoche con el rotulo de hoy.
+                         *
+                         * Es el mismo arreglo que `slotStatusToday` en la
+                         * tableta. La ocurrencia que toca la elige
+                         * `ocurrenciaEnVentana`, que tiene su propia regla
+                         * porque esta pantalla no tiene turno.
+                         */
+                        let instante: Date | null = null;
+                        try {
+                            const { hour, minute } = parseTimeOfDay(franja);
+                            instante = ocurrenciaEnVentana(hour, minute, todayEnd, ventanaDosis);
+                        } catch { /* no es una hora: se queda con la etiqueta */ }
+
+                        const fila = (instante
+                                ? pm.administrations.find((a: any) =>
+                                    a.scheduledTime && a.scheduledTime.getTime() === instante!.getTime())
+                                : null)
+                            /**
+                             * `mismaFranja` Y NO `===` en el respaldo, porque hay
+                             * DOS FORMATOS de `scheduledFor`: el cron escribe el
+                             * token de la receta ("05:00 AM") y la tableta la
+                             * etiqueta del pack ("5:00 AM"). Medido el 29-sep,
+                             * 52 dosis ADMINISTERED salian SIN_PROGRAMAR por eso.
+                             * Solo aplica a filas SIN instante — PRN y lo
+                             * anterior al 15-sep.
+                             */
+                            ?? pm.administrations.find((a: any) =>
+                                !a.scheduledTime && mismaFranja(a.scheduledFor, franja))
+                            // Lo mas viejo: ni instante ni franja escrita.
                             ?? pm.administrations.find((a: any) => !a.scheduledFor && a.scheduledTime === null);
                         return {
                             franja,
+                            // El instante viaja al cliente para que firme SOBRE
+                            // esta dosis y no sobre la que el servidor deduzca
+                            // de su reloj. Igual que el pack de la tableta.
+                            instante: instante?.toISOString() ?? null,
                             estado: fila ? fila.status : 'SIN_PROGRAMAR',
                             administeredAt: fila?.administeredAt ?? null,
                         };
@@ -216,7 +291,7 @@ export async function POST(req: Request) {
         if (auth instanceof NextResponse) return auth;
 
         const body = await req.json();
-        const { patientMedicationId, status, notes, scheduledFor, administeredAt: horaDeclarada } = body;
+        const { patientMedicationId, status, notes, scheduledFor, administeredAt: horaDeclarada, franjaInstante } = body;
         // El firmante SIEMPRE sale de la sesion, nunca del body.
         const nurseId = auth.id;
 
@@ -336,8 +411,38 @@ export async function POST(req: Request) {
          * y ninguna tiene esa forma. Se cierra la puerta antes de que el turno
          * de noche aprenda a empujarla.
          */
+        /**
+         * LA DOSIS LA IDENTIFICA LA PANTALLA, NO EL RELOJ DEL SERVIDOR.
+         *
+         * Igual que /api/care/meds/bulk desde el 29-sep. Sin esto, a la 01:30
+         * "08:00 PM" reconstruia las ocho de ESTA noche —futuro— en vez de las
+         * de anoche, que es la dosis sobre la que el director esta actuando.
+         *
+         * `instanteDeclaradoValido` exige que la hora de pared AST del instante
+         * sea EXACTAMENTE la de la etiqueta y que caiga en la ventana. Si no
+         * cuadra NO se reconstruye: se rechaza. Reconstruir cuando el cliente
+         * declaro un instante escribe en otra dosis sin que nadie vea un error.
+         */
+        let instanteDeLaDosis: Date | null = null;
+        if (scheduledFor && franjaInstante) {
+            let esHora = true;
+            try {
+                const { hour, minute } = parseTimeOfDay(String(scheduledFor).trim());
+                instanteDeLaDosis = instanteDeclaradoValido(
+                    franjaInstante, hour, minute, ahora,
+                    ventanaDelRosterDeDireccion(ahora),
+                );
+            } catch { esHora = false; }
+            if (esHora && !instanteDeLaDosis) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'No se pudo identificar de qué dosis se trata. Recarga la pantalla y vuelve a intentarlo.',
+                }, { status: 409 });
+            }
+        }
+
         if (scheduledFor) {
-            const adelanto = minutosDeAdelanto(instanteDeLaFranja(scheduledFor, ahora), ahora);
+            const adelanto = minutosDeAdelanto(instanteDeLaDosis ?? instanteDeLaFranja(scheduledFor, ahora), ahora);
             if (adelanto !== null) {
                 return NextResponse.json(
                     { success: false, error: avisoDeAdelanto(String(scheduledFor), adelanto) },
@@ -346,7 +451,7 @@ export async function POST(req: Request) {
             }
         }
 
-        const fila = await conciliarUna(patientMedicationId, scheduledFor, ahora);
+        const fila = await conciliarUna(patientMedicationId, scheduledFor, ahora, instanteDeLaDosis);
 
         const datos = {
             administeredById: nurseId,
@@ -405,10 +510,35 @@ export async function POST(req: Request) {
                      * `/api/care/meds/bulk` ya lo hacía; ésta era la divergencia,
                      * y es lo que dejó 12 filas sueltas el 21-sep.
                      *
-                     * Solo llega aquí cuando NO existe ninguna fila para esa
-                     * franja, así que no puede chocar con la llave única.
+                     * Y EL INSTANTE ES EL QUE DECLARÓ LA PANTALLA, NO EL DEL
+                     * RELOJ DEL SERVIDOR.
+                     *
+                     * Esto reconstruía SIEMPRE con `ahora`. Mientras la pantalla
+                     * solo enseñaba el día natural daba igual, porque las dos
+                     * vías coincidían. Al ensanchar la ventana dejaron de
+                     * coincidir, y como la guarda de adelanto de arriba pasó a
+                     * usar el instante declarado, ya no frenaba nada:
+                     *
+                     *   01:30. El director omite el pack de las 8:00 PM de
+                     *   ANOCHE. El instante declarado (anoche 20:00) pasa la
+                     *   guarda —está en el pasado—, `conciliarUna` no encuentra
+                     *   fila, y el `create` escribía `astDateTime(ahora, 20, 0)`
+                     *   = las 8:00 PM de ESTA noche. La dosis de esta noche
+                     *   nacía OMITIDA 18 h 30 min antes de tocar; el cron de las
+                     *   04:00 hace `upsert` con `update: {}`, así que la
+                     *   respetaba y no creaba la PENDING, sin traza en el log; y
+                     *   la omisión de anoche seguía sin anotarse.
+                     *
+                     * Es el mismo camino que `/api/care/meds/bulk` cerró hoy,
+                     * reabierto en esta copia — y abierto por el propio cambio
+                     * que venía a arreglar esta pantalla.
+                     *
+                     * El comentario de arriba decía que aquí no se puede chocar
+                     * con la llave única porque no existe fila para esa franja.
+                     * Con el instante declarado vuelve a ser cierto: se busca y
+                     * se escribe el MISMO instante.
                      */
-                    scheduledTime: instanteDeLaFranja(scheduledFor, ahora),
+                    scheduledTime: instanteDeLaDosis ?? instanteDeLaFranja(scheduledFor, ahora),
                 },
             });
 

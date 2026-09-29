@@ -81,11 +81,25 @@ export default function EMARDashboardPage() {
      * Es el mismo fallo que costó las diez omisiones fantasma del 15-sep.
      */
     const openActionModal = (med: any, patientInfo: any, type: "ADMINISTERED" | "REFUSED" | "OMITTED", franja: string | null) => {
-        setSelectedMed({ ...med, patientName: patientInfo.name, room: patientInfo.room, franja });
+        // El INSTANTE de esa franja, no solo su etiqueta. Con la ventana de
+        // madrugada "08:00 PM" casa con dos dias, y el servidor no puede
+        // deducir cual desde su reloj. Ver src/lib/margen-firma.ts.
+        const instante = (med.dosisDeHoy ?? []).find((d: any) => d.franja === franja)?.instante ?? null;
+        setSelectedMed({ ...med, patientName: patientInfo.name, room: patientInfo.room, franja, instante });
         setActionType(type);
-        // La hora NO se arrastra de la dosis anterior: dejar fijado
-        // "hace 2 h" y seguir registrando a otra persona seria peor
-        // que el problema original.
+        /**
+         * La hora NO se arrastra de la dosis anterior: dejar fijado "hace 2 h"
+         * y seguir registrando a otra persona seria peor que el problema
+         * original.
+         *
+         * Y NO SE SIEMBRA CON LA HORA DE LA FRANJA, aunque la tableta si lo
+         * haga con sus packs atrasados. Aqui toda dosis del roster es del dia en
+         * curso —la ventana es el dia natural, ver margen-firma.ts— asi que
+         * `ahora` y la hora de la franja estan a pocas horas. Sembrar tendria
+         * sentido el dia que la ventana alcance la jornada anterior, y ese dia
+         * hay que acotarlo a MAX_ATRAS_HORAS o el modal abre con un valor que el
+         * servidor rechaza.
+         */
         setHoraRegistro(null);
         setIsActionModalOpen(true);
     };
@@ -107,6 +121,10 @@ export default function EMARDashboardPage() {
                     // La franja concreta. Con ella el servidor reconstruye el
                     // instante exacto y firma sobre la fila que ya existe.
                     scheduledFor: selectedMed.franja ?? null,
+                    // La identidad de la dosis. Sin esto el servidor la
+                    // reconstruye desde SU reloj y de madrugada acierta el dia
+                    // equivocado — el mismo arreglo que la tableta.
+                    franjaInstante: selectedMed.instante ?? null,
                     // La hora declarada. Sin ella el servidor usa `ahora`, que
                     // es el comportamiento de siempre.
                     administeredAt: horaRegistro?.toISOString(),

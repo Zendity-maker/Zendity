@@ -164,9 +164,16 @@ export async function conciliarUna(
     patientMedicationId: string,
     franja: string | null | undefined,
     ahora: Date,
+    /**
+     * El instante que declara quien llama, ya validado. Gana sobre la
+     * reconstruccion por el mismo motivo que en `conciliarPack`: el reloj del
+     * servidor solo acierta mientras la dosis y el reloj compartan dia natural,
+     * y de madrugada no lo comparten.
+     */
+    instanteExplicito?: Date | null,
 ): Promise<FilaProgramada | null> {
     // 1. Con franja: búsqueda exacta.
-    const scheduledTime = instanteDeLaFranja(franja, ahora);
+    const scheduledTime = instanteExplicito ?? instanteDeLaFranja(franja, ahora);
     if (scheduledTime) {
         /**
          * TRES RESULTADOS, NO DOS: abierta, YA RESUELTA, o no hay.

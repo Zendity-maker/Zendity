@@ -176,8 +176,24 @@ export function instanteDeclaradoValido(
     if (Number.isNaN(instante.getTime())) return null;
     // La hora de pared AST del instante tiene que ser la de la franja.
     if (astDateTime(instante, hour, minute).getTime() !== instante.getTime()) return null;
-    const adelantoMin = (instante.getTime() - ahora.getTime()) / 60_000;
-    if (adelantoMin > MARGEN_ANTES_MIN) return null;   // demasiado por delante
+    /**
+     * IDENTIDAD, NO POLÍTICA. EL MARGEN NO SE COMPRUEBA AQUÍ.
+     *
+     * Aquí se rechazaba también lo que cayera más de `MARGEN_ANTES_MIN` por
+     * delante, y eso mezclaba dos preguntas distintas: «¿de qué dosis hablas?»
+     * y «¿puedes firmarla ya?». Quien llama devuelve 409 cuando esta función
+     * dice null, así que una dosis futura —perfectamente identificada— salía
+     * con «no se pudo identificar de qué dosis se trata».
+     *
+     * Medido en el eMAR de dirección, simulando cada 5 minutos: **372 casos**,
+     * desde las 06:00, cuando el roster enseña la dosis de las 8:00 AM que aún
+     * no ha llegado. El mensaje correcto es el del margen —«todavía no toca,
+     * faltan 2 h»— y lo da la guarda de adelanto, que corre después.
+     *
+     * Así que aquí solo se comprueba que el instante SEA esa dosis: que parsee,
+     * que su hora de pared AST sea la de la etiqueta, y que caiga en la ventana.
+     * La ventana ya acota el futuro a un día; el margen decide si se firma.
+     */
     /**
      * Y POR DETRÁS, EXACTAMENTE LA VENTANA DE LA TABLETA. NI UN MINUTO MENOS.
      *
@@ -196,7 +212,7 @@ export function instanteDeclaradoValido(
      * Si la tableta puede ofrecerlo, el servidor tiene que poder identificarlo.
      * La ventana se calcula con la MISMA función en los dos lados.
      */
-    if (instante < ventana.desde) return null;
+    if (instante < ventana.desde || instante >= ventana.hasta) return null;
     return instante;
 }
 
@@ -271,4 +287,72 @@ export function ventanaDeDosisDeLaTableta(ahora: Date, inicioDeLaJornada: Date):
         desde: astDateTime(inicioDeLaJornada, 0, 0),
         hasta: new Date(astDateTime(ahora, 0, 0).getTime() + 24 * 60 * 60 * 1000),
     };
+}
+
+/**
+ * QUÉ OCURRENCIA DE ESTA FRANJA TOCA MIRAR, DENTRO DE UNA VENTANA.
+ *
+ * `ocurrenciaDeLaFranja` de arriba sirve a la TABLETA, que sabe si el slot es
+ * de su turno o es un pack atrasado. El eMAR de dirección no tiene turno: es un
+ * roster que pregunta «¿cómo van las dosis?». Necesita otra regla, y esta es:
+ *
+ *   · la ocurrencia MÁS RECIENTE que ya pasó y cae en la ventana;
+ *   · si ninguna pasó todavía, la PRIMERA que viene dentro de la ventana.
+ *
+ * Con la ventana de 24 h (de 06:00 a 23:59) solo hay una candidata y esto es
+ * idéntico a lo de siempre. Con la de 48 h (de 00:00 a 05:59) hay dos, y se
+ * queda con la de la jornada que el piso está trabajando: a la 01:00, «08:00 PM»
+ * son las ocho de ANOCHE, no las de esta noche.
+ *
+ * Lo que NO resuelve, y se dice: a la 01:00, «5:00 AM» devuelve la de AYER —la
+ * dosis de las 5:00 de esta jornada aún no existe, el cron la crea a las 04:00—.
+ * Es un estado real de una dosis vieja, no una invención, y es estrictamente
+ * mejor que el SIN_PROGRAMAR que salía antes para TODAS las franjas entre
+ * medianoche y las cuatro. Si algún día molesta, la salida es que la pantalla
+ * pinte la fecha: por eso el instante viaja en el DTO.
+ */
+export function ocurrenciaEnVentana(
+    hour: number,
+    minute: number,
+    ahora: Date,
+    ventana: { desde: Date; hasta: Date },
+): Date | null {
+    const deHoy = astDateTime(ahora, hour, minute);
+    const UN_DIA = 24 * 60 * 60 * 1000;
+    // En orden ascendente, que es de lo que depende la elección de abajo.
+    const candidatas = [
+        new Date(deHoy.getTime() - UN_DIA),
+        deHoy,
+        new Date(deHoy.getTime() + UN_DIA),
+    ].filter(d => d >= ventana.desde && d < ventana.hasta);
+    if (candidatas.length === 0) return null;
+    const yaPasadas = candidatas.filter(d => d.getTime() <= ahora.getTime());
+    return yaPasadas.length > 0 ? yaPasadas[yaPasadas.length - 1] : candidatas[0];
+}
+
+/**
+ * LA VENTANA DEL ROSTER DE DIRECCIÓN — EL DÍA NATURAL, A PROPÓSITO.
+ *
+ * No es `ventanaDeDosisDeLaTableta` y no debe unificarse a la ligera. Son dos
+ * superficies con alcances distintos:
+ *
+ *   · La tableta es OPERATIVA: trabaja la jornada clínica en curso, y por eso
+ *     su ventana llega a la tarde de ayer entre medianoche y las 6.
+ *   · Este roster es un INFORME de día natural para dirección, y su pantalla
+ *     no pinta la fecha de cada dosis. En cuanto la ventana alcanza otro día,
+ *     el titular «N dosis de HOY sin administrar» miente —medido: 393 de 414
+ *     entradas de un día anterior— y la franja de las 5:00 AM se pinta
+ *     «Registrado» con la firma de ayer, perdiendo los botones de acción.
+ *
+ * Mover esta frontera es trabajo de interfaz, no de consulta. Mientras no se
+ * haga, el día natural es la frontera honesta: lo que enseña es de hoy.
+ *
+ * Con estas 24 h, `ocurrenciaEnVentana` solo tiene una candidata por franja, así
+ * que da exactamente lo mismo que reconstruir desde el reloj. Esa coincidencia
+ * es lo que hace que la mitad de identidad —`franjaInstante` validado en vez de
+ * deducido— sea hoy un no-op y mañana la pieza que ya está puesta.
+ */
+export function ventanaDelRosterDeDireccion(ahora: Date): { desde: Date; hasta: Date } {
+    const desde = astDateTime(ahora, 0, 0);
+    return { desde, hasta: new Date(desde.getTime() + 24 * 60 * 60 * 1000) };
 }
