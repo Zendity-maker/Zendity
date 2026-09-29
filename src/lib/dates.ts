@@ -77,6 +77,60 @@ export function todayStartAST(): Date {
 }
 
 /**
+ * EL `shiftDate` DE UNA COBERTURA. UNA SOLA FORMA DE ESCRIBIRLO.
+ *
+ * ═══ QUÉ PASABA ═══
+ *
+ * `ShiftPatientOverride.shiftDate` se escribía desde CUATRO sitios con DOS
+ * anclas distintas, y se lee siempre con una tercera comparación:
+ *
+ *     claim-coverage ......... todayStartAST() .................... 10:00 UTC
+ *     shift-redistribute ..... todayStartAST() .................... 10:00 UTC
+ *     supervisor/assign-color  clinicalDayCalendarUTCRange().start  00:00 UTC
+ *     hr/schedule/absent ..... shift.date (ScheduledShift) ........ 00:00 UTC
+ *
+ *     y /api/care lo lee con  `shiftDate >= todayStartAST()`  →  10:00 UTC
+ *
+ * Una fecha de 00:00 UTC NUNCA es >= 10:00 UTC del mismo día. No da error: la
+ * cobertura se guarda bien y la tableta sencillamente no la trae.
+ *
+ * ═══ LO MEDIDO EL 29-SEP-2026, CONTRA PRODUCCIÓN ═══
+ *
+ *     coberturas ............................. 4.335
+ *     guardadas a 10:00 UTC (se ven) ......... 4.031
+ *     guardadas a 00:00 UTC (NO se ven) ......   304
+ *
+ *     por motivo:  ABSENCE_REDISTRIB  102 de 102 invisibles — el 100 %
+ *                  MANUAL            202 de 1.656
+ *                  LATE_COVER          0 de 2.577
+ *
+ *     y no es deuda vieja: septiembre es el peor mes, 102 de 1.120.
+ *
+ * Las `ABSENCE_REDISTRIB` son las que duelen: residentes reasignados porque
+ * una cuidadora no llegó, y quien los cubre no los ve en su tableta. El
+ * 29-may Herminia Mojica recibió seis residentes a las 22:14 y ninguno le
+ * apareció.
+ *
+ * ═══ POR QUÉ LAS 10:00 Y NO LAS 00:00 ═══
+ *
+ * Porque es lo que ya leen todos los consumidores, y porque una cobertura
+ * pertenece al DÍA CLÍNICO —que empieza a las 6 AM AST—, no al día natural.
+ * Escribirla a medianoche la deja fuera de su propio día.
+ *
+ * Los rangos de lectura de quien escribe siguen valiendo: tanto
+ * `assign-color` como `absent` leen `[00:00, 24:00)` del día, y las 10:00
+ * caen dentro.
+ */
+export function shiftDateDeCobertura(diaCalendarioUtc: Date): Date {
+    return new Date(Date.UTC(
+        diaCalendarioUtc.getUTCFullYear(),
+        diaCalendarioUtc.getUTCMonth(),
+        diaCalendarioUtc.getUTCDate(),
+        10, 0, 0, 0,
+    ));
+}
+
+/**
  * Retorna el fin del "día actual" (ahora mismo).
  * Usar como `lte: todayEndAST()` en rangos temporales.
  */

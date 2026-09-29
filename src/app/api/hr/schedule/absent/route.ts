@@ -6,6 +6,7 @@ import { logAudit } from '@/lib/audit';
 import { notifyUser, notifyRoles } from '@/lib/notifications';
 import { HORAS_PARA_RESPONDER, puntosPorSeveridad } from '@/lib/incidente-politica';
 import { tiposQueSolapan } from '@/lib/ventanas-de-turno';
+import { shiftDateDeCobertura } from '@/lib/dates';
 
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN', 'HR_MANAGER'];
 
@@ -352,7 +353,11 @@ export async function POST(req: Request) {
                                 originalColor: absentColorGroup,
                                 assignedColor: c.shift.colorGroup || absentColorGroup,
                                 caregiverId: c.shift.userId,
-                                shiftDate: shift.date,
+                                // A las 10:00 UTC, no a la medianoche de
+                                // `shift.date`: /api/care lee `>= todayStartAST()`.
+                                // Las 102 ABSENCE_REDISTRIB eran invisibles al
+                                // 100 %. Ver shiftDateDeCobertura en lib/dates.
+                                shiftDate: shiftDateDeCobertura(shift.date),
                                 shiftType: shift.shiftType,
                                 reason: 'ABSENCE_REDISTRIB',
                                 autoAssigned: true,

@@ -4,7 +4,7 @@ import { requireRole } from '@/lib/api-auth';
 import { logError, logWarn } from '@/lib/logger';
 import { notifyUser, notifyRoles } from '@/lib/notifications';
 import { SystemAuditAction } from '@prisma/client';
-import { todayStartAST, clinicalDayCalendarUTCRange } from '@/lib/dates';
+import { todayStartAST, clinicalDayCalendarUTCRange, shiftDateDeCobertura } from '@/lib/dates';
 import { type ShiftT, ACTIVE_PRESENCE_MAX_HOURS } from '@/lib/shift-coverage';
 
 export const dynamic = 'force-dynamic';
@@ -100,7 +100,14 @@ export async function POST(req: Request) {
 
         // ── Rango de fecha del turno (día clínico AST) ──
         const scheduledDayRange = clinicalDayCalendarUTCRange();
-        const shiftDate = scheduledDayRange.start;
+        /**
+         * A las 10:00 UTC, no a las 00:00. `scheduledDayRange.start` es la
+         * medianoche del día natural, y /api/care lee `shiftDate >=
+         * todayStartAST()` — o sea 10:00 UTC. Una fecha de 00:00 nunca pasa ese
+         * filtro, así que la cobertura se guardaba y la tableta no la traía.
+         * Medido: 202 de 1.656 MANUAL invisibles. Ver shiftDateDeCobertura.
+         */
+        const shiftDate = shiftDateDeCobertura(scheduledDayRange.start);
 
         // ── Procesar cada residente ──
         // Para cada uno:
