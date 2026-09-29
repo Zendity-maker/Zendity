@@ -1098,7 +1098,23 @@ export default function ZendityCareTabletPage() {
     const packsDelPaciente = modalType === 'MEDS' && activePatient
         ? groupMedsByScheduleTime(activePatient.medications || [])
         : [];
-    const packActivo = packsDelPaciente.find(p => !isPackComplete(p)) || null;
+    /**
+     * EL MISMO PACK QUE PINTA LA PANTALLA, NO OTRO.
+     *
+     * Esto era `find(p => !isPackComplete(p))` y la vista de abajo usa
+     * `findIndex(p => !isPackComplete(p) && !p.todaviaNoToca)`. Dos reglas para
+     * la misma pregunta, y no dan lo mismo: el `sort` de
+     * `groupMedsByScheduleTime` manda los ATRASADOS al final, así que cuando
+     * los packs del turno todavía no tocan, esta línea cogía uno futuro —que no
+     * es `atrasado`, o sea no siembra hora— mientras la pantalla pintaba el
+     * atrasado, que es justo el que la necesita.
+     *
+     * Medido el 29-sep-2026 sobre 60 días: la siembra acierta en 184 dosis y
+     * falla en 5 desde que se estrenó el 22-sep. O sea que muerde poco. Se
+     * cierra igual, porque una regla escrita dos veces es como se han roto
+     * cuatro cosas este mes, y porque las 5 son horas falsas en un expediente.
+     */
+    const packActivo = packsDelPaciente.find(p => !isPackComplete(p) && !p.todaviaNoToca) || null;
 
     /**
      * SE REINICIA, Y EN UN PACK ATRASADO SE SIEMBRA CON SU PROPIA HORA.

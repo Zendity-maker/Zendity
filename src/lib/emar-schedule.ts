@@ -145,7 +145,36 @@ function tocaHoyAST(
  * Idempotente por el unique (patientMedicationId, scheduledTime): correrlo dos
  * veces no duplica. Devuelve cuántas creó.
  */
-export async function materializarDosisDelDia(): Promise<{ creadas: number; omitidas: number; noProgramables: number }> {
+/** Una receta que el cron NO puede programar y que alguien tiene que arreglar. */
+export interface RecetaSinProgramar {
+    patientMedicationId: string;
+    residente: string;
+    medicamento: string;
+    scheduleTimes: string;
+    headquartersId: string;
+}
+
+export async function materializarDosisDelDia(): Promise<{
+    creadas: number;
+    omitidas: number;
+    noProgramables: number;
+    /**
+     * LAS QUE HAY QUE ARREGLAR, SEPARADAS DE LAS QUE ESTÁN BIEN.
+     *
+     * `noProgramables` sumaba TRES cosas distintas y solo una es un problema:
+     *
+     *   · una pauta semanal que hoy no toca ....... correcto, es el diseño
+     *   · una PRN ................................. correcto, se dan cuando hacen falta
+     *   · «08:00 AM (Semanal)», el formato viejo .. ROTO: no dice qué día, así que
+     *                                               no se materializa nunca
+     *
+     * Medido el 29-sep-2026: de 255 recetas activas hay UNA en formato viejo —
+     * la Vitamina D3 de Isidra E. Beaton Rosales, recetada hace 131 días y con
+     * CERO administraciones. El cron hace bien en saltarla; lo que faltaba es
+     * que alguien se enterara. `noProgramables` solo iba a un `console.log`.
+     */
+    sinProgramar: RecetaSinProgramar[];
+}> {
     const meds = await prisma.patientMedication.findMany({
         /**
          * SOLO A QUIEN ESTÁ EN EL EDIFICIO.
@@ -182,13 +211,19 @@ export async function materializarDosisDelDia(): Promise<{ creadas: number; omit
         },
         // frequency y scheduleDays se piden porque SIN ELLOS no se puede saber
         // qué días toca una pauta semanal. Ver el bloque de abajo.
-        select: { id: true, scheduleTimes: true, frequency: true, scheduleDays: true },
+        select: {
+            id: true, scheduleTimes: true, frequency: true, scheduleDays: true,
+            // Para poder decir DE QUIÉN es la receta que no se puede programar.
+            patient: { select: { name: true, headquartersId: true } },
+            medication: { select: { name: true } },
+        },
     });
 
     const ahora = new Date();
     let creadas = 0;
     let omitidas = 0;
     let noProgramables = 0;
+    const sinProgramar: RecetaSinProgramar[] = [];
 
     /**
      * EL DÍA DE LA SEMANA, EN HORA DE PUERTO RICO — Y DEL DÍA DE CALENDARIO.
@@ -247,7 +282,25 @@ export async function materializarDosisDelDia(): Promise<{ creadas: number; omit
             if (!txt) continue;
 
             // PRN y semanales quedan fuera a propósito — ver NO_PROGRAMABLE.
-            if (NO_PROGRAMABLE.test(txt)) { noProgramables++; continue; }
+            if (NO_PROGRAMABLE.test(txt)) {
+                noProgramables++;
+                /**
+                 * Una PRN está bien así: se da cuando hace falta. Lo que NO está
+                 * bien es el formato viejo —«08:00 AM (Semanal)»—, que no dice
+                 * qué día y por eso no se materializa NUNCA. Esa se separa para
+                 * que alguien pueda arreglarla.
+                 */
+                if (!/\bPRN\b/i.test(txt) && !sinProgramar.some(s => s.patientMedicationId === pm.id)) {
+                    sinProgramar.push({
+                        patientMedicationId: pm.id,
+                        residente: pm.patient?.name?.trim() ?? '—',
+                        medicamento: pm.medication?.name ?? '—',
+                        scheduleTimes: pm.scheduleTimes,
+                        headquartersId: pm.patient?.headquartersId ?? '',
+                    });
+                }
+                continue;
+            }
 
             let hora: { hour: number; minute: number };
             try {
@@ -305,7 +358,7 @@ export async function materializarDosisDelDia(): Promise<{ creadas: number; omit
         }
     }
 
-    return { creadas, omitidas, noProgramables };
+    return { creadas, omitidas, noProgramables, sinProgramar };
 }
 
 /**

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { materializarDosisDelDia } from '@/lib/emar-schedule';
 import { requireCronSecret } from '@/lib/cron-auth';
+import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -87,8 +88,64 @@ export async function GET(req: Request) {
         const r = await materializarDosisDelDia();
         console.log(
             `[materializar-dosis 04:00] creadas: ${r.creadas} · ` +
-            `PRN/semanales fuera: ${r.noProgramables} · sin formato: ${r.omitidas}`,
+            `PRN/semanales fuera: ${r.noProgramables} · sin formato: ${r.omitidas} · ` +
+            `recetas sin programar: ${r.sinProgramar.length}`,
         );
+
+        /**
+         * UNA RECETA QUE NO SE PUEDE PROGRAMAR TIENE QUE VERSE.
+         *
+         * El contador existía desde siempre y solo iba a un `console.log`. Nadie
+         * lee los logs de Vercel a diario, así que la Vitamina D3 de Isidra E.
+         * Beaton Rosales lleva 131 días recetada con CERO administraciones y sin
+         * que nada lo dijera.
+         *
+         * No se puede arreglar sola: «08:00 AM (Semanal)» no dice QUÉ DÍA, y el
+         * cron hace bien en no inventarse seis dosis de siete. Lo que hace falta
+         * es que alguien ponga el día en `scheduleDays` — y para eso primero
+         * tiene que enterarse.
+         *
+         * Mismo patrón que el aviso de úlcera sin plan: se repite a diario
+         * mientras la receta siga rota, y la forma de callarlo es arreglarla.
+         */
+        if (r.sinProgramar.length > 0) {
+            const hqIds = [...new Set(r.sinProgramar.map(x => x.headquartersId).filter(Boolean))];
+            const [staff, avisadosHoy] = await Promise.all([
+                prisma.user.findMany({
+                    where: {
+                        headquartersId: { in: hqIds },
+                        isActive: true, isDeleted: false,
+                        OR: [
+                            { role: { in: ['NURSE', 'SUPERVISOR', 'DIRECTOR'] as any } },
+                            { secondaryRoles: { hasSome: ['NURSE', 'SUPERVISOR'] } },
+                        ],
+                    },
+                    select: { id: true, headquartersId: true },
+                }),
+                prisma.notification.findMany({
+                    where: {
+                        type: 'SHIFT_ALERT',
+                        title: { startsWith: 'Receta sin programar' },
+                        createdAt: { gte: new Date(Date.now() - 20 * 60 * 60 * 1000) },
+                    },
+                    select: { userId: true, title: true },
+                }),
+            ]);
+            const yaAvisado = new Set(avisadosHoy.map(n => `${n.userId}|${n.title}`));
+            const avisos: { userId: string; type: string; title: string; message: string; link: string; isRead: boolean }[] = [];
+
+            for (const rec of r.sinProgramar) {
+                const title = `Receta sin programar — ${rec.residente}`;
+                const message = `${rec.medicamento} tiene el horario escrito como «${rec.scheduleTimes}», que no dice qué día de la semana toca. El sistema no puede crear la dosis, así que no aparece en la tableta y nadie la está dando. Hay que ponerle el día en el expediente.`;
+                for (const u of staff.filter(s => s.headquartersId === rec.headquartersId)) {
+                    if (yaAvisado.has(`${u.id}|${title}`)) continue;
+                    avisos.push({ userId: u.id, type: 'SHIFT_ALERT', title, message, link: '/corporate/medical/patients', isRead: false });
+                }
+            }
+            if (avisos.length > 0) await prisma.notification.createMany({ data: avisos });
+            console.log(`[materializar-dosis 04:00] avisos de receta sin programar: ${avisos.length}`);
+        }
+
         return NextResponse.json({ success: true, ...r });
     } catch (e: any) {
         // Se devuelve 500 A PROPÓSITO, en vez de tragárselo: si esta pasada
