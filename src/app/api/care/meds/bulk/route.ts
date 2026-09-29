@@ -9,6 +9,7 @@ import { notifyRoles } from '@/lib/notifications';
 import { todayStartAST } from '@/lib/dates';
 import { estadoParaOmision, esMotivoOmisionValido } from '@/lib/omision-medicamento';
 import { conciliarPack } from '@/lib/emar-conciliar';
+import { mismaFranja } from '@/lib/franja-horaria';
 
 // CAREGIVER puede firmar el pack del turno. NURSE/SUP/DIR/ADMIN también.
 /**
@@ -98,6 +99,11 @@ export async function POST(req: Request) {
             },
             select: {
                 id: true,
+                // `scheduleTimes` hace falta para guardar `scheduledFor` en el
+                // MISMO formato que escribe el cron. Un campo que no se pide
+                // vuelve undefined en todas las filas y se lee igual que «no lo
+                // tiene ninguna» — antipatrón #9 de CLAUDE.md.
+                scheduleTimes: true,
                 patient: { select: { id: true, name: true } },
                 medication: { select: { name: true, dosage: true } }
             }
@@ -427,11 +433,36 @@ export async function POST(req: Request) {
          * PRN y semanales viejos no traen instante —su franja no parsea— y se
          * crean sueltos como siempre. Ver src/lib/emar-conciliar.ts.
          */
+        /**
+         * El token tal cual lo tiene la receta ("05:00 AM"), para que el campo
+         * quede en el mismo formato que escribe el cron. `validMeds` ya trae
+         * `scheduleTimes` desde el findMany de arriba.
+         */
+        const tokenDeLaReceta = (medId: string): string | null => {
+            const receta = validMeds.find((m: any) => m.id === medId);
+            const tokens = String(receta?.scheduleTimes ?? '')
+                .split(',').map(s => s.trim()).filter(Boolean);
+            return tokens.find(tk => mismaFranja(tk, scheduleTime)) ?? null;
+        };
+
         const dataToInsert = sinFila.map((medId: string) => ({
             patientMedicationId: medId,
             ...camposDeLaFirma,
+            /**
+             * `scheduledFor` SE GUARDA COMO LO ESCRIBE LA RECETA.
+             *
+             * Aquí se guardaba `scheduleTime`, que es la etiqueta canónica del
+             * pack —"5:00 AM"— mientras el cron guarda el token literal de la
+             * receta —"05:00 AM"—. Dos formatos para el mismo campo, y el eMAR
+             * de dirección los comparaba con `===`: 52 dosis ya firmadas se
+             * pintaban ahí como SIN_PROGRAMAR.
+             *
+             * El lector ya usa `mismaFranja`, así que lo de atrás está cubierto.
+             * Esto cierra la fuente: se guarda el token de la receta cuando se
+             * puede encontrar, y si no, la etiqueta del pack como antes.
+             */
             ...(instanteDeLaFranja
-                ? { scheduledTime: instanteDeLaFranja, scheduledFor: scheduleTime }
+                ? { scheduledTime: instanteDeLaFranja, scheduledFor: tokenDeLaReceta(medId) ?? scheduleTime }
                 : {}),
         }));
 

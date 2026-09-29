@@ -6,6 +6,7 @@ import { todayStartAST, astDateTime } from '@/lib/dates';
 import { withPhiAccessLog } from '@/lib/phi-audit';
 import { requireRole } from '@/lib/api-auth';
 import { conciliarUna, instanteDeLaFranja } from '@/lib/emar-conciliar';
+import { mismaFranja } from '@/lib/franja-horaria';
 
 /**
  * QUIEN PUEDE VER Y ESCRIBIR EL eMAR.
@@ -135,7 +136,39 @@ async function getEmarRosterHandler(req: Request) {
                         : String(pm.scheduleTimes ?? '').split(',').map((t: string) => t.trim()).filter(Boolean);
 
                     const dosisDeHoy = franjas.map((franja: string) => {
-                        const fila = pm.administrations.find((a: any) => a.scheduledFor === franja)
+                        /**
+                         * `mismaFranja` Y NO `===`, PORQUE HAY DOS FORMATOS.
+                         *
+                         * `scheduledFor` lo escriben dos sitios distintos y no
+                         * de la misma forma:
+                         *
+                         *   · el cron, el token literal de la receta
+                         *     (emar-schedule.ts) ................. "05:00 AM"
+                         *   · la tableta, la etiqueta canónica del pack
+                         *     (meds/bulk, `scheduleTime = pack.label`)  "5:00 AM"
+                         *
+                         * Y las 255 recetas activas usan TODAS el token con cero
+                         * delante, así que toda fila escrita por el camino
+                         * `createMany` de la tableta quedaba invisible aquí.
+                         *
+                         * MEDIDO el 29-sep-2026 simulando este mismo GET día a
+                         * día contra producción: **52 dosis ADMINISTERED salían
+                         * como SIN_PROGRAMAR** teniendo su fila escrita en el
+                         * otro formato. El peor día, el 21-sep: 17 de 293
+                         * franjas pintadas (5,8 %). Todas por origen TABLETA;
+                         * ninguna por CRON.
+                         *
+                         * En pantalla eso es una dosis que la cuidadora YA firmó
+                         * pintada con reloj gris y con los botones de firmar
+                         * ofrecidos, como si nadie la hubiera dado.
+                         *
+                         * La solución ya existía y estaba aplicada en el otro
+                         * sitio: `mismaFranja` en src/lib/franja-horaria.ts, que
+                         * la tableta usa desde el 22-sep. Esta era la copia que
+                         * quedó sin arreglar — el mismo patrón que el propio
+                         * comentario de ese fichero describe.
+                         */
+                        const fila = pm.administrations.find((a: any) => mismaFranja(a.scheduledFor, franja))
                             // Respaldo para lo anterior al cron, que guardaba la franja en `scheduleTime`.
                             ?? pm.administrations.find((a: any) => !a.scheduledFor && a.scheduledTime === null);
                         return {
