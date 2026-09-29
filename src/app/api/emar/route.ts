@@ -6,6 +6,7 @@ import { todayStartAST, astDateTime } from '@/lib/dates';
 import { withPhiAccessLog } from '@/lib/phi-audit';
 import { requireRole } from '@/lib/api-auth';
 import { conciliarUna, instanteDeLaFranja } from '@/lib/emar-conciliar';
+import { minutosDeAdelanto, avisoDeAdelanto } from '@/lib/margen-firma';
 import { mismaFranja } from '@/lib/franja-horaria';
 
 /**
@@ -295,6 +296,30 @@ export async function POST(req: Request) {
          * declarable; la hora declarada se queda donde debe, en
          * `administeredAt`.
          */
+        /**
+         * TAMPOCO DESDE DIRECCIÓN SE FIRMA UNA DOSIS QUE NO TOCA.
+         *
+         * La misma regla que la tableta, y por el mismo motivo: esta pantalla
+         * es justo desde la que se registra lo que ya pasó, así que la hora
+         * declarada puede ir hacia atrás —`resolverHoraReal` la valida— pero la
+         * FRANJA que se firma no puede estar en el futuro.
+         *
+         * Las 18 filas del 21-sep-2026 que dieron origen a la regla —el pack de
+         * las 8:00 PM firmado a las 14:12— salieron por el camino del pack, no
+         * por aquí. Pero la regla vale igual, y escribirla en un solo sitio es
+         * lo que evita que dentro de un mes solo una de las dos copias esté
+         * bien. Ver src/lib/margen-firma.ts.
+         */
+        if (status === 'ADMINISTERED' && scheduledFor) {
+            const adelanto = minutosDeAdelanto(instanteDeLaFranja(scheduledFor, ahora), ahora);
+            if (adelanto !== null) {
+                return NextResponse.json(
+                    { success: false, error: avisoDeAdelanto(String(scheduledFor), adelanto) },
+                    { status: 400 },
+                );
+            }
+        }
+
         const fila = await conciliarUna(patientMedicationId, scheduledFor, ahora);
 
         const datos = {

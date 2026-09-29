@@ -9,6 +9,8 @@ import { notifyRoles } from '@/lib/notifications';
 import { todayStartAST } from '@/lib/dates';
 import { estadoParaOmision, esMotivoOmisionValido } from '@/lib/omision-medicamento';
 import { conciliarPack } from '@/lib/emar-conciliar';
+import { instanteDeLaFranja as instanteDe } from '@/lib/emar-conciliar';
+import { minutosDeAdelanto, avisoDeAdelanto } from '@/lib/margen-firma';
 import { mismaFranja } from '@/lib/franja-horaria';
 
 // CAREGIVER puede firmar el pack del turno. NURSE/SUP/DIR/ADMIN también.
@@ -342,6 +344,33 @@ export async function POST(req: Request) {
         }
 
         const now = new Date();
+
+        /**
+         * NO SE FIRMA UNA DOSIS QUE TODAVÍA NO TOCA — Y AHORA TAMBIÉN AQUÍ.
+         *
+         * Esta comprobación existía solo en la tableta desde el 21-sep-2026. El
+         * servidor aceptaba el pack de las 8:00 PM a las nueve de la mañana: un
+         * cliente viejo en caché, una pestaña abierta desde ayer con el reloj
+         * parado, o un reintento tardío bastaban para colarlo.
+         *
+         * Va con `now` del SERVIDOR a propósito. La hora declarada
+         * (`horaDeclarada`) dice cuándo se administró y puede ir hacia atrás;
+         * no puede mover hacia delante la franja que se está firmando.
+         *
+         * Solo `ADMINISTERED`: ver src/lib/margen-firma.ts para por qué una
+         * omisión adelantada no se bloquea, y para qué NO atrapa esta regla —
+         * el caso nocturno 22:00 → "5:00 AM" resuelve al pasado y lo sigue
+         * cubriendo `alContinuoDeNoche` en el cliente.
+         */
+        if (adminStatus === 'ADMINISTERED' && scheduleTime) {
+            const adelanto = minutosDeAdelanto(instanteDe(scheduleTime, now), now);
+            if (adelanto !== null) {
+                return NextResponse.json(
+                    { success: false, error: avisoDeAdelanto(String(scheduleTime), adelanto) },
+                    { status: 400 },
+                );
+            }
+        }
 
         // ── HORA REAL vs HORA DE TECLEO ──
         // Hasta hoy `administeredAt` se sellaba con `now` para todo el pack, o

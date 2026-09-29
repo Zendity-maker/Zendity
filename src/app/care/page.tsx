@@ -29,6 +29,7 @@ import { MOTIVOS_CAMBIO, TIPOS_UPP } from "@/lib/upp";
 import { EFECTOS_PRN } from "@/lib/prn";
 import { MOTIVOS_OMISION, etiquetaOmision, estadoParaOmision } from "@/lib/omision-medicamento";
 import { tocaHoy } from "@/lib/receta";
+import { MARGEN_ANTES_MIN } from "@/lib/margen-firma";
 
 /** Dosis PRN administrada que todavia no tiene respuesta. Ver /api/care/meds/prn-efecto. */
 interface DosisPRNPendiente {
@@ -306,13 +307,6 @@ function slotInShift(minutes: number, shift: string): boolean {
  *     activos de Cupey sin una sola administracion, entre ellos Warfarin con
  *     107 dias. Ver src/lib/receta.ts.
  */
-/**
- * Cuanto ANTES de su hora se puede empezar a firmar un pack.
- *
- * Ni cero —el reparto empieza antes de la hora en punto— ni libre, que es lo
- * que permitio firmar el pack de las 20:00 a las 14:12 del 21-sep-2026.
- */
-const MARGEN_ANTES_MIN = 30;
 
 function groupMedsByScheduleTime(medications: any[]) {
     const shift = getCurrentShift();
