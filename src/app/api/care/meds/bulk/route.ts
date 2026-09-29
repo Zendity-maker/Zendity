@@ -10,7 +10,8 @@ import { todayStartAST } from '@/lib/dates';
 import { estadoParaOmision, esMotivoOmisionValido } from '@/lib/omision-medicamento';
 import { conciliarPack } from '@/lib/emar-conciliar';
 import { instanteDeLaFranja as instanteDe } from '@/lib/emar-conciliar';
-import { minutosDeAdelanto, avisoDeAdelanto } from '@/lib/margen-firma';
+import { parseTimeOfDay } from '@/lib/dates';
+import { minutosDeAdelanto, avisoDeAdelanto, instanteDeclaradoValido } from '@/lib/margen-firma';
 import { mismaFranja } from '@/lib/franja-horaria';
 
 // CAREGIVER puede firmar el pack del turno. NURSE/SUP/DIR/ADMIN también.
@@ -86,7 +87,7 @@ export async function POST(req: Request) {
             }, { status: 403 });
         }
 
-        const { action, medicationIds, scheduleTime, notes, signatureBase64, reason, prnMotivo, motivoCodigo, administeredAt: horaDeclarada } = await req.json();
+        const { action, medicationIds, scheduleTime, notes, signatureBase64, reason, prnMotivo, motivoCodigo, administeredAt: horaDeclarada, franjaInstante } = await req.json();
 
         if (!action || !medicationIds || !Array.isArray(medicationIds) || medicationIds.length === 0) {
             return NextResponse.json({ success: false, error: "Datos incompletos para la acción masiva" }, { status: 400 });
@@ -261,11 +262,36 @@ export async function POST(req: Request) {
          * (patientMedicationId, scheduledTime). Una dosis de ayer no puede
          * colarse, porque su instante es otro.
          */
+        /**
+         * LA DOSIS LA IDENTIFICA LA TABLETA, NO EL RELOJ DEL SERVIDOR.
+         *
+         * `franjaInstante` llega desde el 29-sep-2026. Sin el, el servidor
+         * reconstruia la franja sobre SU fecha de calendario, y eso solo acierta
+         * mientras el reloj y la dosis compartan dia natural. A las 02:00 no lo
+         * comparten: "8:00 PM" reconstruia las ocho de esta noche —futuro— en vez
+         * de las ocho de anoche, que es la dosis que se esta firmando. Por eso el
+         * pack de la tarde desaparecia a medianoche y no volvia nunca.
+         *
+         * NO SE CREE A CIEGAS. `instanteDeclaradoValido` exige que sea una fecha,
+         * que su hora de pared AST sea EXACTAMENTE la de la franja —o sea que no
+         * se puede firmar una dosis distinta de la que dice la etiqueta— y que
+         * caiga dentro del alcance (19 h atras, el margen hacia delante). Si algo
+         * no cuadra devuelve null y se reconstruye como siempre: se falla hacia
+         * el comportamiento anterior, nunca hacia un error en la cara de quien
+         * esta repartiendo medicamentos.
+         */
         const ahoraGuarda = new Date();
+        let instanteDelPack: Date | null = null;
+        if (scheduleTime && franjaInstante) {
+            try {
+                const { hour, minute } = parseTimeOfDay(String(scheduleTime).trim());
+                instanteDelPack = instanteDeclaradoValido(franjaInstante, hour, minute, ahoraGuarda);
+            } catch { /* la franja no es una hora (PRN, semanal): no hay nada que conciliar */ }
+        }
         let idsAProcesar: string[] = medicationIds;
         let yaResueltos = 0;
         if ((isPack || isOmit) && scheduleTime) {
-            const previo = await conciliarPack(medicationIds, scheduleTime, ahoraGuarda);
+            const previo = await conciliarPack(medicationIds, scheduleTime, ahoraGuarda, instanteDelPack);
             const yaHechos = new Set(previo.yaResueltos);
 
             // Las recetas sin fila pautada —PRN, semanales, recetadas despues del
@@ -363,7 +389,7 @@ export async function POST(req: Request) {
          * cubriendo `alContinuoDeNoche` en el cliente.
          */
         if (adminStatus === 'ADMINISTERED' && scheduleTime) {
-            const adelanto = minutosDeAdelanto(instanteDe(scheduleTime, now), now);
+            const adelanto = minutosDeAdelanto(instanteDelPack ?? instanteDe(scheduleTime, now), now);
             if (adelanto !== null) {
                 return NextResponse.json(
                     { success: false, error: avisoDeAdelanto(String(scheduleTime), adelanto) },
@@ -415,7 +441,7 @@ export async function POST(req: Request) {
          * Efecto lateral bueno: firmar sobre una fila existente es idempotente.
          * Un doble toque deja el mismo expediente.
          */
-        const { aFirmar, sinFila, scheduledTime: instanteDeLaFranja } = await conciliarPack(idsAProcesar, scheduleTime, now);
+        const { aFirmar, sinFila, scheduledTime: instanteDeLaFranja } = await conciliarPack(idsAProcesar, scheduleTime, now, instanteDelPack);
 
         const camposDeLaFirma = {
             administeredById: invokerId,

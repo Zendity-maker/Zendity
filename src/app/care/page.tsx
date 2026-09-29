@@ -29,7 +29,7 @@ import { MOTIVOS_CAMBIO, TIPOS_UPP } from "@/lib/upp";
 import { EFECTOS_PRN } from "@/lib/prn";
 import { MOTIVOS_OMISION, etiquetaOmision, estadoParaOmision } from "@/lib/omision-medicamento";
 import { tocaHoy } from "@/lib/receta";
-import { MARGEN_ANTES_MIN } from "@/lib/margen-firma";
+import { MARGEN_ANTES_MIN, ocurrenciaDeLaFranja } from "@/lib/margen-firma";
 
 /** Dosis PRN administrada que todavia no tiene respuesta. Ver /api/care/meds/prn-efecto. */
 interface DosisPRNPendiente {
@@ -338,13 +338,20 @@ function groupMedsByScheduleTime(medications: any[]) {
      * declarada; y esta pantalla ya manda `horaRegistro`. Lo único que faltaba
      * era dejar de esconder el pack.
      *
-     * SOLO DE LAS 06:00 EN ADELANTE, y no es arbitrario: `conciliarPack`
-     * reconstruye el instante con la fecha de HOY. De madrugada, un pack "de
-     * antes" sería de ayer y la firma caería en el día equivocado. De 00:00 a
-     * 05:59 no se ofrece ninguno — y a esa hora tampoco hay ninguno que ofrecer.
+     * YA NO SE CORTA A MEDIANOCHE. Esto decía `ahora.getHours() >= 6`, y el
+     * motivo era real: `conciliarPack` reconstruía el instante con la fecha de
+     * HOY, así que de madrugada un pack "de antes" caía en el día equivocado.
+     *
+     * Pero el remedio cerraba la puerta en vez de arreglar la cerradura. El
+     * pack de las 8:00 PM solo se podía recuperar de 19:30 a 23:59 —4,5 h
+     * contra las 16,5 del de las 8:00 AM— y a las 00:00 desaparecía PARA
+     * SIEMPRE: a las 6 ya no cumplía `min < ahoraMin` y no volvía nunca.
+     *
+     * Ahora el pack manda su INSTANTE y el servidor no reconstruye nada. La
+     * frontera es la misma que la de la hora declarable, 19 h hacia atrás. Ver
+     * src/lib/margen-firma.ts, que explica por qué NO es la jornada clínica.
      */
-    const puedeHaberAtrasados = ahora.getHours() >= 6;
-    const groups: Record<string, { slotMinutes: number; meds: any[]; atrasado: boolean; todaviaNoToca: boolean }> = {};
+    const groups: Record<string, { slotMinutes: number; meds: any[]; atrasado: boolean; todaviaNoToca: boolean; instante: Date }> = {};
     medications.forEach(m => {
         if (!m.scheduleTimes) return;
         if (!tocaHoy(m)) return;
@@ -381,7 +388,38 @@ function groupMedsByScheduleTime(medications: any[]) {
              * otro camino.
              */
             const enTurno = slotInShift(min, shift);
-            const atrasado = !enTurno && puedeHaberAtrasados && min < ahoraMin;
+            // El instante REAL de esta franja, que es lo que se manda al
+            // servidor para que no lo reconstruya desde su propio reloj.
+            const instante = ocurrenciaDeLaFranja(Math.floor(min / 60), min % 60, ahora, !enTurno);
+            /**
+             * LA FRONTERA SIGUE SIENDO LA MEDIANOCHE NATURAL — Y NO PORQUE ESTÉ
+             * BIEN.
+             *
+             * Ver la nota larga de arriba: el pack de las 8:00 PM se puede
+             * recuperar 4,5 h y el de las 8:00 AM 16,5 h, y a las 00:00 el de
+             * la tarde se cierra para siempre.
+             *
+             * Se intentó mover esta línea a las 19 h de `MAX_ATRAS_HORAS` el
+             * 29-sep-2026 y se revirtió al comprobar el efecto: `/api/care`
+             * acota `administrations` al DÍA NATURAL AST (`inicioDelDiaAST`,
+             * route.ts:111). A la una de la madrugada la tableta ya no recibe
+             * las dosis de ayer por la tarde, así que `slotStatusToday` no
+             * encontraría ninguna, `isPackComplete` diría que no y el pack
+             * quedaría ahí para siempre — sin poder ponerse completo por mucho
+             * que se firmara. Un pack zombi en la pantalla de medicamentos es
+             * peor que el hueco que venía a tapar.
+             *
+             * Mover esto de verdad es mover la frontera del día en la tableta
+             * ENTERA —payload, `slotStatusToday`, `isPackComplete`— de la
+             * medianoche natural a la jornada clínica. Es una pieza, no un
+             * parche, y no se hace a la vez que otra cosa.
+             *
+             * Lo que sí queda hecho: el pack manda su instante y el servidor
+             * lo valida en vez de reconstruirlo. Hoy da exactamente lo mismo
+             * que reconstruir —comprobado— pero cuando se mueva la frontera,
+             * el servidor ya está listo y no hay que acordarse de él.
+             */
+            const atrasado = !enTurno && ahora.getHours() >= 6 && min < ahoraMin;
             if (!enTurno && !atrasado) return;
             /**
              * LA NOCHE SE COMPARA EN SU PROPIO CONTINUO, NO EN MINUTOS CRUDOS.
@@ -417,14 +455,14 @@ function groupMedsByScheduleTime(medications: any[]) {
             const todaviaNoToca = enTurno
                 && alContinuoDeNoche(min) > alContinuoDeNoche(ahoraMin) + MARGEN_ANTES_MIN;
             const label = formatSlotLabel(min);
-            if (!groups[label]) groups[label] = { slotMinutes: min, meds: [], atrasado, todaviaNoToca };
+            if (!groups[label]) groups[label] = { slotMinutes: min, meds: [], atrasado, todaviaNoToca, instante };
             // Evitar duplicar el mismo med en el mismo slot (si CSV repetido)
             if (!groups[label].meds.find((x: any) => x.id === m.id)) {
                 groups[label].meds.push(m);
             }
         });
     });
-    const entries = Object.entries(groups).map(([label, v]) => ({ label, slotMinutes: v.slotMinutes, meds: v.meds, atrasado: v.atrasado, todaviaNoToca: v.todaviaNoToca }));
+    const entries = Object.entries(groups).map(([label, v]) => ({ label, slotMinutes: v.slotMinutes, meds: v.meds, atrasado: v.atrasado, todaviaNoToca: v.todaviaNoToca, instante: v.instante }));
     // Los atrasados van DESPUÉS de los del turno: lo que toca ahora es el
     // trabajo, lo de antes es la corrección. Pero van, que es el punto.
     entries.sort((a, b) => {
@@ -2293,7 +2331,7 @@ export default function ZendityCareTabletPage() {
     };
 
     // ── Flujo de packs: administrar pack completo con firma única ─────────────
-    const administerPack = async (pack: { label: string; meds: any[] }) => {
+    const administerPack = async (pack: { label: string; meds: any[]; instante?: Date }) => {
         /**
          * `isEmpty()` NO basta: en signature_pad 2.3.2 deja de estar vacío al
          * dibujar UN PUNTO, así que un dedo que roza el recuadro ya pasaba por
@@ -2326,6 +2364,10 @@ export default function ZendityCareTabletPage() {
                     action: 'ADMINISTER_PACK',
                     medicationIds,
                     scheduleTime: pack.label,
+                    // La identidad de la dosis, no solo su etiqueta de reloj: sin
+                    // esto el servidor la reconstruye desde SU reloj y de
+                    // madrugada acierta el día equivocado.
+                    franjaInstante: pack.instante?.toISOString(),
                     signatureBase64,
                     administeredAt: horaRegistro?.toISOString()
                 })
@@ -2366,7 +2408,7 @@ export default function ZendityCareTabletPage() {
         }
     };
 
-    const confirmOmitMed = async (pack: { label: string; meds: any[] }) => {
+    const confirmOmitMed = async (pack: { label: string; meds: any[]; instante?: Date }) => {
         if (!omittingMed) return;
         if (!omitReasonCat) return avisoOk("Elija por qué se omite.");
         const reasonText = omitReasonText.trim();
@@ -2384,6 +2426,10 @@ export default function ZendityCareTabletPage() {
                     action: 'OMIT',
                     medicationIds: [omittingMed.id],
                     scheduleTime: pack.label,
+                    // La identidad de la dosis, no solo su etiqueta de reloj: sin
+                    // esto el servidor la reconstruye desde SU reloj y de
+                    // madrugada acierta el día equivocado.
+                    franjaInstante: pack.instante?.toISOString(),
                     reason: fullReason,
                     motivoCodigo: omitReasonCat,
                 })

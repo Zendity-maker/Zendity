@@ -93,12 +93,24 @@ export function instanteDeLaFranja(franja: string | null | undefined, ahora: Dat
  * sobre su fila ya existente, los que ya resolvió otra persona, y los que no
  * tienen fila programada y por tanto se crean como siempre.
  */
+/**
+ * `instanteExplicito` gana sobre la reconstruccion cuando llega.
+ *
+ * Reconstruir la franja desde el reloj del servidor funciona mientras el reloj
+ * y la dosis esten en el mismo dia natural. De madrugada no lo estan: a las
+ * 02:00, "8:00 PM" reconstruye a las ocho de ESTA noche —que aun no ha llegado—
+ * cuando lo que se firma son las ocho de ANOCHE. Por eso la tableta manda el
+ * instante que ella ya sabe, y quien llama lo valida antes de pasarlo aqui
+ * (ver `instanteDeclaradoValido` en margen-firma.ts). Sin el, se reconstruye
+ * como siempre.
+ */
 export async function conciliarPack(
     patientMedicationIds: string[],
     franja: string | null | undefined,
     ahora: Date,
+    instanteExplicito?: Date | null,
 ): Promise<Conciliacion> {
-    const scheduledTime = instanteDeLaFranja(franja, ahora);
+    const scheduledTime = instanteExplicito ?? instanteDeLaFranja(franja, ahora);
     if (!scheduledTime || patientMedicationIds.length === 0) {
         return { scheduledTime: null, aFirmar: [], yaResueltos: [], sinFila: [...patientMedicationIds] };
     }
