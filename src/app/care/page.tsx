@@ -1724,55 +1724,78 @@ export default function ZendityCareTabletPage() {
         setShowQuickRead(true);
     };
 
+
     /**
-     * EL CORTAFUEGOS DE «SOLO MIRAR». FALLA CERRADO, A PROPÓSITO.
+     * UNA SOLA PUERTA PARA TODO LO QUE SALE DE ESTA PANTALLA.
      *
-     * ═══ POR QUÉ NO SE GUARDAN LOS 38 BOTONES UNO A UNO ═══
+     * Esta pantalla tiene ~55 llamadas y necesita dos reglas sobre TODAS. Cada
+     * una se intentó por separado y las dos acabaron aquí por el mismo motivo:
+     * ponerlas en cada `fetch` es mecánico, y la llamada 56 nace sin ellas.
      *
-     * Esta pantalla tiene TREINTA Y OCHO funciones que escriben. Poner la
-     * guarda en cada una es mecánico, y esa es exactamente su trampa: el día
-     * que se añada la treinta y nueve y alguien no se acuerde, el fallo no es
-     * un error en rojo — es un DIRECTOR firmando un pack de medicamentos en el
-     * expediente de un residente mientras creía estar mirando.
+     * ═══ 1. SI LA SESIÓN CADUCA, QUE LO DIGA ═══
      *
-     * Con la guarda AQUÍ, en el único sitio por el que pasan todas, una
-     * escritura nueva nace bloqueada. Se equivoca hacia el lado seguro.
+     * Con el residente delante, la cuidadora firmaba el pack y recibía un
+     * rectángulo rojo: **«Error: No autorizado»**. No decía sesión, no decía
+     * caducada, no había botón de entrar. Volvía a firmar —la firma no se
+     * borra, el botón se reactiva— y salía lo mismo. La nota de turno era peor:
+     * `/api/care/vitals` se comprobaba con `if (data.success)` SIN `else`, así
+     * que en 401 no salía NADA: el modal abierto, el spinner parado y la nota
+     * inexistente.
      *
-     * Y por eso NO se hace escondiendo botones: un botón escondido es una
-     * promesa de que no se puede escribir, y la promesa la tiene que cumplir
-     * algo que no dependa de acordarse.
+     * La cadena «401» aparecía CERO veces en las 7.500 líneas de este fichero.
+     * El patrón correcto ya existía en el repo —`handleSessionExpiry` en
+     * care/supervisor/page.tsx:294— pero solo allí.
      *
-     * ═══ POR QUÉ NO BASTA EL SERVIDOR ═══
+     * ESTO ES LA RED, NO EL ARREGLO. El arreglo está en auth.ts (`updateAge`) y
+     * en NextAuthProvider (`refetchInterval`): que el JWT no caduque a mitad de
+     * turno. Esto es lo que pasa si aun así caduca.
      *
-     * Porque hoy deja pasar. Comprobado el 28-sep-2026: /api/care/adls/bath
-     * acepta `['CAREGIVER','NURSE','SUPERVISOR','DIRECTOR','ADMIN']`, y
-     * /api/care/meds/bulk, /postural, /incidents y /preventive ni siquiera
-     * piden un turno abierto. Bath y meal sí exigen `shiftSessionId`, así que
-     * esas fallarían solas — las otras no.
+     * ═══ 2. EN «SOLO MIRAR» NO SE ESCRIBE ═══
      *
-     * Lo que toca de verdad es que el servidor sepa distinguir «mirando» de
-     * «cubriendo». Mientras no lo sepa, esto lo sostiene el cliente y se dice
-     * en alto que es el cliente quien lo sostiene.
+     * Un DIRECTOR que entra a mirar el piso no registra nada. Falla CERRADO: si
+     * un día se añade una escritura nueva, nace bloqueada. Por eso tampoco se
+     * hace escondiendo botones — un botón escondido es una promesa, y la
+     * promesa la tiene que cumplir algo que no dependa de acordarse.
+     *
+     * Desde el 28-sep el servidor ya distingue mirar de cubrir en /meds/bulk,
+     * /postural y /preventive. Esto cubre las otras 35 escrituras, que siguen
+     * sin gate propio.
      */
+    const sesionYaCaducada = useRef(false);
     useEffect(() => {
-        if (!soloMirar) return;
         const original = window.fetch;
         /** Lo único que puede escribir quien mira: sus propios avisos. */
-        const PERMITIDO = ['/api/notifications'];
+        const PERMITIDO_MIRANDO = ['/api/notifications'];
+
         window.fetch = async (entrada: any, init?: any) => {
             const metodo = String(init?.method ?? entrada?.method ?? 'GET').toUpperCase();
             const url = typeof entrada === 'string' ? entrada : (entrada?.url ?? String(entrada));
-            if (metodo !== 'GET' && !PERMITIDO.some(p => url.includes(p))) {
+
+            if (soloMirar && metodo !== 'GET' && !PERMITIDO_MIRANDO.some(p => url.includes(p))) {
                 avisoAtencion('Estás mirando el piso, no cubriéndolo. Para registrar algo hay que abrir turno.');
                 return new Response(
                     JSON.stringify({ success: false, error: 'Modo solo mirar: no se registró nada.' }),
                     { status: 403, headers: { 'Content-Type': 'application/json' } },
                 );
             }
-            return original(entrada, init);
+
+            const res = await original(entrada, init);
+
+            // Solo las rutas de la app. `/api/auth/*` se excluye: next-auth
+            // responde 401 ahí por su cuenta y no significa sesión caducada.
+            if (res.status === 401 && url.includes('/api/') && !url.includes('/api/auth/')) {
+                if (!sesionYaCaducada.current) {
+                    sesionYaCaducada.current = true;
+                    avisoError('Tu sesión caducó. Lo último no se guardó — vuelve a entrar y repítelo.');
+                    // Un respiro para que se lea el aviso antes de cambiar de pantalla.
+                    setTimeout(() => router.push('/login?callbackUrl=/care'), 2500);
+                }
+            }
+            return res;
         };
         return () => { window.fetch = original; };
-    }, [soloMirar, avisoAtencion]);
+    }, [soloMirar, avisoAtencion, avisoError, router]);
+
 
     const enterCareFloor = () => {
         setIsSpeaking(false);

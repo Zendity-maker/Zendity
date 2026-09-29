@@ -220,7 +220,42 @@ export const authOptions: NextAuthOptions = {
     },
     session: {
         strategy: "jwt",
+        /**
+         * OCHO HORAS ES EXACTAMENTE UN TURNO, Y ESE ES EL PROBLEMA.
+         *
+         * Medido el 29-sep-2026 sobre 1.062 turnos cerrados de 120 días: la
+         * mediana dura 7,69 h y el p75 7,97 h. O sea que el turno típico muere
+         * JUSTO en el borde — basta entrar al sistema unos minutos antes de
+         * abrir el turno para cruzarlo. Y 236 de los 1.062 (22 %) pasan de 8 h,
+         * con las 18 de 18 cuidadoras teniendo al menos uno.
+         *
+         * Sin `updateAge`, next-auth solo vuelve a firmar el JWT cuando alguien
+         * llama a `/api/auth/session`, y con el `SessionProvider` pelado que
+         * había eso pasaba al montar y poco más. Una tableta abierta todo el
+         * turno no lo llamaba NUNCA: a las 8 h de haber entrado, todo lo que
+         * escribiera devolvía 401.
+         *
+         * El escalón cae donde debe. Turnos cerrados SIN relevo, por duración:
+         *
+         *     6–7 h ......... 0 de 81
+         *     7–7,5 h ....... 0 de 61
+         *     7,5–8 h ....... 1 de 355   (0,3 %)
+         *     8–8,5 h ....... 3 de 115   (2,6 %)
+         *     8,5–9 h ....... 7 de 20    (35 %)
+         *     9–10 h ........ 5 de 12    (41,7 %)
+         *
+         * En total 70 de 236 por encima de 8 h contra 10 de 826 por debajo. Que
+         * el 401 sea la causa de esos 70 es INFERIDO, no medido: un turno de
+         * 12–24 h también se queda sin relevo porque lo cierra un supervisor.
+         * Pero el corte está en la hora 8 y el tramo limpio de 7,5–8 h es del
+         * 0,3 % contra el 37,5 % de 8,5–10 h.
+         *
+         * `updateAge` hace que el JWT se refresque cada vez que se consulta la
+         * sesión y hayan pasado más de 30 min. Con el `refetchInterval` del
+         * provider, una tableta en uso no caduca a mitad de turno.
+         */
         maxAge: 8 * 60 * 60,
+        updateAge: 30 * 60,
     },
     secret: process.env.NEXTAUTH_SECRET!,
 };
