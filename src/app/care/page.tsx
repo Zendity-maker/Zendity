@@ -4859,8 +4859,10 @@ export default function ZendityCareTabletPage() {
                                                     </span>
                                                     {/* Una insignia por obligacion: la ventana de entrada del
                                                         turno y la revision de observacion no compiten por el
-                                                        mismo hueco. Ver /api/care/route.ts (take: 2). */}
-                                                    {(p.vitalsOrders ?? []).map((order: any) => {
+                                                        mismo hueco. Ver /api/care/route.ts (take: 2).
+                                                        Y desde el 01-oct-2026 solo sube aqui la REVISION — ver
+                                                        la nota larga en la vista de dia, mas abajo. */}
+                                                    {(p.vitalsOrders ?? []).filter((o: any) => esOrdenDeObservacion(o.reason)).map((order: any) => {
                                                         const expiresAt = new Date(order.expiresAt);
                                                         const minsLeft = Math.round((expiresAt.getTime() - Date.now()) / 60000);
                                                         const expired = minsLeft <= 0;
@@ -5117,7 +5119,48 @@ export default function ZendityCareTabletPage() {
                                     </div>
 
                                     {/* ===== VITALS ENTRY WINDOW BADGE (Sprint J — 4h desde inicio de turno) ===== */}
-                                    {(p.vitalsOrders ?? []).map((order: any) => {
+                                    {/**
+                                     * LA FRANJA ANCHA ES SOLO PARA LA REVISIÓN DE OBSERVACIÓN.
+                                     *
+                                     * ═══ QUÉ PASABA ═══
+                                     *
+                                     * La ventana de vitales de entrada se pintaba igual que la revisión de
+                                     * observación: una franja de ancho completo, con reloj y color. Y como la
+                                     * ventana la abre el RELOJ —una por residente cada vez que arranca un turno—
+                                     * la cuidadora abría la tableta y veía una bandera por cada persona del piso.
+                                     *
+                                     * Medido contra producción, 30 días:
+                                     *
+                                     *     órdenes de vitales ................ 2.524  (84 al día, 31 residentes)
+                                     *     creadas por el reloj al abrir turno  2.477  (98,1 %)
+                                     *     pedidas por una persona ...........    47
+                                     *     visibles a la vez por la mañana ... mediana 19-29, PICO 39
+                                     *
+                                     * Un aviso que suena para todos a la vez no dice quién necesita atención: dice
+                                     * que empezó un turno. Eso no es una alerta, es un horario pintado de rojo.
+                                     *
+                                     * ═══ Y LA PRUEBA DE QUE LA SEÑAL CLÍNICA ESTABA AHOGADA ═══
+                                     *
+                                     * Las revisiones de observación —las que significan «el sistema marcó a esta
+                                     * persona cuando sus vitales salieron críticos»— son 47 contra 2.477: una de
+                                     * cada 53. Y se completaban AL MISMO RITMO que las rutinarias: 55,3 % contra
+                                     * 58,2 %. Si el piso pudiera distinguirlas, las clínicas ganarían. No ganaban,
+                                     * porque se veían iguales.
+                                     *
+                                     * ═══ QUÉ CAMBIA ═══
+                                     *
+                                     * La franja ancha queda para la revisión de observación y nada más: de ~30 por
+                                     * turno a 1,6 al día, que es un volumen sobre el que alguien puede actuar.
+                                     *
+                                     * La ventana de entrada NO desaparece — baja a la fila de vitales de abajo, que
+                                     * es donde el ojo ya va a buscar vitales y donde ya dice «Sin vitales hoy». Es
+                                     * trabajo del turno, y se enseña como el resto del trabajo del turno.
+                                     *
+                                     * Lo que NO se toca: la orden se sigue creando, el supervisor la sigue viendo
+                                     * sin tope, y el cierre de turno la sigue contando. Lo que se retira es el
+                                     * grito, no el dato.
+                                     */}
+                                    {(p.vitalsOrders ?? []).filter((o: any) => esOrdenDeObservacion(o.reason)).map((order: any) => {
                                         const expiresAt = new Date(order.expiresAt);
                                         const minsLeft = Math.round((expiresAt.getTime() - Date.now()) / 60000);
                                         const expired = minsLeft <= 0;
@@ -5224,6 +5267,46 @@ export default function ZendityCareTabletPage() {
                                         })() : (
                                             <span className="px-[9px] py-1 rounded-md text-[11px] font-medium bg-[#f5f5f4] text-[#78716c]">Sin vitales hoy</span>
                                         )}
+                                        {/**
+                                         * LA VENTANA DE ENTRADA VIVE AQUI, NO EN UNA FRANJA ROJA.
+                                         *
+                                         * Es trabajo del turno, como el baño o las comidas, y se
+                                         * enseña con el mismo peso: una etiqueta en la fila de
+                                         * vitales, que es donde el ojo ya va. Sin ancho completo,
+                                         * sin parpadeo, sin rojo salvo cuando de verdad se pasó.
+                                         *
+                                         * Sigue diciendo lo mismo que decía la franja —cuánto
+                                         * queda, o cuánto hace que venció— porque el dato no
+                                         * sobraba; sobraba el grito. Ver la nota larga arriba.
+                                         */}
+                                        {(() => {
+                                            const entrada = (p.vitalsOrders ?? []).find((o: any) => !esOrdenDeObservacion(o.reason));
+                                            if (!entrada) return null;
+                                            const min = Math.round((new Date(entrada.expiresAt).getTime() - Date.now()) / 60000);
+                                            const vencida = min <= 0;
+                                            /**
+                                             * En horas cuando pasa de 60. El reloj del cron
+                                             * expira la ventana a los pocos minutos, asi que en
+                                             * produccion esto es siempre "hace 3 min" — pero si
+                                             * el cron llega tarde alguna vez, "hace 5253 min" se
+                                             * lee como una pantalla rota, no como un dato.
+                                             */
+                                            const legible = (m: number) => {
+                                                const h = Math.floor(m / 60);
+                                                return h > 0 ? `${h}h ${m % 60}m` : `${m}m`;
+                                            };
+                                            return (
+                                                <span className={`ml-auto px-[9px] py-1 rounded-md text-[11px] font-medium whitespace-nowrap ${
+                                                    vencida
+                                                        ? 'bg-[#fef3c7] text-[#92400e]'
+                                                        : 'bg-[#f5f5f4] text-[#78716c]'
+                                                }`}>
+                                                    {vencida
+                                                        ? `Ventana de entrada vencida hace ${legible(Math.abs(min))}`
+                                                        : `Ventana de entrada · ${legible(min)}`}
+                                                </span>
+                                            );
+                                        })()}
                                     </div>
 
                                     {/* ===== UPP SLA TIMER (solo Norton risk con datos de rotación) ===== */}
