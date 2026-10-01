@@ -87,6 +87,16 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
     const puedeEditarPerfil = puedePrimario(['DIRECTOR', 'ADMIN', 'NURSE']);
     // PUT /api/corporate/patients/[id]/diet
     const puedeEditarDieta = puedePrimario(['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN']);
+    /**
+     * POST /api/care/vitals/orden — pedir una toma de vitales.
+     *
+     * `puedeConSecundarios` a propósito, no `puedePrimario`: la enfermería de
+     * este hogar la hace Celia, DIRECTOR con NURSE de secundario, y medido el
+     * 01-oct-2026 hay CERO usuarios con NURSE primario. Un gate por el primario
+     * no alcanzaría a nadie — justo el error que esta función existe para
+     * evitar. El servidor usa `requireRole(['NURSE'])`, que mira lo mismo.
+     */
+    const puedePedirVitales = puedeConSecundarios(['NURSE']);
     // POST /api/corporate/patients/[id]/discharge — DISCHARGED y DECEASED.
     const puedeDarDeBaja = puedePrimario(['DIRECTOR', 'ADMIN']);
     // El mismo endpoint, pero TEMPORARY_LEAVE y RETURN abren a más roles.
@@ -143,6 +153,9 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
     const [isProcessingDeceased, setIsProcessingDeceased] = useState(false);
 
     // Toast State
+    const [showOrdenVitales, setShowOrdenVitales] = useState(false);
+    const [motivoVitales, setMotivoVitales] = useState("");
+    const [pidiendoVitales, setPidiendoVitales] = useState(false);
     const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
     useEffect(() => {
         if (toast) {
@@ -533,6 +546,15 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                             <PencilIcon className="w-3.5 h-3.5 stroke-2" /> Editar Dieta
                                         </button>
                                     )}
+                                    {puedePedirVitales && (
+                                        <button
+                                            onClick={() => { setMotivoVitales(""); setShowOrdenVitales(true); }}
+                                            className="flex items-center gap-1.5 px-3 py-1 bg-teal-50 text-teal-700 font-bold hover:bg-teal-100 rounded-lg transition-all ml-1 border border-teal-200 shadow-sm text-xs uppercase tracking-wide active:scale-95"
+                                            title="Pedir una toma de vitales al piso"
+                                        >
+                                            🩺 Pedir Vitales
+                                        </button>
+                                    )}
                                     {puedeEditarPerfil && (
                                         <button onClick={openEditModal} className="flex items-center gap-1.5 px-3 py-1 bg-white text-slate-700 font-bold hover:bg-slate-50 rounded-lg transition-all ml-1 border border-slate-200 shadow-sm text-xs uppercase tracking-wide active:scale-95" title="Editar Perfil General">
                                             <PencilIcon className="w-3.5 h-3.5 stroke-2" /> Editar Perfil
@@ -776,6 +798,66 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                     </div>
                 </div>
             </div>
+
+            {showOrdenVitales && (
+                <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
+                        <h3 className="text-2xl font-black text-slate-800 mb-2">Pedir toma de vitales</h3>
+                        <p className="text-slate-500 font-medium mb-6 leading-relaxed">
+                            Queda anotado quién lo pidió y por qué, le llega un aviso al piso, y sale en
+                            la tarjeta de <strong className="text-teal-700">{patientData?.name?.trim()}</strong> durante
+                            las próximas 4 horas.
+                        </p>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                            Por qué hay que tomarlos
+                        </label>
+                        <textarea
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-medium text-slate-700 h-24 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                            value={motivoVitales}
+                            onChange={(e) => setMotivoVitales(e.target.value)}
+                            placeholder="Ej.: quedó en observación por presión alta esta tarde — tomar en la ronda de la noche"
+                        />
+                        {/* El mínimo lo impone el servidor; aquí se avisa ANTES de pulsar. */}
+                        <p className="text-[11px] text-slate-400 mt-1.5 mb-6">
+                            {motivoVitales.trim().length < 10
+                                ? 'Quien lo lea de madrugada necesita saber por qué.'
+                                : 'Listo.'}
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowOrdenVitales(false)}
+                                className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-all"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                disabled={pidiendoVitales || motivoVitales.trim().length < 10}
+                                onClick={async () => {
+                                    setPidiendoVitales(true);
+                                    try {
+                                        const res = await fetch('/api/care/vitals/orden', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ patientId: patientData?.id, motivo: motivoVitales.trim() }),
+                                        });
+                                        const data = await res.json();
+                                        if (!data.success) { setToast({ msg: data.error || 'No se pudo crear la orden', type: 'err' }); return; }
+                                        setToast({ msg: data.yaExistia ? 'Ya estaba pedida.' : 'Pedida. El piso ya tiene el aviso.', type: 'ok' });
+                                        setShowOrdenVitales(false);
+                                    } catch {
+                                        setToast({ msg: 'Error de conexión. No se creó la orden.', type: 'err' });
+                                    } finally {
+                                        setPidiendoVitales(false);
+                                    }
+                                }}
+                                className="flex-1 py-3 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700 disabled:opacity-40 transition-all"
+                            >
+                                {pidiendoVitales ? 'Pidiendo…' : 'Pedir la toma'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* MODAL: BAJA DEFINITIVA */}
             {showDischargeModal && (

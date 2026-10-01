@@ -603,6 +603,17 @@ export default function ZendityCareTabletPage() {
     // servidor acepta y la otra lo que la pantalla enseña, y al separarse lo
     // que sale es una pantalla que invita a algo que el servidor va a negar.
     const isActingAsCaregiver = puedeAbrirTurno(user?.role, user?.secondaryRoles);
+    /**
+     * QUIÉN DA UNA ORDEN DE ENFERMERÍA — primario Y secundario.
+     *
+     * Medido el 01-oct-2026: CERO usuarios con NURSE primario en el hogar. La
+     * enfermería la hace Celia Sierra, DIRECTOR con NURSE de secundario. Un
+     * `user?.role === 'NURSE'` no alcanza a nadie — y había uno así en la
+     * navegación de abajo, escondiendo /care/vitales a la única persona que la
+     * necesita. Ver src/lib/roles-clinicos.ts.
+     */
+    const esEnfermeria = user?.role === 'NURSE'
+        || (user?.secondaryRoles ?? []).includes('NURSE');
 
     // Quien puede abrir el PAI. Coincide con ALLOWED_ROLES de
     // /api/corporate/patients/[id]/pai — una cuidadora que entrara ahi solo
@@ -744,7 +755,7 @@ export default function ZendityCareTabletPage() {
 
     // Modals Data
     const [activePatient, setActivePatient] = useState<any>(null);
-    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "REPORTAR_FALLECIMIENTO" | "CAMBIO_CONDICION" | "PROGRESS_NOTE_PDF" | "ACCEPT_HANDOVER" | "DIET_CHANGE" | "FAST_ACTION_DISPATCH" | "PREVENTIVE" | "VITALS_HISTORY" | "SHIFT_CLOSURE_WIZARD" | null>(null);
+    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "REPORTAR_FALLECIMIENTO" | "CAMBIO_CONDICION" | "PROGRESS_NOTE_PDF" | "ACCEPT_HANDOVER" | "DIET_CHANGE" | "FAST_ACTION_DISPATCH" | "PREVENTIVE" | "VITALS_HISTORY" | "SHIFT_CLOSURE_WIZARD" | "ORDEN_VITALES" | null>(null);
 
     /**
      * La franja de rondas, en hora de Puerto Rico y no en la del aparato.
@@ -796,6 +807,8 @@ export default function ZendityCareTabletPage() {
             });
         }
     }, [modalType, activePatient]);
+    /** El motivo que enfermería escribe al pedir una toma. */
+    const [motivoOrdenVitales, setMotivoOrdenVitales] = useState("");
     const [pdfNoteData, setPdfNoteData] = useState<any>(null);
     const [hubAction, setHubAction] = useState<"COMPLAINT" | "CLINICAL" | "MAINTENANCE" | "UPP_ALERT" | "MED_NO_ADMIN" | null>(null);
     // Nota de turno o alerta. Antes todo lo clinico entraba como ALERTA porque
@@ -1833,8 +1846,19 @@ export default function ZendityCareTabletPage() {
     const sesionYaCaducada = useRef(false);
     useEffect(() => {
         const original = window.fetch;
-        /** Lo único que puede escribir quien mira: sus propios avisos. */
-        const PERMITIDO_MIRANDO = ['/api/notifications'];
+        /**
+         * LO QUE PUEDE ESCRIBIR QUIEN MIRA: sus avisos, y una ORDEN.
+         *
+         * Mirar el piso sin cubrirlo bloquea registrar trabajo —firmar una
+         * dosis, anotar un baño, poner unos vitales— porque quien no está en
+         * turno no lo hizo. Pero PEDIR una toma de vitales no es trabajo de
+         * piso: es un acto de enfermería, y la enfermera de este hogar es
+         * DIRECTOR, así que siempre entra por la puerta de «solo mirar».
+         *
+         * Sin esta línea, la vía que se acaba de construir sería inalcanzable
+         * justo para la única persona que puede usarla.
+         */
+        const PERMITIDO_MIRANDO = ['/api/notifications', '/api/care/vitals/orden'];
 
         window.fetch = async (entrada: any, init?: any) => {
             const metodo = String(init?.method ?? entrada?.method ?? 'GET').toUpperCase();
@@ -4089,7 +4113,7 @@ export default function ZendityCareTabletPage() {
     };
 
     const sidebarLinks = [
-        ...(user?.role === 'NURSE' ? [{ href: '/care/vitals', icon: '💉', label: 'Vitales' }] : []),
+        ...(esEnfermeria ? [{ href: '/care/vitals', icon: '💉', label: 'Vitales' }] : []),
         { href: '#', icon: '⚡', label: 'Acciones', onClick: () => { setHubAction(null); setHubEsAlerta(true); setModalType('HUB'); } },
         // FASE 51: supervisoras con rol secundario CAREGIVER también pueden despachar
         ...(user?.role === 'SUPERVISOR' || user?.role === 'DIRECTOR' || user?.role === 'ADMIN' || isActingAsCaregiver ? [{ href: '#', icon: '📌', label: 'Asignar', onClick: () => { setHubCaregiverId(""); setHubDescription(""); fetchCaregiversTarget(); setModalType('FAST_ACTION_DISPATCH'); } }] : []),
@@ -5519,6 +5543,28 @@ export default function ZendityCareTabletPage() {
                                             src/lib/cambios-de-condicion.ts: entre lo rutinario y lo
                                             grave habia un hueco, y lo que caia ahi terminaba en una
                                             nota de turno que nadie relee. */}
+                                        {/**
+                                          * PEDIR UNA TOMA — solo enfermería, y fuera de la rejilla.
+                                          *
+                                          * No va entre «Vitales» y «Bitácora» a propósito: esas tres son
+                                          * lo que hace quien está en el piso. Esto es lo contrario —
+                                          * alguien que NO está cubriendo le pide a quien sí lo está—, y
+                                          * mezclarlas invitaría a la cuidadora a pedirse trabajo a sí
+                                          * misma.
+                                          *
+                                          * `esEnfermeria` cuenta el rol secundario: la enfermera de este
+                                          * hogar es DIRECTOR, y un gate por rol primario no alcanzaría a
+                                          * nadie (medido: 0 usuarios con NURSE primario).
+                                          */}
+                                        {esEnfermeria && (
+                                            <button
+                                                onClick={() => { setActivePatient(p); setMotivoOrdenVitales(""); setModalType('ORDEN_VITALES'); }}
+                                                className="mt-3 w-full min-h-[44px] bg-white border border-dashed border-[#0F6B78]/40 rounded-[12px] flex items-center justify-center gap-2 text-[12px] font-bold text-[#0F6B78] transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] hover:bg-[#f0fdfa]"
+                                            >
+                                                <span className="text-base leading-none">🩺</span>
+                                                Pedir toma de vitales
+                                            </button>
+                                        )}
                                         <p className="text-[10px] font-bold uppercase tracking-widest text-[#a8a29e] mt-3 mb-1.5">Algo cambió</p>
                                         <div className="grid grid-cols-3 gap-1.5">
                                             <button
@@ -5817,6 +5863,63 @@ export default function ZendityCareTabletPage() {
                                 )}
                                 <button onClick={() => { setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "", weight: "" }); setModalType('VITALS'); }} className="w-full py-4 mt-4 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-xl transition-all active:scale-95 shadow-lg shadow-teal-500/30">
                                     Tomar Nueva Lectura
+                                </button>
+                            </div>
+                        )}
+
+                        {modalType === 'ORDEN_VITALES' && (
+                            <div className="space-y-5">
+                                <p className="font-bold text-slate-500 uppercase text-sm border-b pb-3">Pedir toma de vitales</p>
+                                <p className="text-sm text-slate-600 leading-relaxed">
+                                    Queda anotado quién lo pidió y por qué, le llega un aviso al piso, y
+                                    sale en la tarjeta de <span className="font-black text-slate-800">{activePatient?.name?.trim()}</span>{' '}
+                                    durante las próximas 4 horas.
+                                </p>
+                                <div>
+                                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-2">
+                                        Por qué hay que tomarlos
+                                    </label>
+                                    <textarea
+                                        value={motivoOrdenVitales}
+                                        onChange={(e) => setMotivoOrdenVitales(e.target.value)}
+                                        rows={3}
+                                        placeholder="Ej.: quedó en observación por presión alta esta tarde — tomar en la ronda de la noche"
+                                        className="w-full p-3 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                                    />
+                                    {/* El mínimo lo impone el servidor; aquí se dice antes de
+                                        que pulse, no después de un rojo. */}
+                                    <p className="text-[11px] text-slate-400 mt-1.5">
+                                        {motivoOrdenVitales.trim().length < 10
+                                            ? 'Quien lo lea de madrugada necesita saber por qué.'
+                                            : 'Listo.'}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={async () => {
+                                        if (!activePatient || motivoOrdenVitales.trim().length < 10) return;
+                                        setSubmitting(true);
+                                        try {
+                                            const res = await fetch('/api/care/vitals/orden', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ patientId: activePatient.id, motivo: motivoOrdenVitales.trim() }),
+                                            });
+                                            const data = await res.json();
+                                            if (!data.success) { avisoError(data.error || 'No se pudo crear la orden'); return; }
+                                            avisoOk(data.yaExistia ? 'Ya estaba pedida.' : 'Pedida. El piso ya tiene el aviso.');
+                                            setMotivoOrdenVitales("");
+                                            setModalType(null);
+                                            refreshPatientsSilently(selectedColor || 'ALL');
+                                        } catch {
+                                            avisoDeRed('la orden de vitales', true);
+                                        } finally {
+                                            setSubmitting(false);
+                                        }
+                                    }}
+                                    disabled={submitting || motivoOrdenVitales.trim().length < 10}
+                                    className="w-full py-5 bg-teal-600 hover:bg-teal-700 disabled:opacity-40 text-white font-black rounded-2xl transition-all active:scale-95 text-lg"
+                                >
+                                    {submitting ? 'Pidiendo…' : 'Pedir la toma'}
                                 </button>
                             </div>
                         )}
