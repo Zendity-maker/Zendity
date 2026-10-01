@@ -297,10 +297,28 @@ export async function GET(req: Request) {
                                     { scheduledTime: { gte: ventanaDosis.desde, lt: ventanaDosis.hasta } },
                                     { scheduledTime: null, createdAt: { gte: todayStart, lte: todayEnd } },
                                 ],
-                                // HELD incluido desde sep-2026: una omision por
-                                // indicacion medica ya no se guarda como OMITTED.
-                                // Ver src/lib/omision-medicamento.ts.
-                                status: { in: ['ADMINISTERED', 'OMITTED', 'REFUSED', 'HELD'] }
+                                /**
+                                 * HELD incluido desde sep-2026: una omision por
+                                 * indicacion medica ya no se guarda como OMITTED.
+                                 * Ver src/lib/omision-medicamento.ts.
+                                 *
+                                 * Y MISSED desde el 01-oct-2026, aunque NO sea un
+                                 * estado resuelto. No viene para cerrar el pack
+                                 * —`slotStatusToday` filtra por su propia lista y no
+                                 * la incluye, asi que la dosis sigue firmable— sino
+                                 * para que la tarjeta pueda DECIR que el sistema ya
+                                 * la dio por no administrada.
+                                 *
+                                 * Sin esta fila, una dosis que el barrido ya acuso se
+                                 * pinta identica a una cuya hora aun no cerro: el
+                                 * mismo boton «Omitir» y nada mas. La cuidadora cree
+                                 * que rellena un hueco cuando esta revirtiendo una
+                                 * acusacion que ya salio al eMAR, al briefing de
+                                 * direccion y al panel de la familia.
+                                 *
+                                 * Cuesta +6 filas en la ventana de hoy (medido).
+                                 */
+                                status: { in: ['ADMINISTERED', 'OMITTED', 'REFUSED', 'HELD', 'MISSED'] }
                             },
                             // `scheduledTime` (el INSTANTE) va en el select desde el
                             // 29-sep-2026: con dos dias dentro de la ventana, dos

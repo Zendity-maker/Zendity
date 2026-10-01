@@ -529,6 +529,40 @@ function slotStatusToday(med: any, slotLabel: string, slotInstante?: Date): stri
     return found ? found.status : null;
 }
 
+/**
+ * ¿EL SISTEMA YA DIO ESTA DOSIS POR NO ADMINISTRADA?
+ *
+ * Aparte de `slotStatusToday`, y a propósito: MISSED **no** es un estado
+ * resuelto. Si lo fuera, `isPackComplete` cerraría el pack y la dosis dejaría
+ * de poder firmarse — justo lo contrario de lo que hace falta, porque firmarla
+ * es lo que convierte una omisión falsa en una administración verdadera.
+ *
+ * Lo que sí hace falta es poder DECIRLO. Hasta hoy una dosis que el barrido ya
+ * acusó se pintaba idéntica a una cuya hora todavía no cerró: el mismo botón
+ * «Omitir» y nada más. La cuidadora cree que rellena un hueco, y está
+ * revirtiendo una acusación que ya salió al eMAR, al briefing de dirección y al
+ * panel de la familia. No lo sabe porque la pantalla no se lo dice.
+ *
+ * Medido el 01-oct-2026: 276 MISSED en 30 días, repartidas en 14 días, mediana
+ * 9 al día. Las 276 SIN firmante — ninguna la declaró una persona, las puso
+ * todas el barrido. O sea que la insignia no va a ser papel pintado: sale los
+ * días que pasa algo, no todos.
+ *
+ * NO DICE A QUÉ HORA SE MARCÓ, porque no se sabe: el barrido escribe solo
+ * `status: MedStatus.MISSED` (emar-schedule.ts), sin sello de tiempo. Inventar
+ * una hora aquí sería exactamente lo que CLAUDE.md prohíbe en la frase que
+ * sustituye a una mentira.
+ */
+function dosisYaAcusada(med: any, slotLabel: string, slotInstante?: Date): boolean {
+    return (med.administrations || []).some((a: any) => {
+        if (a.status !== 'MISSED') return false;
+        if (slotInstante && a.scheduledTime) {
+            return new Date(a.scheduledTime).getTime() === slotInstante.getTime();
+        }
+        return mismaFranja(a.scheduleTime, slotLabel);
+    });
+}
+
 // Pack completo: todos sus meds tienen un status resolvido hoy para ese slot.
 function isPackComplete(pack: { label: string; meds: any[]; instante?: Date }): boolean {
     return pack.meds.every(m => slotStatusToday(m, pack.label, pack.instante) !== null);
@@ -6513,12 +6547,32 @@ export default function ZendityCareTabletPage() {
                                                                     </span>
                                                                 )}
                                                                 {!status && (
-                                                                    <button
-                                                                        onClick={() => setOmittingMed({ id: m.id, name: m.medication?.name || 'este medicamento', slotLabel: activePack.label })}
-                                                                        disabled={submitting}
-                                                                        className="text-[11px] font-black uppercase tracking-wide text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-full px-3 py-1.5 transition-colors whitespace-nowrap">
-                                                                        Omitir
-                                                                    </button>
+                                                                    <>
+                                                                        {/**
+                                                                          * LA QUE EL BARRIDO YA ACUSÓ NO SE VE IGUAL QUE UN HUECO.
+                                                                          *
+                                                                          * Ver `dosisYaAcusada` arriba. Y ámbar, no rojo: no es
+                                                                          * un error de la cuidadora — es un estado del expediente
+                                                                          * que ella puede corregir firmando.
+                                                                          *
+                                                                          * El texto no dice la hora en que se marcó porque el
+                                                                          * barrido no la guarda. Dice lo único que se sabe.
+                                                                          */}
+                                                                        {dosisYaAcusada(m, activePack.label, (activePack as any).instante) && (
+                                                                            <span
+                                                                                title="El sistema la dio por no administrada al vencer su hora, y eso ya salió al eMAR, al informe de dirección y al panel de la familia. Si se dio, fírmala y deja de contar como fallada."
+                                                                                className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-[10px] font-black uppercase rounded-full px-2.5 py-1 whitespace-nowrap"
+                                                                            >
+                                                                                Ya consta sin dar
+                                                                            </span>
+                                                                        )}
+                                                                        <button
+                                                                            onClick={() => setOmittingMed({ id: m.id, name: m.medication?.name || 'este medicamento', slotLabel: activePack.label })}
+                                                                            disabled={submitting}
+                                                                            className="text-[11px] font-black uppercase tracking-wide text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-full px-3 py-1.5 transition-colors whitespace-nowrap">
+                                                                            Omitir
+                                                                        </button>
+                                                                    </>
                                                                 )}
                                                             </div>
                                                         );
