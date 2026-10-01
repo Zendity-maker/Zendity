@@ -4929,6 +4929,47 @@ export default function ZendityCareTabletPage() {
                                                     <span className="text-2xl leading-none">🔄</span>
                                                     {isVencidoNight ? 'Rotación VENCIDA — Ejecutar' : 'Rotación Postural 2Hrs'}
                                                 </button>
+
+                                                {/**
+                                                 * VITALES, EN LA VISTA DE NOCHE.
+                                                 *
+                                                 * No estaba. La tarjeta nocturna tenía cuatro botones —pañal
+                                                 * seco, orina, evacuación, rotación— y ninguno escribe vitales.
+                                                 * El disparador del modal vivía SOLO en la rama de día
+                                                 * (el ternario de `isNightMode` abre en 4788 y cierra en 5633;
+                                                 * el botón está dentro). El modal sí se renderiza en los dos
+                                                 * modos, porque está fuera del ternario: faltaba la puerta.
+                                                 *
+                                                 * ═══ LO QUE ESO COSTABA ═══
+                                                 *
+                                                 * Andrés, 01-oct-2026: «la noche toma vitales por orden de
+                                                 * enfermería. O sea que si hay alguien en observación se le
+                                                 * deja saber al personal y se debe hacer el registro en
+                                                 * Zéndity de esas tomas.»
+                                                 *
+                                                 * Medido contra producción el mismo día:
+                                                 *
+                                                 *     tomas de vitales en toda la historia ..... 7.354
+                                                 *     entre las 22:00 y las 05:59 AST ..........     0
+                                                 *     rondas nocturnas escritas en 90 días .....   669
+                                                 *
+                                                 * O sea que la vista SÍ se usa de madrugada —669 rondas— y en
+                                                 * esas mismas noches no se registró ni un signo vital. No es
+                                                 * que no se tomen: es que no había dónde ponerlos.
+                                                 *
+                                                 * El único camino que quedaba era ⚡Acciones → «Cambio clínico
+                                                 * u observación», que escribe un DailyLog de texto libre: no
+                                                 * pasa por `evaluarVitales`, no cierra la orden, no entra en el
+                                                 * historial de vitales y no abre el protocolo de observación.
+                                                 * La lectura existía en el expediente como una frase.
+                                                 */}
+                                                <button
+                                                    onClick={() => { setActivePatient(p); setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "", weight: "" }); setModalType('VITALS'); }}
+                                                    className="mt-3 w-full py-5 rounded-2xl font-semibold uppercase tracking-widest flex items-center justify-center gap-3 transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] text-[13px] sm:text-sm bg-[#1e293b] border border-[#3CC6C4]/30 text-[#3CC6C4] hover:bg-[#243344]"
+                                                >
+                                                    <span className="text-2xl leading-none">🩺</span>
+                                                    Tomar Vitales
+                                                </button>
                                             </div>
                                         </div>
                                         );

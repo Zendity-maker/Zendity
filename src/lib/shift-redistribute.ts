@@ -211,7 +211,36 @@ export async function redistributeUncoveredColors(opts: {
              * guardia y siguen saliendo en la tarjeta del residente. Lo que se
              * apaga es la ronda de entrada automatica, que de noche no se hace.
              */
-            const recibeDeGuardia = inferShiftTypeFromAST(recipient.startTime) === 'NIGHT';
+            /**
+             * EL ANCLA ES EL RELOJ, NO EL INICIO DEL TURNO DE QUIEN RECIBE.
+             *
+             * Esto miraba `recipient.startTime`. El comentario de arriba dice
+             * que se usa el MISMO helper que la otra puerta «precisamente para
+             * que las dos no puedan volver a discrepar» — y discreparon igual,
+             * porque el helper es el mismo pero el ARGUMENTO no:
+             *
+             *     shift/start  ... inferShiftTypeFromAST(new Date())
+             *     aqui ......... inferShiftTypeFromAST(recipient.startTime)
+             *
+             * Una cuidadora de TARDE que recibe residentes a las 22:00 no es
+             * guardia segun su turno, pero la ventana que se le abre termina a
+             * las 2 de la madrugada. Medido el 01-oct-2026: desde que existe la
+             * guarda de shift/start (25-ago), esa puerta no ha creado NI UNA
+             * orden nocturna, y esta ha creado 148 — nueve de ellas anoche a
+             * las 22:00, todas vencidas sin completar.
+             *
+             * Y no hay duda sobre si se podrian haber hecho: en las 7.354 tomas
+             * de vitales de toda la historia del hogar hay CERO entre las 22:00
+             * y las 05:59. Ninguna.
+             *
+             * Lo que esto apaga es solo la RONDA AUTOMATICA de entrada. Si
+             * enfermeria pide una toma de noche —residente en observacion— ese
+             * camino no pasa por aqui: la revision de observacion se crea en
+             * observacion-vitales.ts, y el POST de /api/care/vitals no tiene
+             * puerta de turno, asi que la noche puede registrar a cualquier
+             * hora. Se quita la exigencia que nadie cumple, no la capacidad.
+             */
+            const recibeDeGuardia = inferShiftTypeFromAST(new Date()) === 'NIGHT';
             if (recibeDeGuardia) {
                 logWarn(
                     'shift-redistribute.guardia-sin-vitales',

@@ -234,7 +234,30 @@ export async function POST(req: Request) {
             // justo sobre el residente que el sistema marcó como crítico.
             // Ver src/lib/observacion-vitales.ts.
             const bordeCierre = new Date(Date.now() - (VITALS_WINDOW_MS + PENALTY_GRACE_MS));
-            const pendingOrder = await prisma.vitalsOrder.findFirst({
+            /**
+             * UNA TOMA CIERRA TODAS LAS VENTANAS ABIERTAS DE ESE RESIDENTE.
+             *
+             * Esto era `findFirst` con `orderedAt: 'desc'`: cerraba SOLO la mas
+             * reciente. Y un residente puede tener dos ventanas abiertas a la
+             * vez, porque las abren tres caminos distintos —apertura de turno,
+             * reclamo de cobertura y redistribucion por ausencia— cada uno con
+             * su propio dedup.
+             *
+             * Resultado: la cuidadora iba, tomaba los vitales DENTRO de la
+             * ventana, y la otra orden vencia igual y contaba como incumplida.
+             *
+             * MEDIDO el 01-oct-2026, 30 dias: de 1.086 ventanas vencidas, 264
+             * tenian una toma registrada dentro de su propio plazo. Las 264
+             * —el 100%— tenian una orden hermana solapada que SI se completo.
+             * O sea que ninguna era un hueco: todas eran la misma toma contada
+             * una vez y acusada otra. 115 de ellas son `shift/start` chocando
+             * consigo mismo.
+             *
+             * Efecto en el numero que se reporta: el cumplimiento pasa de 56,8%
+             * a 66,9% sin que nadie trabaje un minuto mas, porque los diez
+             * puntos ya estaban hechos.
+             */
+            const abiertas = await prisma.vitalsOrder.findMany({
                 where: {
                     patientId,
                     status: { in: ['PENDING', 'EXPIRED'] },
@@ -243,8 +266,26 @@ export async function POST(req: Request) {
                     reason: { not: MOTIVO_OBSERVACION },
                 },
                 orderBy: { orderedAt: 'desc' },
-                select: { id: true, expiresAt: true, status: true }
+                // `shiftSession.actualEndTime` va en el select a proposito: sin
+                // pedirlo volveria null en TODAS las filas y la guarda de abajo
+                // no cerraria nunca — que se lee igual que "ninguna fue anulada"
+                // (CLAUDE.md, antipatron 9).
+                select: {
+                    id: true, expiresAt: true, status: true,
+                    shiftSession: { select: { actualEndTime: true } },
+                }
             });
+            /**
+             * La PRIMERA sigue mandando sobre la justificacion y la penalidad.
+             *
+             * Las demas se cierran con su estado honesto —cada una contra su
+             * propio `expiresAt`— pero NO abren una puerta de castigo que antes
+             * no existia: si una hermana vieja estuviera vencida, exigirle a la
+             * cuidadora un parrafo de justificacion por una toma que hizo a
+             * tiempo seria cobrarle por arreglar el conteo. Hacer el dato veraz,
+             * no crear una metrica que castigue (CLAUDE.md).
+             */
+            const pendingOrder = abiertas[0] ?? null;
 
             let orderStatusUpdate: 'COMPLETED_ON_TIME' | 'COMPLETED_LATE' | null = null;
             let applyLatePenalty = false;
@@ -426,18 +467,59 @@ export async function POST(req: Request) {
                 }
             });
 
-            // Cerrar orden pendiente (on-time o late) y aplicar penalidad si aplica
+            // Cerrar las ordenes abiertas (cada una contra su propio plazo) y
+            // aplicar la penalidad —si aplica— UNA sola vez, por la primera.
             if (pendingOrder && orderStatusUpdate) {
-                await prisma.vitalsOrder.update({
-                    where: { id: pendingOrder.id },
-                    data: {
-                        status: orderStatusUpdate,
-                        completedAt: new Date(),
-                        lateReason: lateReasonRaw.length > 0
-                            ? lateReasonRaw
-                            : (orderStatusUpdate === 'COMPLETED_LATE' ? 'Tomados fuera de plazo' : null),
-                    }
-                });
+                const ahoraCierre = new Date();
+                for (const orden of abiertas) {
+                    /**
+                     * `EXPIRED` SIGNIFICA DOS COSAS, Y SOLO UNA ES UN HUECO.
+                     *
+                     * El cron marca EXPIRED lo que vencio sin hacerse. Pero
+                     * `shift/end` tambien pone EXPIRED a las ventanas que seguian
+                     * PENDING al cerrar el turno (end/route.ts:367 y :499), como
+                     * limpieza — «antes persistian como fantasmas en el dashboard
+                     * del supervisor». Esas NO eran una obligacion incumplida:
+                     * dejaron de ser una obligacion.
+                     *
+                     * Cerrarlas aqui no documenta trabajo: pone un sello de
+                     * CUMPLIDO sobre algo que nadie debia. Medido el 01-oct-2026
+                     * sobre 30 dias: de las 285 hermanas que este bucle cerraria,
+                     * 126 —el 44%— son de esas. Casi la mitad del arreglo seria
+                     * un numero inflado, que es el error contrario al que vino a
+                     * corregir.
+                     *
+                     * Se reconoce porque el turno cerro mientras su plazo seguia
+                     * VIVO. Es una inferencia, no un dato: la forma limpia es que
+                     * `shift/end` escriba un estado propio (CANCELLED) en vez de
+                     * reusar EXPIRED, y eso pide migracion y autorizacion.
+                     *
+                     * Solo aplica a las EXTRA. `abiertas[0]` mantiene el contrato
+                     * de hoy intacto.
+                     */
+                    const finDeSesion = orden.shiftSession?.actualEndTime ?? null;
+                    const laAnuloElCierre = orden.status === 'EXPIRED'
+                        && finDeSesion !== null
+                        && orden.expiresAt > finDeSesion;
+                    if (orden.id !== pendingOrder.id && laAnuloElCierre) continue;
+
+                    const tarde = ahoraCierre > orden.expiresAt;
+                    const estado = orden.id === pendingOrder.id
+                        ? orderStatusUpdate
+                        : (tarde ? 'COMPLETED_LATE' : 'COMPLETED_ON_TIME');
+                    await prisma.vitalsOrder.update({
+                        where: { id: orden.id },
+                        data: {
+                            status: estado,
+                            completedAt: ahoraCierre,
+                            lateReason: orden.id === pendingOrder.id && lateReasonRaw.length > 0
+                                ? lateReasonRaw
+                                : (estado === 'COMPLETED_LATE'
+                                    ? 'Tomados fuera de plazo'
+                                    : null),
+                        }
+                    });
+                }
                 if (applyLatePenalty) {
                     await applyScoreEvent(invokerId, invokerHqId, -2,
                         'Vitales registrados tarde', 'VITALS');
