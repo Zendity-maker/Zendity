@@ -1,3 +1,5 @@
+import { clinicalDay } from '@/lib/dates';
+
 /**
  * Plazo y penalidad de la ventana de vitales — fuente única.
  *
@@ -35,3 +37,34 @@ export const PENALTY_GRACE_MS = 0;
 
 /** Umbral real de penalidad, contado desde que se abrió la orden. */
 export const PENALTY_THRESHOLD_MS = VITALS_WINDOW_MS + PENALTY_GRACE_MS;
+
+/**
+ * HASTA QUE TERMINE EL TURNO DE NOCHE — el plazo de una orden de enfermería.
+ *
+ * Andrés, 01-oct-2026, al preguntarle qué plazo debía tener: «el plazo hasta
+ * que termine el turno de noche».
+ *
+ * No es `VITALS_WINDOW_MS`. Esas 4 h son el plazo de la RONDA: quien abre turno
+ * tiene cuatro horas para hacer la suya. Una orden de enfermería es otra cosa —
+ * «a esta persona hay que mirarla esta noche»— y pedirla a las 5 de la tarde
+ * con un reloj de 4 h la mataba a las 9, antes de que entrara la guardia que
+ * tenía que cumplirla.
+ *
+ * El fin del turno de noche son las 6:00 AM AST, que es también el fin de la
+ * jornada clínica. No se inventa una constante: se reusa la frontera que ya
+ * gobierna todo lo demás en este sistema. Ver `clinicalDay` en dates.ts.
+ *
+ *     pedida a las 17:00 del día D ...... vence el D+1 a las 06:00  (13 h)
+ *     pedida a las 02:00 del día D ...... vence el D   a las 06:00  ( 4 h)
+ *     pedida a las 07:00 del día D ...... vence el D+1 a las 06:00  (23 h)
+ *
+ * EL BORDE, dicho y no disimulado: pedida a las 05:30 el plazo es de media
+ * hora, porque el turno de noche termina a las 06:00. Es la lectura literal de
+ * lo que se pidió y no se le pone un suelo artificial — pero si en el piso
+ * resulta que una orden de madrugada quiere decir «la noche siguiente», esto es
+ * lo que hay que cambiar, y está en un solo sitio.
+ */
+export function finDelTurnoDeNoche(ahora: Date = new Date()): Date {
+    const { boundary6amUtc } = clinicalDay(ahora);
+    return new Date(boundary6amUtc.getTime() + 24 * 60 * 60 * 1000);
+}

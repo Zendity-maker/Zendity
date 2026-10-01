@@ -30,6 +30,7 @@ import { EFECTOS_PRN } from "@/lib/prn";
 import { MOTIVOS_OMISION, etiquetaOmision, estadoParaOmision } from "@/lib/omision-medicamento";
 import { tocaHoy } from "@/lib/receta";
 import { MARGEN_ANTES_MIN, ocurrenciaDeLaFranja, ventanaDeDosisDeLaTableta } from "@/lib/margen-firma";
+import { finDelTurnoDeNoche } from "@/lib/vitals-window";
 import { todayStartAST } from "@/lib/dates";
 
 /** Dosis PRN administrada que todavia no tiene respuesta. Ver /api/care/meds/prn-efecto. */
@@ -5871,9 +5872,16 @@ export default function ZendityCareTabletPage() {
                             <div className="space-y-5">
                                 <p className="font-bold text-slate-500 uppercase text-sm border-b pb-3">Pedir toma de vitales</p>
                                 <p className="text-sm text-slate-600 leading-relaxed">
-                                    Queda anotado quién lo pidió y por qué, le llega un aviso al piso, y
-                                    sale en la tarjeta de <span className="font-black text-slate-800">{activePatient?.name?.trim()}</span>{' '}
-                                    durante las próximas 4 horas.
+                                    Queda anotado quién lo pidió y por qué, le llega un aviso a quien
+                                    está en piso, y sale en la tarjeta de{' '}
+                                    <span className="font-black text-slate-800">{activePatient?.name?.trim()}</span>{' '}
+                                    hasta que termine el turno de noche —{' '}
+                                    <span className="font-black text-slate-800">{(() => {
+                                        // El mismo helper que usa el servidor: la pantalla no puede
+                                        // prometer un plazo distinto del que se guarda.
+                                        const v = finDelTurnoDeNoche();
+                                        return v.toLocaleString('es-PR', { weekday: 'long', hour: 'numeric', minute: '2-digit', timeZone: 'America/Puerto_Rico' });
+                                    })()}</span>.
                                 </p>
                                 <div>
                                     <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-2">

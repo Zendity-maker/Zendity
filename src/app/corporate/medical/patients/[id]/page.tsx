@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { UserIcon, ArrowLeftIcon, ArrowRightOnRectangleIcon, CalendarDaysIcon, DocumentArrowDownIcon, PencilIcon, DocumentTextIcon, CameraIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import DietPrescription from "@/components/diet/DietPrescription";
 import { formatDietSummary, DietPrescription as DietPrescriptionData } from "@/lib/diet";
+import { finDelTurnoDeNoche } from "@/lib/vitals-window";
 import { HeartCrack, FileText } from "lucide-react";
 import Link from "next/link";
 import PatientUlcersTab from "@/components/medical/upps/PatientUlcersTab";
@@ -804,9 +805,15 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                     <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
                         <h3 className="text-2xl font-black text-slate-800 mb-2">Pedir toma de vitales</h3>
                         <p className="text-slate-500 font-medium mb-6 leading-relaxed">
-                            Queda anotado quién lo pidió y por qué, le llega un aviso al piso, y sale en
-                            la tarjeta de <strong className="text-teal-700">{patientData?.name?.trim()}</strong> durante
-                            las próximas 4 horas.
+                            Queda anotado quién lo pidió y por qué, le llega un aviso a quien está en
+                            piso, y sale en la tarjeta de <strong className="text-teal-700">{patientData?.name?.trim()}</strong>{' '}
+                            hasta que termine el turno de noche —{' '}
+                            <strong className="text-teal-700">{(() => {
+                                // El mismo helper que usa el servidor: la pantalla no puede
+                                // prometer un plazo distinto del que se guarda.
+                                const v = finDelTurnoDeNoche();
+                                return v.toLocaleString('es-PR', { weekday: 'long', hour: 'numeric', minute: '2-digit', timeZone: 'America/Puerto_Rico' });
+                            })()}</strong>.
                         </p>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
                             Por qué hay que tomarlos

@@ -36,7 +36,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { notifyUser } from '@/lib/notifications';
-import { VITALS_WINDOW_MS } from '@/lib/vitals-window';
+import { finDelTurnoDeNoche } from '@/lib/vitals-window';
 
 export const dynamic = 'force-dynamic';
 
@@ -105,13 +105,14 @@ export async function POST(req: Request) {
         }
 
         /**
-         * EL PLAZO ES EL MISMO QUE EL DE LA RONDA: 4 h.
+         * EL PLAZO ES HASTA QUE TERMINE EL TURNO DE NOCHE.
          *
-         * No se inventa un número nuevo. `VITALS_WINDOW_MS` lo fijó la enfermera
-         * del hogar el 01-sep-2026 y es el plazo que el piso ya conoce — pedir
-         * una toma «de enfermería» con un reloj distinto solo añadiría una regla
-         * más que recordar. Ver src/lib/vitals-window.ts.
+         * Lo pidió Andrés así, y tiene razón: las 4 h de `VITALS_WINDOW_MS` son
+         * el plazo de la RONDA de quien abre turno. Una orden pedida a las 5 de
+         * la tarde con ese reloj moría a las 9, antes de que entrara la guardia
+         * que tenía que cumplirla. Ver `finDelTurnoDeNoche` en vitals-window.ts.
          */
+        const vence = finDelTurnoDeNoche(ahora);
         const orden = await prisma.vitalsOrder.create({
             data: {
                 headquartersId: auth.headquartersId,
@@ -122,7 +123,7 @@ export async function POST(req: Request) {
                 // residente, que es donde la va a ver.
                 reason: razon,
                 orderedAt: ahora,
-                expiresAt: new Date(ahora.getTime() + VITALS_WINDOW_MS),
+                expiresAt: vence,
                 status: 'PENDING',
                 autoCreated: false,
                 penaltyApplied: false,
