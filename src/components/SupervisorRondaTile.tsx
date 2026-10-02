@@ -6,6 +6,7 @@ import { RondaCard } from "@/components/ui/RondaCard";
 import { Badge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import type { GrupoColor } from "@/components/ui/GrupoBadge";
+import { COLORES_DE_GRUPO } from "@/lib/colores-de-grupo";
 
 /**
  * SupervisorRondaTile — feature component.
@@ -23,26 +24,21 @@ import type { GrupoColor } from "@/components/ui/GrupoBadge";
  * /api/care/supervisor/caregiver-rounds. Cero traducción en el page.
  */
 
-const DB_TO_GRUPO: Record<string, GrupoColor> = {
-    RED: "ROJO",
-    YELLOW: "AMARILLO",
-    BLUE: "AZUL",
-    GREEN: "VERDE",
-};
+// Las tres salen de `colores-de-grupo.ts`. Eran tres listas escritas a mano una
+// debajo de otra: el codigo del enum, el plural con el que se habla de los
+// residentes del grupo, y el chip. Un color que faltara en la tercera salia con
+// `undefined` como clase — un chip sin color ni borde, invisible sobre blanco.
+const DB_TO_GRUPO: Record<string, GrupoColor> = Object.fromEntries(
+    COLORES_DE_GRUPO.map(c => [c.codigo, c.nombreMayus]),
+) as Record<string, GrupoColor>;
 
-const GRUPO_SUFFIX: Record<GrupoColor, string> = {
-    ROJO: "rojos",
-    AMARILLO: "amarillos",
-    AZUL: "azules",
-    VERDE: "verdes",
-};
+const GRUPO_SUFFIX: Record<GrupoColor, string> = Object.fromEntries(
+    COLORES_DE_GRUPO.map(c => [c.nombreMayus, c.plural]),
+) as Record<GrupoColor, string>;
 
-const GRUPO_CHIP: Record<GrupoColor, string> = {
-    ROJO: "bg-[#FCEDEC] text-[#A23B38] border-[#F0B5B3]",
-    AMARILLO: "bg-[#FBF1DA] text-[#8A6420] border-[#EFD18C]",
-    VERDE: "bg-[#DDF3E8] text-[#1A6E4B] border-[#A4DEC0]",
-    AZUL: "bg-[#DDE9FC] text-[#1E489E] border-[#A6C0EE]",
-};
+const GRUPO_CHIP: Record<GrupoColor, string> = Object.fromEntries(
+    COLORES_DE_GRUPO.map(c => [c.nombreMayus, `${c.insignia.bg} ${c.insignia.text} ${c.insignia.border}`]),
+) as Record<GrupoColor, string>;
 
 // Shape mínimo del item que viene del endpoint — el call site puede pasarnos
 // cualquier objeto con estos campos. Sin acoplar al tipo Prisma directamente.

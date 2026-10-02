@@ -785,6 +785,80 @@ model VisitanteAutorizado {
   @@index([headquartersId])
 }
 
+/// LA JORNADA DE UN RESIDENTE DIURNO — cuándo llegó y cuándo se fue.
+///
+/// ═══ POR QUÉ EXISTE ═══
+///
+/// Andrés, 02-oct-2026: «importante poder marcar llegada y salida de los
+/// diurnos».
+///
+/// Hasta hoy la presencia de un diurno se DEDUCÍA del horario del hogar: de
+/// 7:00 a 18:00 está, fuera no (src/lib/residente-diurno.ts). Esa regla acertó
+/// lo suficiente para dejar de pedirle trabajo imposible de noche, pero es una
+/// media: el día que llega a las 9 porque tenía cita, o se va a las 14 porque
+/// la familia lo recogió, el sistema sigue contando con él cuatro horas de más
+/// y vuelve a reclamar rondas sobre alguien que no está.
+///
+/// ═══ LA REGLA: LAS MARCAS AFINAN, NO MANDAN ═══
+///
+/// El horario sigue siendo el valor por defecto y las marcas lo corrigen:
+///
+///     llegada efectiva = llegadaAt ?? las 7:00 de ese día
+///     salida  efectiva = salidaAt  ?? las 18:00 de ese día
+///
+/// Así, **olvidarse de marcar no cuesta nada**: el sistema se comporta igual
+/// que antes de que existiera esta tabla. Es lo contrario de un fichaje, donde
+/// no marcar te deja fuera. Aquí no marcar te deja en el horario de siempre, y
+/// marcar solo sirve para acercarse a la verdad.
+///
+/// Corolario que importa: una fila SIN llegada y SIN salida no significa nada y
+/// no se crea. Solo existe fila cuando alguien marcó algo.
+///
+/// ═══ POR QUÉ NO SE RELLENA SOLA ═══
+///
+/// Mismo criterio que `FamilyVisit.departedAt`, que está dos modelos más
+/// arriba: si el diurno se va y nadie lo marca, `salidaAt` se queda en null y
+/// se usan las 18:00. NO se inventa una hora de salida. Una hora inventada en
+/// un registro clínico se lee igual que una observada, y entonces el registro
+/// deja de servir para lo único que sirve.
+///
+/// ═══ EL ANCLA DE `fecha` ═══
+///
+/// Es `fechaCalendarioAST()`: medianoche UTC del día NATURAL de Puerto Rico.
+/// No el día clínico (`todayStartAST()`, 10:00 UTC = 6 AM), que retrocede antes
+/// de las seis de la mañana. Una jornada diurna va de 7 a 18 y no cruza la
+/// medianoche nunca, así que su día es el del calendario — igual que el menú.
+///
+/// Compararla contra el ancla de las 10:00 UTC daría una condición constante,
+/// no un filtro. Es exactamente el fallo del 21-sep-2026 en `estado-operativo`.
+/// Por eso nadie compone esta fecha a mano: sale de `fechaDeLaJornada()`.
+model JornadaDiurna {
+  id             String @id @default(uuid())
+  headquartersId String
+  patientId      String
+
+  /// Medianoche UTC del día natural de PR. Ver la nota del ancla arriba.
+  fecha DateTime @db.Date
+
+  /// Cuando llegó de verdad. Null = no se marcó, se usan las 7:00.
+  llegadaAt    DateTime?
+  llegadaPorId String?
+
+  /// Cuando se fue de verdad. Null = no se marcó, se usan las 18:00.
+  salidaAt    DateTime?
+  salidaPorId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  /// Una jornada por residente y día. Es también la guarda contra el doble
+  /// envío: marcar llegada dos veces no crea dos filas, encuentra la suya.
+  @@unique([patientId, fecha])
+  @@index([headquartersId, fecha])
+}
+
 model FamilyVisitNote {
   id             String   @id @default(uuid())
   patientId      String
@@ -837,11 +911,20 @@ enum Role {
   COORDINATOR
 }
 
+// Los grupos de color de zonificación clínica.
+//
+// La lista de verdad —nombres en español, hex, clases, teclas— vive en
+// src/lib/colores-de-grupo.ts. Este enum es solo lo que la base acepta; si
+// añades un valor aquí sin añadirlo allá, el color existe pero no se ve.
+//
+// PURPLE se abre el 02-oct-2026: el hogar pasó de 32 a 33 residentes y tres
+// grupos de once dejaron de repartirse solos.
 enum ColorGroup {
   RED
   YELLOW
   GREEN
   BLUE
+  PURPLE
   UNASSIGNED
 }
 
@@ -1148,6 +1231,7 @@ model Patient {
   sinFamiliarMarcadoPorId String?
   sinFamiliarMarcadoAt    DateTime?
   rotacionesNoRealizadas  RotacionNoRealizada[]
+  jornadasDiurnas         JornadaDiurna[]
 }
 
 // =======================

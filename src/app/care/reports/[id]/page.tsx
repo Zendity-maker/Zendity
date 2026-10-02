@@ -9,6 +9,7 @@ import {
     AlertTriangle, FileText, Users,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { PILDORA_DE_COLOR } from '@/lib/colores-de-grupo';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Tipos del payload de /api/care/reports/[id]
@@ -50,10 +51,7 @@ const SHIFT_LABEL: Record<string, string> = {
 };
 
 const COLOR_CHIP: Record<string, string> = {
-    RED: "bg-rose-100 text-rose-700 border-rose-200",
-    YELLOW: "bg-amber-100 text-amber-700 border-amber-200",
-    GREEN: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    BLUE: "bg-sky-100 text-sky-700 border-sky-200",
+    ...PILDORA_DE_COLOR,
     UNASSIGNED: "bg-slate-100 text-slate-600 border-slate-200",
 };
 

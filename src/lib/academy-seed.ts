@@ -209,7 +209,7 @@ Si tocas una opción del menú y la pantalla te devuelve a tu inicio, no es culp
 
 **Los grupos de color**
 
-Los residentes se reparten en cuatro colores, Rojo, Amarillo, Verde y Azul, y además hay residentes todavía sin asignar, que el sistema trata aparte.
+Los residentes se reparten por grupos de color. Hoy son cinco —Rojo, Amarillo, Verde, Azul y Morado— y el hogar puede abrir otro cuando la población crezca, así que lo que manda son los botones que veas en tu pantalla, no este número. Además hay residentes todavía sin asignar, que el sistema trata aparte.
 
 Tu color **no lo eliges tú**. Sale del horario de la semana que publica tu supervisora, y el sistema te lo aplica al abrir turno. Si abres turno y la lista de residentes sale vacía, casi siempre es lo mismo: el horario de esa semana está en borrador, sin publicar. Avisa a tu supervisora; no es algo que se arregle desde la tableta.
 
@@ -240,7 +240,7 @@ a) Lo escoges tú al abrir el turno en la tableta
 b) Lo hereda del color de la cuidadora anterior
 c) Lo reparte el sistema al azar entre las que están de turno
 *d) Del horario de la semana que publica tu supervisora
-EXPLICACION: Hay cuatro colores, Rojo, Amarillo, Verde y Azul, y además residentes todavía sin asignar, que el sistema trata aparte.
+EXPLICACION: Los grupos son de color —hoy Rojo, Amarillo, Verde, Azul y Morado, y el hogar puede abrir alguno más—, y además hay residentes todavía sin asignar, que el sistema trata aparte.
 
 P: Carmen abre turno un lunes y la lista de residentes le sale vacía. ¿Qué pasó?
 a) Se le venció el PIN y tiene que pedir uno nuevo
@@ -3014,7 +3014,7 @@ LECTURA:
 
 El turno no empieza cuando entras a la aplicacion. Empieza cuando haces estos cuatro pasos, y van en este orden:
 
-**1. Eliges tu color.** La pantalla te pregunta "Cual es tu color de Turno?" con cuatro botones: ROJO, AMARILLO, VERDE, AZUL. Tu color sale del horario que armo el supervisor, pero **la tableta te lo pregunta igual**: hay que pulsarlo.
+**1. Eliges tu color.** La pantalla te pregunta "Cual es tu color de Turno?" con un boton por cada grupo que exista en el hogar — hoy ROJO, AMARILLO, VERDE, AZUL y MORADO. Tu color sale del horario que armo el supervisor, pero **la tableta te lo pregunta igual**: hay que pulsarlo.
 
 En esa misma pantalla puede haber:
 
@@ -3711,7 +3711,7 @@ generan solas una observación, y la empleada tiene 72 horas para explicarla.
 ## Grupos sin cuidadora en piso
 
 Este bloque rosa aparece **solo cuando un color se queda sin nadie con sesión
-activa**. Si los cuatro colores tienen a alguien, no se pinta, y no hay otra
+activa**. Si todos los colores tienen a alguien, no se pinta, y no hay otra
 puerta: **no se puede redistribuir porque un grupo tenga más carga**. Eso no
 existe.
 
@@ -3753,7 +3753,7 @@ a) Cuando un grupo tiene más carga que los demás
 b) Cuando la supervisora lo abre desde el menú lateral
 c) Al principio de cada turno, siempre
 *d) Cuando un color se queda sin nadie en piso
-EXPLICACION: Es su único disparador; si los cuatro colores están cubiertos el bloque no se pinta y no hay otra forma de entrar a redistribuir.
+EXPLICACION: Es su único disparador; si todos los colores están cubiertos el bloque no se pinta y no hay otra forma de entrar a redistribuir.
 
 P: Qué mueve el botón "Asignar a..."?
 a) Los residentes que tú marques uno a uno arrastrándolos

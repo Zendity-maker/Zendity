@@ -63,12 +63,31 @@ const AVAILABLE_TIMES = [
     "08:00 AM (Semanal)"
 ];
 
+/**
+ * Las clases van ESCRITAS ENTERAS, no compuestas con el nombre del color.
+ *
+ * Esto era `border-${preset.color}-500 bg-${preset.color}-50 ...
+ * ring-${preset.color}-500/20`. Tailwind genera las clases leyendo el código
+ * como texto: `ring-emerald-500/20` y `ring-purple-500/20` no aparecían
+ * escritas en ninguna parte del repo, así que NO se generaban y esos dos
+ * botones se quedaban sin el anillo de «seleccionado». Y `ring-rose-500/20`
+ * solo existía porque la aportaba una copia vieja del código bajo
+ * `.claude/worktrees/`, o sea que funcionaba en local y no al desplegar.
+ *
+ * No da error y no se ve mirando el código: se ve cuando alguien pulsa el
+ * botón y no pasa nada visible.
+ */
 const FREQUENCY_PRESETS = [
-    { label: "PRN (A demanda)", times: ["PRN"], color: "rose" },
-    { label: "BID (2x al día)", times: ["08:00 AM", "08:00 PM"], color: "indigo" },
-    { label: "TID (3x al día)", times: ["08:00 AM", "02:00 PM", "08:00 PM"], color: "emerald" },
-    { label: "QID (4x al día)", times: ["06:00 AM", "02:00 PM", "05:00 PM", "08:00 PM"], color: "amber" },
-    { label: "Semanal", times: ["08:00 AM (Semanal)"], color: "purple" }
+    { label: "PRN (A demanda)", times: ["PRN"],
+      activo: "border-rose-500 bg-rose-50 text-rose-700 ring-2 ring-rose-500/20" },
+    { label: "BID (2x al día)", times: ["08:00 AM", "08:00 PM"],
+      activo: "border-indigo-500 bg-indigo-50 text-indigo-700 ring-2 ring-indigo-500/20" },
+    { label: "TID (3x al día)", times: ["08:00 AM", "02:00 PM", "08:00 PM"],
+      activo: "border-emerald-500 bg-emerald-50 text-emerald-700 ring-2 ring-emerald-500/20" },
+    { label: "QID (4x al día)", times: ["06:00 AM", "02:00 PM", "05:00 PM", "08:00 PM"],
+      activo: "border-amber-500 bg-amber-50 text-amber-700 ring-2 ring-amber-500/20" },
+    { label: "Semanal", times: ["08:00 AM (Semanal)"],
+      activo: "border-purple-500 bg-purple-50 text-purple-700 ring-2 ring-purple-500/20" }
 ];
 
 export default function PatientEMARTab({ patientId }: { patientId: string }) {
@@ -669,7 +688,7 @@ export default function PatientEMARTab({ patientId }: { patientId: string }) {
                                         key={preset.label}
                                         onClick={() => applyPreset(preset.times)}
                                         className={`py-2 px-3 rounded-xl font-bold text-sm border-2 transition-all text-left ${JSON.stringify(selectedTimes) === JSON.stringify(preset.times)
-                                            ? `border-${preset.color}-500 bg-${preset.color}-50 text-${preset.color}-700 shadow-sm ring-2 ring-${preset.color}-500/20 ring-offset-1`
+                                            ? `${preset.activo} shadow-sm ring-offset-1`
                                             : `border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50`
                                             }`}
                                     >

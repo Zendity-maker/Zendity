@@ -8,6 +8,7 @@ import { requireRole } from '@/lib/api-auth';
 import { ROLES_DE_PISO } from '@/lib/roles-clinicos';
 import { logError, logWarn } from '@/lib/logger';
 import { VITALS_WINDOW_MS } from '@/lib/vitals-window';
+import { CODIGOS_DE_COLOR } from '@/lib/colores-de-grupo';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,11 +78,16 @@ async function resolveAssignedPatients(caregiverId: string, hqId: string) {
     // Sin color, 'ALL' o cuidadora solitaria → trae todos los ACTIVE
     const unrestricted = colors.length === 0 || colors.includes('ALL') || isSolo;
 
-    // `colorGroup` del enum Prisma es cerrado a RED/YELLOW/GREEN/BLUE/UNASSIGNED.
-    // El resolver puede devolver 'ALL' (cobertura amplia) — se filtra acá
-    // antes del `in` de Prisma para no romper el query.
+    // `colorGroup` del enum Prisma es cerrado. El resolver puede devolver 'ALL'
+    // (cobertura amplia) — se filtra acá antes del `in` de Prisma para no romper
+    // el query.
+    //
+    // La lista sale de `colores-de-grupo.ts` + UNASSIGNED. Escrita a mano era el
+    // sitio más peligroso de los dieciséis: un color que no estuviera en ella se
+    // caía aquí **en silencio**, y la cuidadora empezaba el turno con la lista
+    // de residentes vacía sin un solo error en ninguna parte.
     const validColors = colors.filter(c =>
-        (['RED', 'YELLOW', 'GREEN', 'BLUE', 'UNASSIGNED'] as string[]).includes(c)
+        ([...CODIGOS_DE_COLOR, 'UNASSIGNED'] as string[]).includes(c)
     ) as ColorGroup[];
 
     return prisma.patient.findMany({

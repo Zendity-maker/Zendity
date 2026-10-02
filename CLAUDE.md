@@ -63,9 +63,28 @@ Esa segunda fila es la trampa: un script de medición sigue leyendo producción,
 es lo que se quiere para medir — pero **si escribe, escribe en producción**. Para
 apuntar un script a la rama hay que pasarle la URL a mano.
 
-Comprobado el día de crearla: las dos bases traen lo mismo (49 residentes, 41
+Comprobado el día de crearla: las dos bases traían lo mismo (49 residentes, 41
 usuarios, 30.464 administraciones, 1.629 turnos, 2 sedes) y una tabla creada en
 desarrollo **no aparece** en producción.
+
+> **⚠️ 02-oct-2026: la rama está VACÍA.** Medido contra
+> `ep-silent-silence-aebwfpsh`: 114 tablas, **0 sedes, 0 residentes, 0 usuarios**,
+> 15 MB, y **no existe la tabla `_prisma_migrations`**. El esquema es el de
+> `schema.prisma` de finales de septiembre (tiene `colorGroup2`, no tiene
+> `esDiurno`). Esa huella —esquema completo, cero filas, cero historial— es la de
+> un `db push` o un reset sobre la rama, no la de una copia de `main`.
+>
+> Consecuencias, las dos que importan:
+>
+> 1. `npm run dev` levanta la app contra una base sin datos. No rompe nada —ese
+>    lado sigue siendo seguro— pero **probar ahí no prueba nada**: no hay sesión
+>    útil, los endpoints devuelven 401 y las pantallas salen vacías.
+> 2. **No correr `prisma migrate dev` contra esa rama.** Vería 114 tablas sin
+>    historial de migraciones y ofrecería resetear. La salida segura es
+>    `migrate resolve --applied` de las que ya refleja y luego `migrate deploy`,
+>    o borrarla y recrearla desde `main`.
+>
+> Mientras siga así, lo que se mida se mide contra producción, en solo lectura.
 
 Los datos son una **foto del 27-sep** y no se actualizan solos. Para refrescarla se
 borra la rama y se vuelve a crear (`npx neonctl branches delete/create`).
@@ -138,6 +157,63 @@ Solo hacer commit si TSC_EXIT: 0 y sin errores en archivos de producción (tests
 8. **Un examen que se aprueba sin leer** — ver abajo.
 9. **Medir un campo que no pediste en el `select`** — ver abajo.
 10. **Filtrar por una fecha que está nula justo en las filas que importan** — ver abajo.
+11. **Escribir la lista de colores en el sitio donde se usa** — ver abajo.
+12. **Un dato de la base escrito como constante** — ver abajo.
+
+---
+
+## 🎨 Los grupos de color: `src/lib/colores-de-grupo.ts`
+
+*02-oct-2026, al abrir MORADO.*
+
+La lista de colores estaba escrita **dieciocho veces**: nombres en español,
+hex, clases de Tailwind, teclas del constructor, RGB del PDF del censo. Añadir
+un valor al enum y olvidar uno de esos sitios **no da error**: da un punto
+invisible (`undefined` como clase no pinta nada), una insignia en blanco, un
+grupo que no se puede cubrir, un residente que no sale.
+
+**Para abrir un color nuevo se rellena UNA fila** de `COLORES_DE_GRUPO` y se
+añade el valor al enum `ColorGroup` por migración. Nada más.
+
+Tres cosas que se aprendieron haciéndolo, y que se repetirán:
+
+- **El grep por `RED|YELLOW` no encuentra todo.** `RondaCard.tsx` solo dice
+  ROJO/AMARILLO; un filtro del constructor era la cadena `'12340⌫↵'` —las
+  teclas, sin nombrar ningún color—. Lo que sí los encontró fue derivar el
+  TIPO de la lista (`as const satisfies`): el compilador pidió el color que
+  faltaba, uno por mapa.
+- **Las clases de Tailwind van escritas ENTERAS y literales.** Tailwind v4
+  escanea el código como texto: `bg-${color}-500` o `border-l-[${hex}]` no
+  aparecen escritas en ninguna parte y no se generan. En
+  `corporate/calendar` esos puntos llevaban sin pintarse desde siempre.
+- **Lo que no es un color vive aparte.** `ALL`, `SUPERVISION`, `NONE` y
+  `UNASSIGNED` conviven en los mismos campos y no son colores. Al sustituir un
+  mapa por un spread hay que volver a añadirlos a mano o se pierden.
+
+**La lista NO sabe qué colores tienen residentes.** Eso se le pregunta a la
+base (`coloresConResidentes` / `derivePopulatedColors` en `shift-coverage.ts`).
+
+---
+
+## 📌 Un dato de la base escrito como constante
+
+*02-oct-2026.* El constructor de horarios llevaba
+`const COLORES_CON_RESIDENTES = ['RED', 'YELLOW', 'BLUE']`, con un comentario
+que explicaba muy bien por qué GREEN no contaba: tenía cero residentes, y
+exigir que esté cubierto un grupo sin nadie es pedir que alguien cuide a nadie.
+
+El razonamiento era correcto. El problema es que era un **dato**. El
+01-oct-2026 entró un residente diurno a GREEN y la lista se volvió falsa en
+silencio: su grupo dejó de contar para la cobertura, así que el builder no
+pedía que nadie lo cubriera **ni lo marcaba como hueco**. Nada falló.
+Simplemente dejó de preguntar.
+
+**La señal:** un comentario que justifica una constante citando un conteo
+(«GREEN tiene cero residentes», «en Cupey hay tres grupos de once»). Si hay que
+contar algo para saber si la constante es cierta, no es una constante.
+
+Y al pasarlo a dato, `null` (todavía no se sabe) **no es** `[]` (ninguno). Los
+dos se pintaban igual: en verde, «todo cubierto».
 
 ---
 
@@ -284,6 +360,21 @@ decía el rótulo.**
 hora se GUARDA ese campo. Si se guarda a 00:00 UTC y tu ancla son las 10:00 UTC,
 la condición es constante, no es un filtro. Un rango con `gte` **y** `lt` habría
 convertido el fallo en un cero visible.
+
+**Y hay una cuarta forma de mezclarlas, que es COMPONER.** *02-oct-2026.*
+`astDateTime(fecha, hora, min)` no recibe el mismo tipo de fecha que devuelve
+`fechaCalendarioAST()`, aunque las dos se llamen «la fecha de hoy»:
+
+- `fechaCalendarioAST()` devuelve **medianoche UTC** del día de PR. Es la llave
+  con la que se GUARDA.
+- `astDateTime()` espera una fecha cuyo **día de pared AST** sea el que quieres:
+  le resta 4 h para leerlo. Restarle 4 h a medianoche UTC cae en las 20:00 del
+  día ANTERIOR.
+
+Escrito como `astDateTime(fechaCalendarioAST(x), 7, 0)` —que es lo natural— la
+jornada del residente diurno se componía el día anterior y no estaba nunca. No
+daba error: daba `false` a mediodía. **A `astDateTime` se le pasa el INSTANTE**,
+no la fecha normalizada.
 
 ### La frase que sustituye a una mentira tampoco puede ser una
 

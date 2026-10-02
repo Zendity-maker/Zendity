@@ -19,6 +19,7 @@ import {
 import { logError } from '@/lib/logger';
 import { compatibleShiftTypesAt } from '@/lib/ventanas-de-turno';
 import { coloresDeLaPauta } from '@/lib/shift-coverage';
+import { presenciaDeHoy } from '@/lib/residente-diurno';
 
 const SUPERVISOR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
@@ -181,10 +182,24 @@ export async function GET(req: Request) {
         }
         const hasAll = allColorsUnion.has('ALL');
         const distinctColors = [...allColorsUnion].filter(c => c !== 'ALL');
+        /**
+         * EL MISMO DENOMINADOR QUE LA TABLETA, O LAS DOS PANTALLAS SE PELEAN.
+         *
+         * `rounds/progress` filtra presencia desde el 02-oct-2026 y esto no lo
+         * hacia. Resultado medido sobre la situacion real: a las 23:00, la
+         * cuidadora de GREEN atiende a sus 10 residentes tres veces; su tableta
+         * cuenta 10 de 10 y cierra la ronda, y el wall calculaba 11 porque
+         * seguia contando al diurno. `roundsCompleted` se quedaba en 0 toda la
+         * noche, el tile pintaba «10/11 · 1 pendiente» con el nombre de Jesus, y
+         * el Set no podia limpiarse nunca — o sea que las rondas 2 y 3 tampoco
+         * se contaban. Dos pantallas afirmando cosas distintas sobre el mismo
+         * turno, y la que acusa es la del supervisor.
+         */
         const allGroupPatients = await prisma.patient.findMany({
             where: {
                 headquartersId: hqId,
                 status: 'ACTIVE',
+                ...presenciaDeHoy(),
                 ...(hasAll ? {} : { colorGroup: { in: distinctColors as any[] } })
             },
             select: { id: true, name: true, roomNumber: true, colorGroup: true },

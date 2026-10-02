@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { UserCheck, UserX, Activity, AlertTriangle } from "lucide-react";
+import { PILDORA_DE_COLOR } from '@/lib/colores-de-grupo';
 
 /**
  * "Hoy" — lo que el director abre a mirar cada mañana.
@@ -22,12 +23,8 @@ import { UserCheck, UserX, Activity, AlertTriangle } from "lucide-react";
  * a distinta altura.
  */
 
-const COLOR_CHIP: Record<string, string> = {
-    RED: "bg-rose-100 text-rose-700",
-    YELLOW: "bg-amber-100 text-amber-700",
-    BLUE: "bg-sky-100 text-sky-700",
-    GREEN: "bg-emerald-100 text-emerald-700",
-};
+// De `colores-de-grupo.ts`. El rojo pasa de rose a red y el azul de sky a blue.
+const COLOR_CHIP = PILDORA_DE_COLOR;
 
 function Barra({ etiqueta, hecho, total }: { etiqueta: string; hecho: number; total: number }) {
     const pct = total > 0 ? Math.round((hecho / total) * 100) : 0;

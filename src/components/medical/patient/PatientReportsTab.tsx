@@ -31,7 +31,11 @@ const STATUS_CFG: Record<string, { bg: string; label: string }> = {
 };
 
 const ORIGIN_CFG: Record<string, { label: string; icon: string; bg: string }> = {
-    DAILY_LOG: { icon: '\u{1FA7A}', label: 'Clinico', bg: 'bg-purple-100 text-purple-700 border border-purple-200' },
+    // Era `bg-purple-100 text-purple-700 border-purple-200`, que desde el
+    // 02-oct-2026 es exactamente la pildora del grupo MORADO, caracter por
+    // caracter. Dos cosas distintas con el mismo aspecto en la misma pantalla
+    // es una invitacion a leer mal. Se mueve a violeta, que no es de nadie.
+    DAILY_LOG: { icon: '\u{1FA7A}', label: 'Clinico', bg: 'bg-violet-100 text-violet-700 border border-violet-200' },
     INCIDENT: { icon: '\u{1F527}', label: 'Mantenimiento', bg: 'bg-slate-100 text-slate-600 border border-slate-200' },
     COMPLAINT: { icon: '\u{1F4CB}', label: 'Queja', bg: 'bg-orange-100 text-orange-700 border border-orange-200' },
     FALL: { icon: '\u{1F6A8}', label: 'Caida', bg: 'bg-rose-100 text-rose-700 border border-rose-200' },

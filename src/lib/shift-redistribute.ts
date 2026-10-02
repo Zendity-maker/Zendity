@@ -43,6 +43,7 @@ import { logWarn } from './logger';
  * se ve desde el archivo canonico, y por eso sobrevivio doce dias.
  */
 import { VITALS_WINDOW_MS } from './vitals-window';
+import { nombreDeColor } from '@/lib/colores-de-grupo';
 
 export type RedistributionTrigger = 'AUTO' | 'MANUAL' | 'ABSENCE';
 
@@ -249,7 +250,18 @@ export async function redistributeUncoveredColors(opts: {
                 );
             }
             const vitalsExpiresAt = new Date(recipient.startTime.getTime() + VITALS_WINDOW_MS);
-            if (!recibeDeGuardia && vitalsExpiresAt > now) {
+            /**
+             * Y NUNCA A UN DIURNO. Es la misma regla de nunca que ya llevan
+             * `shift/start` y `claim-coverage`: a un diurno no se le abre ronda
+             * automatica de vitales; si los necesita, los pide enfermeria.
+             *
+             * Esta era la TERCERA puerta a la misma creacion y era la unica sin
+             * la guarda. De noche no llegaba aqui —`uncoveredPatients` ya filtra
+             * presencia— pero de dia si: un reparto a mediodia le abria la
+             * ventana de 4 h igual, y entonces la regla era «nunca, salvo por
+             * este camino», que no es una regla.
+             */
+            if (!recibeDeGuardia && vitalsExpiresAt > now && !patient.esDiurno) {
                 const existingVital = await prisma.vitalsOrder.findFirst({
                     where: {
                         patientId: patient.patientId,
@@ -280,7 +292,7 @@ export async function redistributeUncoveredColors(opts: {
         }
 
         if (!notifyByCaregiver.has(recipient.userId)) notifyByCaregiver.set(recipient.userId, []);
-        notifyByCaregiver.get(recipient.userId)!.push(`${patient.name} (grupo ${patient.colorGroup})`);
+        notifyByCaregiver.get(recipient.userId)!.push(`${patient.name} (grupo ${nombreDeColor(patient.colorGroup)})`);
     }
 
     if (notify && overridesCreated.length > 0) {

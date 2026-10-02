@@ -7,6 +7,7 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import SchedulePrintView from "@/components/hr/SchedulePrintView";
 import { tiposQueCubren, TIPOS_QUE_CUBREN, horasDelTurno, HORAS_SEMANA_COMPLETA, type FranjaT } from '@/lib/ventanas-de-turno';
+import { COLORES_DE_GRUPO, CODIGOS_DE_COLOR, NOMBRES_DE_COLOR, PILDORA_DE_COLOR, TECLA_DE_COLOR, nombreDeColor } from '@/lib/colores-de-grupo';
 
 const SHIFT_LABELS: Record<string, string> = {
     MORNING:        "Diurno 6AM–2PM",
@@ -53,14 +54,15 @@ const SHIFT_STYLES: Record<string, string> = {
 // supervisión de piso dentro del mismo desplegable, porque para quien arma el
 // horario es la misma decisión ("¿qué lleva esta persona?"). Se traduce al
 // campo isFloorSupervision al guardar — nunca viaja como colorGroup.
-const COLOR_OPTIONS = ["RED", "YELLOW", "GREEN", "BLUE", "ALL", "SUPERVISION", "NONE"];
+const COLOR_OPTIONS = [...CODIGOS_DE_COLOR, "ALL", "SUPERVISION", "NONE"];
 const VALOR_SUPERVISION = "SUPERVISION";
 
+// Los colores salen de `colores-de-grupo.ts`; lo que no es un color se anade
+// aqui. El amarillo pasa de yellow-100 a amber-100 y el verde de green a
+// emerald, que es como los pintan las demas pantallas — esta era la unica que
+// usaba la otra familia de Tailwind.
 const COLOR_STYLES: Record<string, string> = {
-    RED: "bg-red-100 text-red-700 border-red-200",
-    YELLOW: "bg-yellow-100 text-yellow-700 border-yellow-200",
-    GREEN: "bg-green-100 text-green-700 border-green-200",
-    BLUE: "bg-blue-100 text-blue-700 border-blue-200",
+    ...PILDORA_DE_COLOR,
     ALL: "bg-slate-100 text-slate-700 border-slate-200",
     NONE: "bg-slate-600 text-white border-slate-500",
     // La supervisión se distingue del "sin color": una es una decisión, el otro
@@ -97,26 +99,30 @@ const TECLA_TURNO: Record<string, string> = {
 
 /** Números para el color. Se teclean después de la letra, sin salir de la celda. */
 const TECLA_COLOR: Record<string, string> = {
-    '1': 'RED',
-    '2': 'YELLOW',
-    '3': 'GREEN',
-    '4': 'BLUE',
-    '5': 'ALL',
-    '0': '',           // sin color
+    ...TECLA_DE_COLOR,  // 1 rojo, 2 amarillo, 3 verde, 4 azul, 6 morado
+    '5': 'ALL',         // el 5 ya era «toda la sede» antes de que hubiera un 5.o color
+    '0': '',            // sin color
 };
 
 /**
- * LOS GRUPOS QUE EXISTEN DE VERDAD.
+ * LOS GRUPOS QUE TIENEN GENTE — AHORA LO DICE LA BASE.
  *
- * En Cupey hay tres, con once residentes cada uno: rojo, azul y amarillo.
- * GREEN tiene CERO residentes y sin embargo era el color por defecto de cada
- * turno nuevo — se planificaron 25 turnos a un grupo que no tiene a nadie.
+ * Esto era `['RED', 'YELLOW', 'BLUE']`, con un comentario que explicaba que
+ * GREEN tenia cero residentes y por eso no contaba para la cobertura. El
+ * razonamiento era bueno: exigir que este cubierto un grupo sin residentes es
+ * pedir que alguien cuide a nadie.
  *
- * Se deja como opción por si el hogar lo activa, pero no cuenta para la
- * cobertura: exigir que esté cubierto un grupo sin residentes sería pedir que
- * alguien cuide a nadie.
+ * El problema es que era un DATO escrito como constante. El 01-oct-2026 entro
+ * un residente diurno a GREEN y la lista se volvio falsa en silencio: el grupo
+ * de Jesus dejo de contar, asi que el builder no pedia que nadie lo cubriera ni
+ * lo marcaba como hueco. Nada fallo; simplemente dejo de preguntar.
+ *
+ * Ahora viene en `coloresPoblados` de GET /api/hr/schedule, derivado de
+ * `Patient.colorGroup DISTINCT WHERE status='ACTIVE'`.
+ *
+ * `null` NO es lista vacia: es «todavia no se». Los dos se pintaban igual —en
+ * verde, «todo cubierto»— y por eso son tipos distintos.
  */
-const COLORES_CON_RESIDENTES = ['RED', 'YELLOW', 'BLUE'];
 
 /**
  * Los colores de una celda del builder. Espejo de `coloresDeLaPauta` del
@@ -144,20 +150,60 @@ const formatoHoras = (h: number) =>
  */
 const TURNOS_QUE_CUBREN = TIPOS_QUE_CUBREN;
 
-const NOMBRE_COLOR: Record<string, string> = {
-    RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde', ALL: 'Todos',
-};
+const NOMBRE_COLOR: Record<string, string> = { ...NOMBRES_DE_COLOR, ALL: 'Todos' };
 
 /** Lo que se enseña debajo de la tabla. Una lista corta que se aprende mirando. */
 const AYUDA_TECLAS = [
     { k: 'D', q: 'Diurno' }, { k: 'T', q: 'Tarde' }, { k: 'N', q: 'Noche' }, { k: 'L', q: 'Libre' },
     { k: '⇧D', q: '12h día' }, { k: '⇧N', q: '12h noche' },
-    { k: '1', q: 'Rojo' }, { k: '2', q: 'Amarillo' }, { k: '3', q: 'Verde' }, { k: '4', q: 'Azul' },
+    // De `colores-de-grupo.ts`: un atajo que existe y no sale aqui es un atajo
+    // que nadie va a encontrar, y un color nuevo llega con su tecla puesta.
+    ...COLORES_DE_GRUPO.map(c => ({ k: c.tecla, q: c.nombre })),
     // El segundo grupo (24-sep-2026). Un atajo que nadie sabe que existe no
     // existe: si no sale en esta lista, Celia nunca lo va a encontrar.
     { k: '⇧ + nº', q: 'Añadir 2º grupo' },
     { k: '0', q: 'Sin color' }, { k: '⌫', q: 'Borrar' }, { k: '↵', q: 'Más opciones' },
 ];
+
+/**
+ * ¿Esta tecla pone un color?
+ *
+ * El filtro de la ayuda decia `'12340⌫↵'.includes(a.k)` en un modo y
+ * `!'1234'.includes(a.k)` en el otro: la lista de teclas de color escrita como
+ * una CADENA, dos veces. No nombra ningun color, asi que no aparecio en el
+ * barrido — la encontro el navegador, enseñando «6 Morado» en el modo de turnos
+ * (donde los colores van ocultos) y escondiendolo en el modo de repartir grupos,
+ * que es justo donde se usa.
+ */
+const esTeclaDeColor = (k: string) => COLORES_DE_GRUPO.some(c => c.tecla === k);
+
+/**
+ * QUE COLORES HAY QUE CUBRIR EN ESTA FRANJA.
+ *
+ * No es «que colores tienen gente» a secas. Un grupo poblado SOLO por
+ * residentes diurnos tiene gente de 7 a 18 y a nadie de noche: exigir que este
+ * cubierto en el turno de noche es pedir que alguien cuide a quien esta
+ * durmiendo en su casa.
+ *
+ * Y la franja de NOCHE es la unica que se excluye, no «todo lo que no sea
+ * manana»: MORNING va de 6 a 14 y EVENING de 14 a 22, y las dos pisan el
+ * horario diurno (7–18). En la tarde el diurno esta cuatro horas, asi que su
+ * color SI hay que cubrirlo.
+ *
+ * Mientras no se sepa que colores hay —cargando, o fallo— devuelve lista vacia
+ * A PROPOSITO, y quien llama ya se ha asegurado de no confundir eso con «no
+ * falta ninguno»: `huecosDeColor` sale antes, y «Proponer reparto» esta
+ * deshabilitado.
+ */
+function coloresDeLaFranja(
+    poblados: { colores: Array<{ codigo: string; soloDiurnos: boolean }> } | 'cargando' | 'error',
+    franja: string,
+): string[] {
+    if (typeof poblados === 'string') return [];
+    return poblados.colores
+        .filter(c => !(c.soloDiurnos && franja === 'NIGHT'))
+        .map(c => c.codigo);
+}
 
 function getMondayOf(date: Date) {
     const d = new Date(date);
@@ -230,6 +276,22 @@ export default function ScheduleBuilderPage() {
     const [shifts, setShifts] = useState<ShiftEntry[]>([]);
     const [publishedSchedule, setPublishedSchedule] = useState<any>(null);
     const [draftId, setDraftId] = useState<string | null>(null);
+    /**
+     * Los grupos con residentes, de la base. TRES estados, no dos:
+     *
+     *   'cargando'  — todavia no ha contestado
+     *   'error'     — contesto que no, o no contesto. NO es lista vacia.
+     *   {datos}     — la respuesta
+     *
+     * El primer intento tenia `string[] | null` y pintaba el null como
+     * «Cargando los grupos…». Eso afirma que algo viene en camino, y tras un
+     * fallo no viene nada: el cartel se quedaba diciendo «espera» para siempre
+     * y con el desaparecia la alarma de huecos, sin que nadie supiera que habia
+     * dejado de comprobarse. Sustituir un numero falso por una frase que
+     * tampoco se comprobo es el mismo error con otra ropa.
+     */
+    type ColoresPoblados = { colores: Array<{ codigo: string; soloDiurnos: boolean }>; residentesActivos: number };
+    const [coloresPoblados, setColoresPoblados] = useState<ColoresPoblados | 'cargando' | 'error'>('cargando');
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -356,6 +418,14 @@ export default function ScheduleBuilderPage() {
             const iso = weekStart.toISOString();
             const res = await fetch(`/api/hr/schedule?hqId=${hqId}&weekStart=${iso}`);
             const data = await res.json();
+            // Fuera del `if` de abajo a proposito: los colores poblados vienen
+            // igual aunque esta semana no tenga ni un turno guardado.
+            //
+            // Y el `else` NO sobra: la ruta devuelve `{success:false}` con 401,
+            // 400 y 500 SIN lanzar, asi que el catch de abajo no se entera. Sin
+            // esta rama el fallo mas probable se quedaba en «cargando».
+            if (data.success && data.coloresPoblados) setColoresPoblados(data.coloresPoblados);
+            else setColoresPoblados('error');
             if (data.success && data.schedules.length > 0) {
                 const s = data.schedules[0];
                 setDraftId(s.id);
@@ -383,7 +453,10 @@ export default function ScheduleBuilderPage() {
                 setDraftId(null);
                 setPublishedSchedule(null);
             }
-        } catch (e) { console.error(e); } finally { setLoading(false); }
+        } catch (e) {
+            console.error(e);
+            setColoresPoblados('error');
+        } finally { setLoading(false); }
     };
 
     const addShift = (date: Date, userId?: string) => {
@@ -465,6 +538,11 @@ export default function ScheduleBuilderPage() {
      */
     const huecosDeColor = () => {
         const huecos: { fecha: string; dia: string; turno: string; faltan: string[] }[] = [];
+        // Sin saber que grupos tienen gente no hay huecos que calcular. Devolver
+        // una lista vacia aqui seria decir «todo cubierto», que es lo contrario
+        // de «no se» — y es lo que pintaba el cartel verde de abajo.
+        if (typeof coloresPoblados === 'string') return huecos;
+        const datos = coloresPoblados;
         for (const d of weekDays) {
             const fecha = d.toISOString().split('T')[0];
             for (const turno of FRANJAS) {
@@ -490,11 +568,12 @@ export default function ScheduleBuilderPage() {
                 // Los DOS colores cuentan: quien cubre rojo y azul tapa dos
                 // huecos, no uno. Con `colorGroup` a secas el builder le habria
                 // avisado a Celia de un hueco que ella acababa de cubrir.
+                const poblados = coloresDeLaFranja(datos, turno);
                 const cubiertos = new Set(delTurno.flatMap(s => {
                     const cs = coloresDeLaCelda(s);
-                    return cs.includes('ALL') ? COLORES_CON_RESIDENTES : cs;
+                    return cs.includes('ALL') ? poblados : cs;
                 }));
-                const faltan = COLORES_CON_RESIDENTES.filter(c => !cubiertos.has(c));
+                const faltan = poblados.filter(c => !cubiertos.has(c));
                 if (faltan.length) {
                     huecos.push({
                         fecha,
@@ -538,7 +617,7 @@ export default function ScheduleBuilderPage() {
                     const yaPuestos = new Set(idx
                         .flatMap(({ s }) => coloresDeLaCelda(s))
                         .filter(c => c !== 'ALL'));
-                    const porRepartir = COLORES_CON_RESIDENTES.filter(c => !yaPuestos.has(c));
+                    const porRepartir = coloresDeLaFranja(coloresPoblados, turno).filter(c => !yaPuestos.has(c));
                     const libres = idx.filter(({ s }) => coloresDeLaCelda(s).length === 0 && !s.isFloorSupervision);
 
                     libres.forEach(({ i }, n) => {
@@ -1497,7 +1576,7 @@ export default function ScheduleBuilderPage() {
                                                         const disabledAll = c === 'ALL' && !isNight;
                                                         return (
                                                             <option key={c} value={c} disabled={disabledAll}>
-                                                                {c === 'NONE' ? 'Sin asignar' : c === VALOR_SUPERVISION ? '👁 Supervisión de piso' : c === 'ALL' ? `Todos los colores${disabledAll ? ' (solo nocturno)' : ''}` : `Grupo ${c}`}
+                                                                {c === 'NONE' ? 'Sin asignar' : c === VALOR_SUPERVISION ? '👁 Supervisión de piso' : c === 'ALL' ? `Todos los colores${disabledAll ? ' (solo nocturno)' : ''}` : `Grupo ${nombreDeColor(c)}`}
                                                             </option>
                                                         );
                                                     })}
@@ -1509,10 +1588,10 @@ export default function ScheduleBuilderPage() {
                                                         className="w-full text-[11px] bg-white border border-dashed border-slate-300 rounded-lg px-2 py-1 font-medium text-slate-600 focus:outline-none focus:border-teal-400"
                                                     >
                                                         <option value="NONE">+ segundo grupo…</option>
-                                                        {COLORES_CON_RESIDENTES.concat('GREEN')
+                                                        {CODIGOS_DE_COLOR
                                                             .filter(c => c !== shift.colorGroup)
                                                             .map(c => (
-                                                                <option key={c} value={c}>También grupo {c}</option>
+                                                                <option key={c} value={c}>También grupo {nombreDeColor(c)}</option>
                                                             ))}
                                                     </select>
                                                 )}
@@ -1558,7 +1637,7 @@ export default function ScheduleBuilderPage() {
                                                         const disabledAll = c === 'ALL' && !isNight;
                                                         return (
                                                             <option key={c} value={c} disabled={disabledAll}>
-                                                                {c === 'NONE' ? 'Sin asignar' : c === VALOR_SUPERVISION ? '👁 Supervisión de piso' : c === 'ALL' ? `Todos los colores${disabledAll ? ' (solo nocturno)' : ''}` : `Grupo ${c}`}
+                                                                {c === 'NONE' ? 'Sin asignar' : c === VALOR_SUPERVISION ? '👁 Supervisión de piso' : c === 'ALL' ? `Todos los colores${disabledAll ? ' (solo nocturno)' : ''}` : `Grupo ${nombreDeColor(c)}`}
                                                             </option>
                                                         );
                                                     })}
@@ -1732,14 +1811,30 @@ export default function ScheduleBuilderPage() {
                         </button>
                     </div>
 
-                    {modoColor && !publishedSchedule && (
-                        <button
-                            onClick={proponerColores}
-                            className="px-4 py-2 text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 rounded-xl transition-all"
-                        >
-                            Proponer reparto
-                        </button>
-                    )}
+                    {modoColor && !publishedSchedule && (() => {
+                        /* Mientras no se sepa que grupos tienen gente, este boton
+                           no puede repartir nada. Estaba habilitado igual y al
+                           pulsarlo no pasaba absolutamente nada: ni color puesto,
+                           ni error, ni aviso. Celia pulsa, no se mueve una fila, y
+                           lo unico que puede concluir es que ya estaba repartido.
+                           Un boton que no hace nada afirma que no habia nada que
+                           hacer. */
+                        const sinSaber = typeof coloresPoblados === 'string';
+                        return (
+                            <button
+                                onClick={proponerColores}
+                                disabled={sinSaber}
+                                title={sinSaber
+                                    ? (coloresPoblados === 'error'
+                                        ? 'No se pudieron cargar los grupos: no se sabe qué repartir.'
+                                        : 'Cargando los grupos…')
+                                    : undefined}
+                                className="px-4 py-2 text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-all"
+                            >
+                                Proponer reparto
+                            </button>
+                        );
+                    })()}
 
                     {avisoPublicado && (
                         <span className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-3 py-1.5">
@@ -1754,9 +1849,35 @@ export default function ScheduleBuilderPage() {
                         </span>
                     )}
 
+                    {/* CINCO ESTADOS, Y NINGUNO INFIERE UNA CAUSA.
+                        Esto empezo siendo dos —verde o ambar— y el verde se
+                        pintaba tambien cuando no se sabia nada. Cada version
+                        posterior descubrio otro estado que se estaba colando
+                        en el de al lado:
+                          · «cargando» afirmaba que algo venia en camino, y tras
+                            un fallo no venia nada.
+                          · «ningun residente tiene grupo» afirmaba una causa de
+                            dos posibles; medido, en Mayaguez la causa es la
+                            otra: no hay residentes.
+                        Por eso el conteo de activos viaja desde el servidor: la
+                        pantalla no tiene que adivinar por que salio cero. */}
                     {modoColor && (
-                        huecos.length === 0
-                            ? <span className="text-xs font-bold text-emerald-600 ml-auto">Todos los turnos tienen sus tres grupos cubiertos.</span>
+                        coloresPoblados === 'cargando'
+                            ? <span className="text-xs font-bold text-slate-500 ml-auto">Cargando los grupos…</span>
+                        : coloresPoblados === 'error'
+                            ? <span className="text-xs font-bold text-rose-700 ml-auto">
+                                No se pudieron cargar los grupos — los huecos de color no se están comprobando.
+                              </span>
+                        : coloresPoblados.residentesActivos === 0
+                            ? <span className="text-xs font-bold text-slate-500 ml-auto">Esta sede no tiene residentes activos.</span>
+                        : coloresPoblados.colores.length === 0
+                            ? <span className="text-xs font-bold text-amber-700 ml-auto">
+                                {coloresPoblados.residentesActivos} residentes activos y ninguno tiene grupo asignado.
+                              </span>
+                        : huecos.length === 0
+                            ? <span className="text-xs font-bold text-emerald-600 ml-auto">
+                                Todos los turnos cubren {coloresPoblados.colores.length === 1 ? 'el grupo con gente' : `los ${coloresPoblados.colores.length} grupos con gente`}.
+                              </span>
                             : <span className="text-xs font-bold text-amber-700 ml-auto">
                                 {huecos.length} {huecos.length === 1 ? 'turno sin cubrir' : 'turnos sin cubrir'}
                               </span>
@@ -1866,7 +1987,7 @@ export default function ScheduleBuilderPage() {
                                                                 // segundo color sería invisible justo donde se decide.
                                                                 <>{coloresDeLaCelda(sh).map(c => (
                                                                     <span key={c} className={`font-black rounded-full border leading-none ${modoColor ? 'text-[11px] px-2.5 py-1' : 'text-[9px] px-1.5'} ${COLOR_STYLES[c] || COLOR_STYLES.NONE}`}>
-                                                                        {modoColor ? (NOMBRE_COLOR[c] ?? c) : c}
+                                                                        {modoColor ? (NOMBRE_COLOR[c] ?? c) : (nombreDeColor(c) || c)}
                                                                     </span>
                                                                 ))}</>
                                                             ) : (
@@ -1899,8 +2020,12 @@ export default function ScheduleBuilderPage() {
                     <div className="border-t border-slate-100 px-3 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-slate-50/60">
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Teclado</span>
                         {(modoColor
-                            ? AYUDA_TECLAS.filter(a => '12340⌫↵'.includes(a.k))
-                            : AYUDA_TECLAS.filter(a => !'1234'.includes(a.k))
+                            // Repartiendo grupos: las teclas de color, el 0 para
+                            // quitarlo, y el ⇧+nº del segundo grupo — que con la
+                            // cadena vieja quedaba fuera justo en este modo.
+                            ? AYUDA_TECLAS.filter(a => esTeclaDeColor(a.k) || ['0', '⌫', '↵', '⇧ + nº'].includes(a.k))
+                            // Decidiendo turnos: los colores no pintan nada aqui.
+                            : AYUDA_TECLAS.filter(a => !esTeclaDeColor(a.k))
                         ).map(a => (
                             <span key={a.k} className="inline-flex items-center gap-1">
                                 <kbd className="text-[10px] font-black bg-white border border-slate-300 rounded px-1.5 py-0.5 text-slate-700 shadow-sm">{a.k}</kbd>
@@ -2183,7 +2308,7 @@ export default function ScheduleBuilderPage() {
                                             const disabledAll = c === 'ALL' && !isNight;
                                             return (
                                                 <option key={c} value={c} disabled={disabledAll}>
-                                                    {c === 'NONE' ? 'Sin asignar' : c === VALOR_SUPERVISION ? '👁 Supervisión de piso' : c === 'ALL' ? `Todos los colores${disabledAll ? ' (solo nocturno)' : ''}` : `Grupo ${c}`}
+                                                    {c === 'NONE' ? 'Sin asignar' : c === VALOR_SUPERVISION ? '👁 Supervisión de piso' : c === 'ALL' ? `Todos los colores${disabledAll ? ' (solo nocturno)' : ''}` : `Grupo ${nombreDeColor(c)}`}
                                                 </option>
                                             );
                                         })}
@@ -2203,10 +2328,10 @@ export default function ScheduleBuilderPage() {
                                         onChange={e => setSegundoColor(sh.tempId, e.target.value)}
                                         className="w-full text-sm bg-white border border-dashed border-slate-300 rounded-lg px-3 py-2 font-medium text-slate-700 focus:outline-none focus:border-teal-500"
                                     >
-                                        <option value="NONE">Ninguno — solo {sh.colorGroup}</option>
-                                        {COLORES_CON_RESIDENTES.concat('GREEN')
+                                        <option value="NONE">Ninguno — solo {nombreDeColor(sh.colorGroup)}</option>
+                                        {CODIGOS_DE_COLOR
                                             .filter(c => c !== sh.colorGroup)
-                                            .map(c => <option key={c} value={c}>También grupo {c}</option>)}
+                                            .map(c => <option key={c} value={c}>También grupo {nombreDeColor(c)}</option>)}
                                     </select>
                                     <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
                                         Cubre los dos grupos. Cuenta igual que el primero para la cobertura y para las ausencias.

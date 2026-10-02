@@ -6,6 +6,7 @@ import sgMail from '@sendgrid/mail';
 import { emailLogoSrc } from '@/lib/email-logo';
 import { requireRole } from '@/lib/api-auth';
 import { seSolapan } from '@/lib/ventanas-de-turno';
+import { COLORES_DE_GRUPO } from '@/lib/colores-de-grupo';
 
 // Publicar horarios (y notificar al equipo por email) es operación de gestión.
 const MANAGE_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
@@ -37,11 +38,10 @@ const SHIFT_LABELS: Record<string, string> = {
     OFF:            'Día libre',
 };
 
+// Derivado de `colores-de-grupo.ts`. Escrito a mano, un color nuevo salia en
+// el correo del horario como «PURPLE» — el codigo crudo, a todo el personal.
 const COLOR_LABELS: Record<string, string> = {
-    RED: 'Grupo Rojo',
-    YELLOW: 'Grupo Amarillo',
-    GREEN: 'Grupo Verde',
-    BLUE: 'Grupo Azul',
+    ...Object.fromEntries(COLORES_DE_GRUPO.map(c => [c.codigo, `Grupo ${c.nombre}`])),
     ALL: 'Todos los grupos',
 };
 

@@ -9,6 +9,7 @@ import {
     ChevronUp, X,
 } from "lucide-react";
 import Link from "next/link";
+import { NOMBRES_DE_COLOR, PUNTO_DE_COLOR } from '@/lib/colores-de-grupo';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -71,13 +72,11 @@ const SHIFT_LABELS: Record<string, { label: string; emoji: string; bg: string; b
     EVENING: { label: 'Turno Vespertino', emoji: '🌆', bg: 'bg-blue-50',   border: 'border-blue-200' },
     NIGHT:   { label: 'Guardia Nocturna', emoji: '🌙', bg: 'bg-slate-100', border: 'border-slate-300' },
 };
-const COLOR_DOT: Record<string, string> = {
-    RED: 'bg-red-500', YELLOW: 'bg-amber-400', BLUE: 'bg-blue-500',
-    GREEN: 'bg-emerald-500', ALL: 'bg-purple-500',
-};
-const COLOR_LABEL: Record<string, string> = {
-    RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde', ALL: 'Todos',
-};
+// ALL estaba pintado de `bg-purple-500` en esta pantalla, y ALL no es un color:
+// es «toda la sede». Al abrir MORADO los dos salian del mismo morado y «todos»
+// se leia como un grupo. ALL pasa a gris, que es lo que usan las demas.
+const COLOR_DOT: Record<string, string> = { ...PUNTO_DE_COLOR, ALL: 'bg-slate-400' };
+const COLOR_LABEL: Record<string, string> = { ...NOMBRES_DE_COLOR, ALL: 'Todos' };
 const SEV_STYLES = {
     ok:       { row: 'border-l-2 border-emerald-300', dot: 'bg-emerald-400', text: 'text-emerald-700' },
     warn:     { row: 'border-l-2 border-amber-400',   dot: 'bg-amber-400',   text: 'text-amber-700' },

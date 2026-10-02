@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { SystemAuditAction } from '@prisma/client';
+import { nombreDeColor } from '@/lib/colores-de-grupo';
 
 /**
  * POST /api/hr/schedule/release-shift
@@ -114,7 +115,7 @@ export async function POST(req: Request) {
             success: true,
             noop: false,
             releasedAt: updated.releasedAt,
-            message: `Pauta ${shift.colorGroup ?? 'sin color'} de ${shift.user?.name ?? 'la cuidadora'} liberada.`,
+            message: `Pauta ${shift.colorGroup ? nombreDeColor(shift.colorGroup).toLowerCase() : 'sin color'} de ${shift.user?.name ?? 'la cuidadora'} liberada.`,
         });
     } catch (err: any) {
         console.error('[release-shift] error:', err);

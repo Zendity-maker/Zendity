@@ -14,6 +14,7 @@ import {
     CheckCircleIcon
 } from "@heroicons/react/24/outline";
 import SendFamilyEmailModal from "@/components/medical/patient/SendFamilyEmailModal";
+import { COLORES_DE_GRUPO } from '@/lib/colores-de-grupo';
 
 // ── Modal de generación masiva de PAIs ──────────────────────────────────────
 function BatchPaiModal({ patients, onClose }: { patients: any[]; onClose: () => void }) {
@@ -474,10 +475,7 @@ export default function MasterPatientDirectory() {
                 ) : (
                     <div className="space-y-6">
                         {[
-                            { key: 'RED', label: 'Rojo', bg: 'bg-red-500', border: 'border-red-200' },
-                            { key: 'YELLOW', label: 'Amarillo', bg: 'bg-yellow-400', border: 'border-yellow-200' },
-                            { key: 'GREEN', label: 'Verde', bg: 'bg-green-500', border: 'border-green-200' },
-                            { key: 'BLUE', label: 'Azul', bg: 'bg-blue-500', border: 'border-blue-200' },
+                            ...COLORES_DE_GRUPO.map(c => ({ key: c.codigo, label: c.nombre, bg: c.punto, border: c.borde })),
                             { key: 'UNASSIGNED', label: 'Sin Asignar', bg: 'bg-slate-400', border: 'border-slate-200' },
                         ].map(group => {
                             const groupPatients = filteredPatients.filter(p => (p.colorGroup || 'UNASSIGNED') === group.key);

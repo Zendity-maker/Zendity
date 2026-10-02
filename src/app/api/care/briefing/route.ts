@@ -4,6 +4,7 @@ import { todayStartAST } from '@/lib/dates';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { aFahrenheit, FIEBRE_F } from '@/lib/vitals-thresholds';
+import { nombreDeColor } from '@/lib/colores-de-grupo';
 
 
 /**
@@ -164,7 +165,7 @@ export async function POST(req: Request) {
         ]);
 
         const firstName = userName ? userName.split(' ')[0] : 'compañero';
-        let ttsMessage = `Buen día, ${firstName}. Bienvenido al Grupo ${colorGroup}. He revisado los expedientes de este turno y estoy lista para asistirte en los cuidados de hoy. `;
+        let ttsMessage = `Buen día, ${firstName}. Bienvenido al Grupo ${nombreDeColor(colorGroup)}. He revisado los expedientes de este turno y estoy lista para asistirte en los cuidados de hoy. `;
 
         const quickRead = { vitalsAlerts: 0, foodAlerts: 0, appointments: 0 };
         let hasIssues = false;

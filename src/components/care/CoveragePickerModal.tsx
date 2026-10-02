@@ -10,6 +10,7 @@ import {
     UNMAPPED_FLOOR_LABEL,
     type ColorFloorMap,
 } from "@/lib/floor-map";
+import { PUNTO_DE_COLOR, NOMBRES_DE_COLOR } from "@/lib/colores-de-grupo";
 
 export interface CoverageColorOption {
     color: string;
@@ -38,19 +39,10 @@ interface CoveragePickerModalProps {
     onSelect: (colors: string[]) => void;
 }
 
-const COLOR_BG: Record<string, string> = {
-    RED: 'bg-red-500',
-    YELLOW: 'bg-amber-500',
-    GREEN: 'bg-emerald-500',
-    BLUE: 'bg-blue-500',
-};
-
-const COLOR_LABEL: Record<string, string> = {
-    RED: 'Rojo',
-    YELLOW: 'Amarillo',
-    GREEN: 'Verde',
-    BLUE: 'Azul',
-};
+// De `colores-de-grupo.ts`. El punto del amarillo pasa de amber-500 a amber-400,
+// que es el que usan las otras pantallas; era la unica que lo pintaba distinto.
+const COLOR_BG = PUNTO_DE_COLOR;
+const COLOR_LABEL = NOMBRES_DE_COLOR;
 
 export default function CoveragePickerModal({
     isOpen,

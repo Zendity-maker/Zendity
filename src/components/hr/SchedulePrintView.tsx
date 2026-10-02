@@ -1,6 +1,7 @@
 "use client";
 
 import React, { forwardRef } from "react";
+import { nombreDeColor } from '@/lib/colores-de-grupo';
 
 interface ShiftEntry {
     tempId: string;
@@ -139,7 +140,7 @@ const SchedulePrintView = forwardRef<HTMLDivElement, Props>(
                     {cfg.label}
                     {shift.colorGroup && shift.colorGroup !== 'NONE' && (
                         <div style={{ fontSize: '7px', marginTop: '1px', opacity: 0.8 }}>
-                            {shift.colorGroup}
+                            {nombreDeColor(shift.colorGroup)}
                         </div>
                     )}
                     {shift.notes && (

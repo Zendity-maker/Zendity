@@ -6,16 +6,18 @@ import { logError, logWarn } from '@/lib/logger';
 import { notifyUser } from '@/lib/notifications';
 import { SystemAuditAction } from '@prisma/client';
 import { inferShiftTypeFromAST } from '@/lib/shift-coverage';
+import { CODIGOS_DE_COLOR } from '@/lib/colores-de-grupo';
 
 export const dynamic = 'force-dynamic';
 
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
-const VALID_COLORS = ['RED', 'YELLOW', 'GREEN', 'BLUE', 'ALL'];
+// De `colores-de-grupo.ts` + ALL, que no es un color sino «toda la sede».
+const VALID_COLORS = [...CODIGOS_DE_COLOR, 'ALL'];
 
 /**
  * POST /api/care/supervisor/set-caregiver-color
  *
- * Body: { caregiverId, color }   color ∈ RED|YELLOW|GREEN|BLUE|ALL
+ * Body: { caregiverId, color }   color ∈ un código de colores-de-grupo.ts, o ALL
  *
  * Asigna o actualiza el color base de una cuidadora para HOY vía
  * ShiftColorAssignment. Caso típico: una sustituta entra fuera de pauta y

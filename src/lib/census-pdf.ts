@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf';
+import { RGB_DE_COLOR, NOMBRES_DE_COLOR } from '@/lib/colores-de-grupo';
 
 export type CensusRow = {
     name: string;
@@ -21,12 +22,15 @@ export type CensusMeta = {
     census: CensusRow[];
 };
 
-const COLOR_HEX: Record<string, [number, number, number]> = {
-    RED: [239, 68, 68], YELLOW: [245, 158, 11], BLUE: [59, 130, 246],
-    GREEN: [16, 185, 129], ALL: [100, 116, 139], UNASSIGNED: [203, 213, 225],
+// Los colores salen de `colores-de-grupo.ts`; ALL y UNASSIGNED no son colores y
+// se anaden aqui, que es el unico sitio donde el censo los imprime.
+const COLOR_HEX: Record<string, readonly [number, number, number]> = {
+    ...RGB_DE_COLOR,
+    ALL: [100, 116, 139], UNASSIGNED: [203, 213, 225],
 };
 const COLOR_LABEL: Record<string, string> = {
-    RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde', ALL: 'Todos', UNASSIGNED: 'Sin grupo',
+    ...NOMBRES_DE_COLOR,
+    ALL: 'Todos', UNASSIGNED: 'Sin grupo',
 };
 
 function fmtDOB(iso: string | null): string {

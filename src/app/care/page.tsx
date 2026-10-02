@@ -56,6 +56,8 @@ import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
 import { etiquetaDeFranja, mismaFranja } from '@/lib/franja-horaria';
 import { leerFirma } from '@/lib/firma';
 import { puedeAbrirTurno } from '@/lib/roles-clinicos';
+import { COLORES_DE_GRUPO, SOLIDO_DE_COLOR, PUNTO_DE_COLOR, colorDeGrupo } from '@/lib/colores-de-grupo';
+import { formatASTTime } from '@/lib/dates';
 
 /**
  * Ahora, en el formato de <input type="datetime-local"> (hora local).
@@ -660,6 +662,18 @@ export default function ZendityCareTabletPage() {
 
     const [selectedColor, setSelectedColor] = useState<string | null>(null);
     const [patients, setPatients] = useState<any[]>([]);
+    /**
+     * Las marcas de llegada y salida de los diurnos, de hoy.
+     *
+     * `null` = todavia no se ha pedido. No es lo mismo que «no hay marcas», y
+     * por eso no es `{}`: mientras no se sepa, la fila de la tarjeta no afirma
+     * nada. Ver el cartel de `hr/schedule` y CLAUDE.md sobre el cero con dos
+     * significados.
+     */
+    const [jornadas, setJornadas] = useState<Record<string, { llegadaAt: string | null; salidaAt: string | null; cuadran?: boolean }> | 'cargando' | 'error'>('cargando');
+    /** El dia al que pertenecen las marcas cargadas, para que no se queden puestas al cruzar la medianoche. */
+    const [jornadasDe, setJornadasDe] = useState<string | null>(null);
+    const [marcandoJornada, setMarcandoJornada] = useState<string | null>(null);
     const [events, setEvents] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     // Nivel 2/3 — auto-escalación a ALL cuando es la única en piso
@@ -2094,6 +2108,105 @@ export default function ZendityCareTabletPage() {
         }
     };
 
+    /**
+     * LA JORNADA DE LOS DIURNOS DE HOY.
+     *
+     * Se pide aparte y no dentro de /api/care a proposito: /api/care es el poll
+     * de la pantalla del piso y ya se recorto una vez por peso (de 4.593 kB a
+     * los 21 campos que se usan). Esto son dos fechas de un residente, y colgarlo
+     * de ahi devolveria el mismo dato en cada vuelta a todas las tabletas.
+     */
+    const cargarJornadas = async () => {
+        try {
+            const res = await fetch('/api/care/diurno/jornada');
+            const data = await res.json();
+            if (!data.success) { setJornadas('error'); return; }
+            const mapa: Record<string, { llegadaAt: string | null; salidaAt: string | null; cuadran?: boolean }> = {};
+            for (const j of data.jornadas ?? []) {
+                mapa[j.patientId] = { llegadaAt: j.llegadaAt, salidaAt: j.salidaAt, cuadran: j.cuadran };
+            }
+            setJornadas(mapa);
+            // La fecha que el servidor dice que es «hoy». La tableta se queda
+            // abierta toda la noche: sin esto, a las 00:30 la tarjeta seguiria
+            // ensenando las marcas de ayer como si fueran de hoy.
+            setJornadasDe(data.fecha ? String(data.fecha).slice(0, 10) : null);
+        } catch {
+            setJornadas('error');
+        }
+    };
+
+    /**
+     * Marcar que llego o que se fue.
+     *
+     * Optimista a proposito: la cuidadora toca y ve la hora puesta. Si el
+     * servidor dice que no, se vuelve atras y se avisa — pero el caso normal no
+     * debe esperar a un viaje de red delante de un residente.
+     */
+    const marcarJornada = async (patientId: string, marca: 'LLEGADA' | 'SALIDA') => {
+        if (marcandoJornada) return;
+        setMarcandoJornada(patientId + marca);
+        const campo = marca === 'LLEGADA' ? 'llegadaAt' : 'salidaAt';
+        const actuales = typeof jornadas === 'string' ? {} : jornadas;
+        const previo = actuales[patientId] ?? { llegadaAt: null, salidaAt: null };
+        setJornadas(j => ({ ...(typeof j === 'string' ? {} : j), [patientId]: { ...previo, [campo]: new Date().toISOString() } }));
+        try {
+            const res = await fetch('/api/care/diurno/jornada', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ patientId, marca }),
+            });
+            const data = await res.json();
+            if (!data.success) {
+                setJornadas(j => ({ ...(typeof j === 'string' ? {} : j), [patientId]: previo }));
+                avisoError(data.error || 'No se pudo marcar.');
+                return;
+            }
+            // La hora que vale es la del SERVIDOR, no la que pinto el optimismo.
+            // Si la marca ya estaba puesta, la buena es la primera —la que se
+            // observo— y esta linea la restituye.
+            setJornadas(j => ({
+                ...(typeof j === 'string' ? {} : j),
+                [patientId]: { llegadaAt: data.jornada?.llegadaAt ?? null, salidaAt: data.jornada?.salidaAt ?? null },
+            }));
+            // Si ya estaba marcada no es un error: alguien se adelanto, y la hora
+            // buena es la primera. Se dice, no se grita.
+            if (data.yaExistia) avisoAtencion(data.mensaje);
+        } catch {
+            setJornadas(j => ({ ...(typeof j === 'string' ? {} : j), [patientId]: previo }));
+            avisoError('No se pudo marcar. Intentalo otra vez.');
+        } finally {
+            setMarcandoJornada(null);
+        }
+    };
+
+    /**
+     * DESHACER UNA MARCA.
+     *
+     * «Llego» y «Se fue» son dos pastillas contiguas en la misma fila. Tocar la
+     * que no es deja al residente fuera del sistema el resto del dia: fuera del
+     * denominador de la ronda, su color sin esperarse cubierto y la auditoria
+     * sin levantar «sin actividad». Sin deshacer AQUI, la unica salida vivia
+     * detras de un rol que la cuidadora no tiene — y entonces el registro miente
+     * y quien lo vio no puede arreglarlo.
+     */
+    const quitarMarca = async (patientId: string, marca: 'LLEGADA' | 'SALIDA') => {
+        if (marcandoJornada) return;
+        setMarcandoJornada(patientId + marca);
+        try {
+            const res = await fetch(`/api/care/diurno/jornada?patientId=${patientId}&marca=${marca}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (!data.success) { avisoError(data.error || 'No se pudo quitar.'); return; }
+            setJornadas(j => ({
+                ...(typeof j === 'string' ? {} : j),
+                [patientId]: { llegadaAt: data.jornada?.llegadaAt ?? null, salidaAt: data.jornada?.salidaAt ?? null },
+            }));
+        } catch {
+            avisoError('No se pudo quitar. Intentalo otra vez.');
+        } finally {
+            setMarcandoJornada(null);
+        }
+    };
+
     const fetchPatients = async (color: string) => {
         setLoading(true);
         try {
@@ -2103,6 +2216,7 @@ export default function ZendityCareTabletPage() {
                 setPatients(data.patients);
                 setEvents(data.events || []);
                 setIsSoloMode(!!data.isSolo);
+                if (data.patients?.some((p: any) => p.esDiurno)) cargarJornadas();
             }
         } catch (error) {
             console.error(error);
@@ -2119,6 +2233,7 @@ export default function ZendityCareTabletPage() {
                 setPatients(data.patients);
                 setEvents(data.events || []);
                 setIsSoloMode(!!data.isSolo);
+                if (data.patients?.some((p: any) => p.esDiurno)) cargarJornadas();
                 setActivePatient((prev: any) => {
                     if (!prev) return prev;
                     return data.patients.find((p: any) => p.id === prev.id) || prev;
@@ -3529,7 +3644,7 @@ export default function ZendityCareTabletPage() {
         finally { setSubmitting(false); }
     };
 
-    const colorStyles: Record<string, string> = { RED: "bg-red-600", YELLOW: "bg-amber-500", GREEN: "bg-emerald-500", BLUE: "bg-blue-600" };
+    const colorStyles = SOLIDO_DE_COLOR;
 
     // Parsea los marcadores de una nota/tarea para mostrarla limpia:
     // "[NOTA][Residente: Fulano] dale Tylenol" → { isNote, patientName, text }
@@ -3731,12 +3846,12 @@ export default function ZendityCareTabletPage() {
         // cubiertos, es candidato a sustituto y abrimos el modal al hacer click
         // en cualquier botón. (Happy path: botones funcionan normal.)
 
-        const colorButtons: Array<{ color: string; label: string; className: string }> = [
-            { color: 'RED', label: 'ROJO', className: 'bg-red-500 hover:bg-red-600' },
-            { color: 'YELLOW', label: 'AMARILLO', className: 'bg-amber-400 hover:bg-amber-500' },
-            { color: 'GREEN', label: 'VERDE', className: 'bg-emerald-500 hover:bg-emerald-600' },
-            { color: 'BLUE', label: 'AZUL', className: 'bg-blue-500 hover:bg-blue-600' },
-        ];
+        // Los botones con los que la cuidadora escoge su grupo al entrar al
+        // turno. Era la lista mas critica de las dieciseis: un color que no
+        // estuviera aqui no se podia escoger desde la tableta, y es el unico
+        // sitio desde el que el piso lo escoge.
+        const colorButtons: Array<{ color: string; label: string; className: string }> =
+            COLORES_DE_GRUPO.map(c => ({ color: c.codigo, label: c.nombreMayus, className: c.boton }));
 
         const needsCoveragePicker = absentColors.length > 0 && !coverageLoading;
 
@@ -3805,7 +3920,11 @@ export default function ZendityCareTabletPage() {
                         </button>
                     )}
 
-                    <div className="grid grid-cols-2 gap-4 md:gap-5 w-full">
+                    {/* Dos columnas con CINCO colores dejan el ultimo solo y a media
+                        anchura. `auto-fit` reparte por el ancho que hay —dos por
+                        fila en una tableta en vertical, tres en horizontal— y el
+                        sexto color no vuelve a romper la rejilla. */}
+                    <div className="grid [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))] gap-4 md:gap-5 w-full">
                         {colorButtons.map(btn => {
                             const coveredBy = caregiverByColor[btn.color];
                             const isAbsent = absentColors.includes(btn.color);
@@ -3875,7 +3994,7 @@ export default function ZendityCareTabletPage() {
                 <div className="bg-white rounded-2xl p-10 max-w-4xl w-full text-center shadow-2xl animate-in zoom-in-95 max-h-[90vh] flex flex-col">
                     <h1 className="text-4xl font-black text-slate-800 mb-2">Verificación de Censo</h1>
                     <p className="text-lg text-slate-500 mb-6 font-medium">
-                        Confirma el estatus actual de cada residente en el <span className="font-bold text-slate-800">Grupo {selectedColor}</span>.
+                        Confirma el estatus actual de cada residente en el <span className="font-bold text-slate-800">Grupo {colorDeGrupo(selectedColor)?.nombreMayus ?? selectedColor}</span>.
                     </p>
 
                     {loading ? (
@@ -4140,11 +4259,13 @@ export default function ZendityCareTabletPage() {
     );
 
     const shiftLabel = getCurrentShift() === 'MORNING' ? 'Mañana' : getCurrentShift() === 'EVENING' ? 'Tarde' : 'Noche';
-    const colorChipMap: Record<string, string> = { RED: 'bg-red-500', YELLOW: 'bg-amber-400', GREEN: 'bg-emerald-500', BLUE: 'bg-blue-500', ALL: 'bg-slate-600' };
+    const colorChipMap: Record<string, string> = { ...PUNTO_DE_COLOR, ALL: 'bg-slate-600' };
     const colorLabel = (c: string | null) => {
         if (!c) return '';
         if (c === 'ALL') return 'TODOS';
-        return c;
+        // Devolvia el codigo crudo: la cabecera de la tableta decia «RED». Con un
+        // color nuevo diria «PURPLE», que no es una palabra que nadie use aqui.
+        return colorDeGrupo(c)?.nombreMayus ?? c;
     };
 
     const sidebarLinks = [
@@ -4248,12 +4369,9 @@ export default function ZendityCareTabletPage() {
                         {/* Grupos cubiertos */}
                         <div className="px-6 py-4 space-y-4 max-h-64 overflow-y-auto">
                             {coverageBriefing.groups.map(g => {
-                                const colorMap: Record<string, { label: string; dot: string }> = {
-                                    RED:    { label: 'Grupo Rojo',   dot: 'bg-red-500' },
-                                    YELLOW: { label: 'Grupo Amarillo', dot: 'bg-amber-400' },
-                                    GREEN:  { label: 'Grupo Verde',  dot: 'bg-emerald-500' },
-                                    BLUE:   { label: 'Grupo Azul',   dot: 'bg-blue-500' },
-                                };
+                                const colorMap: Record<string, { label: string; dot: string }> = Object.fromEntries(
+                                    COLORES_DE_GRUPO.map(c => [c.codigo, { label: `Grupo ${c.nombre}`, dot: c.punto }]),
+                                );
                                 const c = colorMap[g.color] ?? { label: `Grupo ${g.color}`, dot: 'bg-slate-500' };
                                 return (
                                     <div key={g.color}>
@@ -4396,18 +4514,14 @@ export default function ZendityCareTabletPage() {
                         </span>
                     )}
                     {(() => {
+                        // Los tintes y los puntos salen de `colores-de-grupo.ts`.
+                        // El azul pasa de #3B82F6 a #2563EB, que es el de la marca.
                         const zoneStyles: Record<string, string> = {
-                            RED: 'bg-[#fee2e2] text-[#991b1b]',
-                            YELLOW: 'bg-[#fef3c7] text-[#92400e]',
-                            GREEN: 'bg-[#dcfce7] text-[#166534]',
-                            BLUE: 'bg-[#dbeafe] text-[#1e40af]',
+                            ...Object.fromEntries(COLORES_DE_GRUPO.map(c => [c.codigo, `${c.insignia.bg} ${c.insignia.text}`])),
                             ALL: 'bg-white/10 text-white',
                         };
                         const dotMap: Record<string, string> = {
-                            RED: 'bg-[#D9534F]',
-                            YELLOW: 'bg-[#E5A93D]',
-                            GREEN: 'bg-[#22A06B]',
-                            BLUE: 'bg-[#3B82F6]',
+                            ...Object.fromEntries(COLORES_DE_GRUPO.map(c => [c.codigo, c.insignia.dot])),
                             ALL: 'bg-white/70',
                         };
                         const key = selectedColor || 'ALL';
@@ -5129,14 +5243,116 @@ export default function ZendityCareTabletPage() {
 
                                     return (
                                 <div key={p.id} className={`bg-[#fafaf9] rounded-[20px] border border-[#e7e5e4] overflow-hidden transition-all relative ${isAbsent ? 'opacity-70 saturate-50' : ''}`}>
-                                    {/* Zone accent stripe (static mapping — Tailwind JIT-safe) */}
-                                    <div className={`h-1.5 w-full ${
-                                        selectedColor === 'RED' ? 'bg-[#D9534F]' :
-                                        selectedColor === 'YELLOW' ? 'bg-[#E5A93D]' :
-                                        selectedColor === 'GREEN' ? 'bg-[#22A06B]' :
-                                        selectedColor === 'BLUE' ? 'bg-[#3B82F6]' :
-                                        'bg-[#C9D4D8]'
-                                    }`} />
+                                    {/* La franja de color. Las clases siguen siendo texto
+                                        literal —el comentario de antes decia «Tailwind
+                                        JIT-safe» y tenia razon—, solo que ahora viven en
+                                        `colores-de-grupo.ts` en vez de en esta cadena de
+                                        cuatro ternarios. Un color nuevo salia gris. */}
+                                    <div className={`h-1.5 w-full ${colorDeGrupo(selectedColor)?.insignia.dot ?? 'bg-[#C9D4D8]'}`} />
+
+                                    {/* ══ LLEGADA Y SALIDA DEL RESIDENTE DIURNO ══
+                                        Solo sale en la tarjeta de un diurno. El horario del
+                                        hogar (7:00–18:00) sigue mandando por defecto: esto NO
+                                        es un fichaje y no marcar no cuesta nada. Marcar sirve
+                                        para que el sistema deje de pedir trabajo sobre alguien
+                                        que ya se fue, o lo pida desde que de verdad llego.
+                                        Ver src/lib/residente-diurno.ts. */}
+                                    {p.esDiurno && (() => {
+                                        const cargando = jornadas === 'cargando';
+                                        const fallo = jornadas === 'error';
+                                        /* Las marcas son de un dia concreto. La tableta se queda
+                                           abierta toda la noche: al cruzar la medianoche, las de
+                                           ayer dejan de valer y hay que volver a preguntar. */
+                                        const hoyAST = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Puerto_Rico' }).format(new Date());
+                                        const caducadas = !!jornadasDe && jornadasDe !== hoyAST;
+                                        const j = (!cargando && !fallo && !caducadas) ? (jornadas as any)[p.id] : undefined;
+                                        const hora = (iso: string | null | undefined) => iso ? formatASTTime(iso) : null;
+                                        const llegada = hora(j?.llegadaAt);
+                                        const salida = hora(j?.salidaAt);
+                                        const ocupado = (m: string) => marcandoJornada === p.id + m;
+
+                                        /* Si las dos marcas no pueden ser ciertas a la vez, lo
+                                           dice el servidor (`marcasCuadran`), que es donde vive la
+                                           regla. El servidor ya las ignora y usa el horario; aqui
+                                           solo hay que DECIRLO, porque si no la pantalla ensena dos
+                                           horas sin señalar cual sobra. */
+                                        const cuadran = j?.cuadran !== false;
+
+                                        const pastilla = (texto: string, marca: 'LLEGADA' | 'SALIDA', tono: string) => (
+                                            <span className={`text-[11px] font-bold rounded-full px-2.5 py-0.5 border inline-flex items-center gap-1.5 ${tono}`}>
+                                                {texto}
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); quitarMarca(p.id, marca); }}
+                                                    disabled={ocupado(marca)}
+                                                    aria-label={`Quitar la marca de ${marca === 'LLEGADA' ? 'llegada' : 'salida'}`}
+                                                    title="Quitar — se puso por error"
+                                                    className="opacity-60 hover:opacity-100 disabled:opacity-30 leading-none text-sm px-0.5"
+                                                >×</button>
+                                            </span>
+                                        );
+
+                                        return (
+                                            <div className="flex items-center gap-2 flex-wrap px-4 py-2 bg-amber-50/70 border-b border-amber-100">
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 shrink-0">
+                                                    ☀️ Diurno
+                                                </span>
+
+                                                {cargando || caducadas ? (
+                                                    <span className="text-[11px] text-slate-400 font-medium">cargando…</span>
+                                                ) : fallo ? (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); cargarJornadas(); }}
+                                                        className="text-[11px] font-bold text-rose-700 underline underline-offset-2"
+                                                    >
+                                                        No se pudo leer su llegada y salida — reintentar
+                                                    </button>
+                                                ) : (
+                                                    <>
+                                                        {llegada
+                                                            ? pastilla(`Llegó ${llegada}`, 'LLEGADA', 'text-emerald-700 bg-white border-emerald-200')
+                                                            : (
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); marcarJornada(p.id, 'LLEGADA'); }}
+                                                                    disabled={ocupado('LLEGADA')}
+                                                                    className="text-[11px] font-black uppercase tracking-wide bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-full px-3 py-1 active:scale-95 transition-all"
+                                                                >
+                                                                    Llegó
+                                                                </button>
+                                                            )}
+
+                                                        {salida
+                                                            ? pastilla(`Se fue ${salida}`, 'SALIDA', 'text-slate-600 bg-white border-slate-200')
+                                                            : (
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); marcarJornada(p.id, 'SALIDA'); }}
+                                                                    disabled={ocupado('SALIDA')}
+                                                                    className="text-[11px] font-black uppercase tracking-wide bg-white hover:bg-slate-50 disabled:opacity-50 text-slate-600 border border-slate-300 rounded-full px-3 py-1 active:scale-95 transition-all"
+                                                                >
+                                                                    Se fue
+                                                                </button>
+                                                            )}
+
+                                                        {/* Lo que vale mientras no se marque, o el aviso de que
+                                                            las dos marcas no pueden ser ciertas a la vez. Decir
+                                                            «vale 7:00» cuando la ventana resultante esta vacia
+                                                            seria tranquilizar sobre un residente al que nadie
+                                                            esta contando. */}
+                                                        {!cuadran ? (
+                                                            <span className="text-[10px] font-bold text-rose-700">
+                                                                estas dos horas no cuadran — se está usando el horario 7:00–18:00
+                                                            </span>
+                                                        ) : (!llegada || !salida) && (
+                                                            <span className="text-[10px] text-amber-700/80 font-medium">
+                                                                {!llegada && !salida ? 'sin marcar — vale 7:00–18:00'
+                                                                    : !llegada ? 'entrada sin marcar — vale 7:00'
+                                                                    : 'salida sin marcar — vale 18:00'}
+                                                            </span>
+                                                        )}
+                                                    </>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
 
                                     {isAbsent && (
                                         <div className="absolute inset-0 bg-slate-900/10 z-10 flex flex-col items-center justify-center backdrop-blur-[1px] gap-4">
@@ -6175,7 +6391,29 @@ export default function ZendityCareTabletPage() {
                                 )}
 
                                 {/* Logística Interna (AM y PM) */}
-                                {selectedColor !== 'GREEN' && (
+                                {/**
+                                  * ESTO ESTABA ENVUELTO EN `selectedColor !== 'GREEN'`.
+                                  *
+                                  * Sin un comentario, sin nada que lo explicara, desde el
+                                  * 10-mar-2026 — siete meses antes de que existieran los
+                                  * residentes diurnos. Escondía el panel ENTERO: los botones
+                                  * Desayuno/Almuerzo/Cena, el Todo/Mitad/Poco/Nada y el motivo
+                                  * de rechazo. Para el grupo verde la única vía que quedaba era
+                                  * el botón rápido de la tarjeta de Rondas, que manda
+                                  * `quality: 'ALL'` fijo.
+                                  *
+                                  * O sea que de ese grupo no podía entrar jamás un «comió poco»
+                                  * ni un motivo de rechazo. El dato no salía vacío: salía
+                                  * perfecto, que es peor — una métrica que no puede moverse.
+                                  *
+                                  * Daba igual mientras GREEN estuviera vacío. El 01-oct-2026
+                                  * entró Jesús, que es diurno y **come en el centro**. Y con un
+                                  * quinto color abierto el reparto se mueve: el grupo que hoy
+                                  * es verde puede ser el de cualquiera la semana que viene.
+                                  *
+                                  * Si había una razón, no está escrita en ninguna parte y hay
+                                  * que escribirla antes de volver a poner la condición.
+                                  */}
                                     <div className="bg-orange-50 border border-orange-100 p-4 rounded-2xl">
                                         <h4 className="font-black text-orange-800 text-lg mb-2"> Registro Nutricional</h4>
                                         <div className="grid grid-cols-3 gap-2 mb-3">
@@ -6251,7 +6489,6 @@ export default function ZendityCareTabletPage() {
                                             </div>
                                         )}
                                     </div>
-                                )}
 
                                 {/* Logística Interna (AM y PM) */}
                                 {selectedColor && (

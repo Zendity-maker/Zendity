@@ -1,0 +1,14 @@
+-- Abre el grupo MORADO.
+--
+-- El hogar pasó de 32 a 33 residentes y los tres grupos poblados (rojo, azul,
+-- amarillo) dejaron de repartirse solos. Andrés pide un cuarto grupo poblado.
+--
+-- `BEFORE 'UNASSIGNED'` no es cosmético: UNASSIGNED es el @default del enum y
+-- debe quedar al final, porque es el valor "todavía no", no un color. Si se
+-- añade sin BEFORE, PURPLE queda detrás de UNASSIGNED y cualquier ORDER BY
+-- sobre la columna pone el morado después de "sin grupo".
+--
+-- Solo añade el valor; no lo usa. Eso lo hace apto para correr dentro de la
+-- transacción con la que Prisma envuelve cada migración (PostgreSQL permite
+-- ADD VALUE en transacción desde la 12, pero no USAR el valor nuevo ahí mismo).
+ALTER TYPE "ColorGroup" ADD VALUE 'PURPLE' BEFORE 'UNASSIGNED';

@@ -1,6 +1,7 @@
 import * as React from "react";
 import { cn } from "./cn";
 import type { GrupoColor } from "./GrupoBadge";
+import { COLORES_DE_GRUPO } from "@/lib/colores-de-grupo";
 
 /**
  * RondaCard — cáscara visual del tile del wall del supervisor.
@@ -31,26 +32,29 @@ import type { GrupoColor } from "./GrupoBadge";
  */
 export type GrupoColorOrNull = GrupoColor | null;
 
-const grupoBorder: Record<GrupoColor, string> = {
-    ROJO: "border-l-[#D9534F]",
-    AMARILLO: "border-l-[#E5A93D]",
-    VERDE: "border-l-[#22A06B]",
-    AZUL: "border-l-[#2563EB]",
-};
+/**
+ * Los tres mapas salen de `colores-de-grupo.ts`.
+ *
+ * Este fichero fue el que delato el metodo: no nombra ni una vez RED ni YELLOW,
+ * solo ROJO y AMARILLO, asi que el barrido por los codigos del enum no lo
+ * encontro. Lo encontro el COMPILADOR, en cuanto `GrupoColor` dejo de ser una
+ * union escrita a mano y paso a derivarse de la lista — tres errores, uno por
+ * mapa, diciendo que faltaba MORADO.
+ *
+ * Esa es la diferencia entre tener la lista en un sitio y tenerla en dieciseis:
+ * el sexto color no se busca a ojo, lo pide `tsc`.
+ */
+const grupoBorder: Record<GrupoColor, string> = Object.fromEntries(
+    COLORES_DE_GRUPO.map(c => [c.nombreMayus, c.bordeIzq]),
+) as Record<GrupoColor, string>;
 
-const grupoDot: Record<GrupoColor, string> = {
-    ROJO: "bg-[#D9534F]",
-    AMARILLO: "bg-[#E5A93D]",
-    VERDE: "bg-[#22A06B]",
-    AZUL: "bg-[#2563EB]",
-};
+const grupoDot: Record<GrupoColor, string> = Object.fromEntries(
+    COLORES_DE_GRUPO.map(c => [c.nombreMayus, c.insignia.dot]),
+) as Record<GrupoColor, string>;
 
-const grupoText: Record<GrupoColor, string> = {
-    ROJO: "text-[#A23B38]",
-    AMARILLO: "text-[#8A6420]",
-    VERDE: "text-[#1A6E4B]",
-    AZUL: "text-[#1E489E]",
-};
+const grupoText: Record<GrupoColor, string> = Object.fromEntries(
+    COLORES_DE_GRUPO.map(c => [c.nombreMayus, c.insignia.text]),
+) as Record<GrupoColor, string>;
 
 const NEUTRAL_BORDER = "border-l-slate-300";
 const NEUTRAL_DOT = "bg-slate-400";

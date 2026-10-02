@@ -5,14 +5,18 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useActiveHq } from "@/contexts/ActiveHqContext";
 import { aFahrenheit } from '@/lib/vitals-thresholds';
+import { COLORES_DE_GRUPO } from '@/lib/colores-de-grupo';
 
 const ALLOWED_ROLES = ["NURSE", "SUPERVISOR", "DIRECTOR", "ADMIN"];
 
+// Los colores salen de `colores-de-grupo.ts` (campo `enOscuro`, que es el juego
+// para fondo oscuro). El verde pasa de green a emerald y el amarillo a amber,
+// que es como los pintan las demas pantallas.
 const COLOR_GROUPS = [
-    { key: "RED", label: "Grupo Rojo", bg: "bg-red-500/10", border: "border-red-500", text: "text-red-400" },
-    { key: "YELLOW", label: "Grupo Amarillo", bg: "bg-yellow-400/10", border: "border-yellow-400", text: "text-yellow-400" },
-    { key: "GREEN", label: "Grupo Verde", bg: "bg-green-500/10", border: "border-green-500", text: "text-green-400" },
-    { key: "BLUE", label: "Grupo Azul", bg: "bg-blue-500/10", border: "border-blue-500", text: "text-blue-400" },
+    ...COLORES_DE_GRUPO.map(c => {
+        const [bg, border, text] = c.enOscuro.split(" ");
+        return { key: c.codigo, label: `Grupo ${c.nombre}`, bg, border, text };
+    }),
     { key: "UNASSIGNED", label: "Sin Asignar", bg: "bg-slate-700/50", border: "border-slate-600", text: "text-slate-400" },
 ];
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { estaEnElEdificio } from '@/lib/residente-diurno';
+import { estuvoEnElEdificioDurante, fechaDeLaJornada } from '@/lib/residente-diurno';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { aFahrenheit } from '@/lib/vitals-thresholds';
@@ -169,6 +169,51 @@ export async function GET(req: Request) {
         });
 
         const patientIds = patients.map(p => p.id);
+
+        /**
+         * LAS MARCAS DE LLEGADA Y SALIDA DE LOS DIURNOS (02-oct-2026).
+         *
+         * Un turno puede cruzar la medianoche, asi que se piden los dos dias
+         * naturales que toca. Sin marcas la jornada vale 7–18, que es lo que
+         * valia antes de que la tabla existiera: no pedirlas no cambia nada.
+         *
+         * Se indexan por `fechaDeLaJornada(x).getTime()`, que es la llave con
+         * la que `estuvoEnElEdificioDurante` las busca. Componer esa fecha a
+         * mano aqui seria pedirle a esta ruta que sepa de anclas; sabe la
+         * libreria.
+         */
+        const diurnos = patients.filter(p => (p as any).esDiurno).map(p => p.id);
+        const marcasPorPaciente = new Map<string, Map<number, { llegadaAt: Date | null; salidaAt: Date | null }>>();
+        if (diurnos.length > 0) {
+            /**
+             * TODOS los dias que toca la ventana, no sus dos extremos.
+             *
+             * `estuvoEnElEdificioDurante` recorre dia a dia desde el 02-oct-2026
+             * —antes miraba solo los extremos y se saltaba lo de en medio—, asi
+             * que si aqui se piden solo dos fechas, los dias intermedios se
+             * evaluan SIN marcas y vuelven al horario por defecto. No falla:
+             * contesta con la media en vez de con lo que de verdad paso.
+             *
+             * Se acota a 14 dias por si una sesion de turno se quedo sin cerrar
+             * semanas: pedir mil fechas por una ventana absurda no la hace menos
+             * absurda.
+             */
+            const UN_DIA = 24 * 60 * 60 * 1000;
+            const primero = fechaDeLaJornada(shiftStart).getTime();
+            const ultimo = fechaDeLaJornada(shiftEnd).getTime();
+            const fechas: Date[] = [];
+            for (let t = primero; t <= ultimo && fechas.length < 14; t += UN_DIA) fechas.push(new Date(t));
+            const jornadas = await prisma.jornadaDiurna.findMany({
+                where: { patientId: { in: diurnos }, fecha: { in: fechas } },
+                select: { patientId: true, fecha: true, llegadaAt: true, salidaAt: true },
+            });
+            for (const j of jornadas) {
+                if (!marcasPorPaciente.has(j.patientId)) marcasPorPaciente.set(j.patientId, new Map());
+                marcasPorPaciente.get(j.patientId)!.set(j.fecha.getTime(), {
+                    llegadaAt: j.llegadaAt, salidaAt: j.salidaAt,
+                });
+            }
+        }
 
         if (patientIds.length === 0) {
             return NextResponse.json({
@@ -498,8 +543,20 @@ export async function GET(req: Request) {
              *
              * Ver src/lib/residente-diurno.ts.
              */
+            /**
+             * 02-oct-2026: era `estaEnElEdificio(patient)` SIN instante, o sea
+             * con la hora de AHORA. Mientras se mire el turno recien cerrado,
+             * cuela. Pero esta pantalla se abre cuando se abre: mirar a las 10
+             * de la manana el turno de noche de ayer preguntaba «esta el diurno
+             * a las 10?» —si, son las 10— y concluia que debio haber sido
+             * atendido entre las 22:00 y las 06:00. La respuesta sobre un turno
+             * no puede depender de cuando se mire.
+             */
             const isAway = (patient as any).status === 'TEMPORARY_LEAVE'
-                || !estaEnElEdificio(patient as any);
+                || !estuvoEnElEdificioDurante(
+                    patient, shiftStart, shiftEnd,
+                    marcasPorPaciente.get(patient.id) ?? null,
+                );
             const leaveType = (patient as any).leaveType as string | null;
 
             if (isAway) {

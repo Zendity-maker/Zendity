@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/prisma';
-import { soloLosQueEstan } from '@/lib/residente-diurno';
+import { presenciaDeHoy } from '@/lib/residente-diurno';
 import { todayStartAST, clinicalDayCalendarUTCRange, clinicalDay } from '@/lib/dates';
 import { tiposQueCubren, compatibleShiftTypesAt, type FranjaT } from '@/lib/ventanas-de-turno';
+import { CODIGOS_DE_COLOR } from '@/lib/colores-de-grupo';
 
 export type ShiftT = 'MORNING' | 'EVENING' | 'NIGHT' | 'FULL_DAY' | 'FULL_NIGHT';
 
@@ -73,6 +74,8 @@ export interface ShiftCoverage {
         colorGroup: string;
         room: string | null;
         assignedTo: null;
+        /** Para que quien reparta pueda aplicar la regla de «a un diurno no se le abre vitales». */
+        esDiurno: boolean;
     }>;
     activeOverrides: Array<{
         id: string;
@@ -124,14 +127,20 @@ export async function derivePopulatedColors(hqId: string): Promise<Set<string>> 
      * UN COLOR POBLADO SOLO POR DIURNOS AUSENTES NO ES UN COLOR QUE CUBRIR.
      *
      * De aqui salen los colores que se ESPERAN cubiertos, sin nocion de hora.
-     * Un grupo propio para diurnos —GREEN, que es el unico valor libre del
-     * enum— se volveria un color esperado las 24 horas, y la alarma de «color
-     * sin cubrir» sonaria toda la noche sobre gente que esta durmiendo en su
-     * casa. Si comparten color con residentes regulares no cambia nada, porque
-     * el color sigue poblado por los demas.
+     * Un grupo propio para diurnos se volveria un color esperado las 24 horas,
+     * y la alarma de «color sin cubrir» sonaria toda la noche sobre gente que
+     * esta durmiendo en su casa. Si comparten color con residentes regulares no
+     * cambia nada, porque el color sigue poblado por los demas.
+     *
+     * (02-oct-2026: decia «GREEN, que es el unico valor libre del enum». Ya no
+     * es cierto — se abrio MORADO. El razonamiento no cambia; el ejemplo si.)
+     *
+     * Desde el 02-oct-2026 `presenciaDeHoy` mira tambien las marcas de llegada
+     * y salida, asi que el color de un diurno deja de esperarse cubierto en
+     * cuanto alguien marca que se fue, no al dar las 18:00.
      */
     const rows = await prisma.patient.findMany({
-        where: { headquartersId: hqId, status: 'ACTIVE', ...soloLosQueEstan() },
+        where: { headquartersId: hqId, status: 'ACTIVE', ...presenciaDeHoy() },
         select: { colorGroup: true },
         distinct: ['colorGroup'],
     });
@@ -140,6 +149,80 @@ export async function derivePopulatedColors(hqId: string): Promise<Set<string>> 
         if (r.colorGroup && r.colorGroup !== 'UNASSIGNED') out.add(r.colorGroup);
     }
     return out;
+}
+
+/**
+ * QUE COLORES TIENEN GENTE — Y CUALES SOLO DE DIA. Para el constructor.
+ *
+ * Se parece a `derivePopulatedColors` y la diferencia es deliberada: aquella
+ * responde «que colores hay que estar cubriendo AHORA MISMO» —y por eso saca a
+ * los diurnos cuando ya se fueron—, y esta responde «que colores tienen gente»,
+ * que es lo que necesita quien planifica una semana entera. Si el builder usara
+ * la de la hora, armar el horario a las 11 de la noche dejaria de pedir
+ * cobertura para un grupo de diurnos **tambien en los turnos de dia** de toda
+ * la semana. La hora a la que alguien abre una pantalla no puede cambiar el
+ * horario que arma.
+ *
+ * ═══ POR QUE DEVUELVE `soloDiurnos` Y NO UNA LISTA PELADA ═══
+ *
+ * La primera version devolvia `string[]` y llevaba escrito que el caso de un
+ * color poblado SOLO por diurnos «no existe todavia — Andres lo dejo para
+ * cuando haya 5 o 6 diurnos». **Esa frase era una inferencia, no un dato, y
+ * era falsa el dia que se escribio.** Medido ese mismo 02-oct-2026 contra
+ * produccion:
+ *
+ *     Cupey ACTIVE:  RED 9 · YELLOW 12 · BLUE 11  (ninguno diurno)
+ *                    GREEN 1  ← el UNICO, y es diurno
+ *
+ * Con la lista pelada, el builder reclamaba «falta Verde» en las siete franjas
+ * de noche de la semana y el reparto automatico podia darle Verde a una
+ * cuidadora nocturna: cuidar a alguien que esta durmiendo en su casa. Era justo
+ * la alarma que `derivePopulatedColors` anadio `soloLosQueEstan()` para apagar,
+ * reintroducida por la puerta de al lado.
+ *
+ * Asi que la pregunta correcta no es «¿tiene gente este color?» sino «¿tiene
+ * gente este color EN ESTA FRANJA?», y eso el servidor no puede contestarlo
+ * solo: devuelve el hecho (`soloDiurnos`) y quien conoce la franja decide. Ver
+ * `coloresDeLaFranja` en el constructor.
+ *
+ * ═══ Y DEVUELVE EL CONTEO DE ACTIVOS ═══
+ *
+ * Porque una lista vacia tiene dos causas —no hay residentes, o los hay y
+ * ninguno tiene grupo— y quien cuenta colores no sabe cual es. Sin este numero
+ * la pantalla tiene que inferirla, y inferir la causa de un cero es como se
+ * escriben las frases falsas. Medido: Mayaguez tiene CERO residentes activos,
+ * asi que ese cartel ya tenia las dos causas vivas.
+ */
+export async function coloresConResidentes(hqId: string): Promise<{
+    colores: Array<{ codigo: string; soloDiurnos: boolean }>;
+    residentesActivos: number;
+}> {
+    const rows = await prisma.patient.groupBy({
+        by: ['colorGroup', 'esDiurno'],
+        where: { headquartersId: hqId, status: 'ACTIVE' },
+        _count: true,
+    });
+
+    const conResidentes = new Set<string>();
+    const conAlguienQueDuerme = new Set<string>();
+    let residentesActivos = 0;
+
+    for (const r of rows) {
+        residentesActivos += r._count;
+        const c = r.colorGroup as string | null;
+        if (!c || c === 'UNASSIGNED') continue;
+        conResidentes.add(c);
+        if (!r.esDiurno) conAlguienQueDuerme.add(c);
+    }
+
+    // En el orden de `colores-de-grupo.ts`, no en el que vino la consulta: el
+    // builder los pinta en fila y el orden no puede bailar.
+    return {
+        colores: CODIGOS_DE_COLOR
+            .filter(c => conResidentes.has(c))
+            .map(codigo => ({ codigo, soloDiurnos: !conAlguienQueDuerme.has(codigo) })),
+        residentesActivos,
+    };
 }
 
 /**
@@ -417,15 +500,27 @@ export async function computeShiftCoverage(params: {
         name: string;
         colorGroup: string | null;
         roomNumber: string | null;
+        esDiurno: boolean;
     }> = [];
     if (absentColorsRaw.length > 0) {
+        /**
+         * `presenciaDeHoy` tambien AQUI, no solo en `derivePopulatedColors`.
+         *
+         * Arriba se filtraba la presencia para decidir que colores se esperan
+         * cubiertos, y aqui no: el color del diurno dejaba de esperarse de
+         * noche, pero si OTRO color caia descubierto y el suyo estaba entre los
+         * ausentes, el seguia saliendo en la lista de «residentes huerfanos» que
+         * el supervisor tiene que repartir. Filtrar la pregunta y no la
+         * respuesta deja justo la mitad del arreglo.
+         */
         absentColorPatients = await prisma.patient.findMany({
             where: {
                 headquartersId: hqId,
                 status: 'ACTIVE',
+                ...presenciaDeHoy(),
                 colorGroup: { in: absentColorsRaw as any[] },
             },
-            select: { id: true, name: true, colorGroup: true, roomNumber: true },
+            select: { id: true, name: true, colorGroup: true, roomNumber: true, esDiurno: true },
             orderBy: [{ colorGroup: 'asc' }, { name: 'asc' }],
         });
     }
@@ -472,6 +567,7 @@ export async function computeShiftCoverage(params: {
                 colorGroup: p.colorGroup,
                 room: p.roomNumber,
                 assignedTo: null,
+                esDiurno: p.esDiurno,
             }));
     }
 

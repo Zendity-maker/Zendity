@@ -7,6 +7,7 @@ import { CanvasDeFirma } from "@/components/CanvasDeFirma";
 import { leerFirma } from "@/lib/firma";
 import { CheckCircle, PenTool, Eraser, X, Loader2, ExternalLink } from "lucide-react";
 import { ExpandableText } from "@/components/ui/ExpandableText";
+import { COLORES_DE_GRUPO } from '@/lib/colores-de-grupo';
 
 /**
  * HandoverSignDrawer — drawer para firmar un handover SIN navegar.
@@ -48,12 +49,9 @@ interface HandoverSignDrawerProps {
     onSigned: () => void;
 }
 
-const COLOR_BADGE: Record<string, string> = {
-    RED: "bg-rose-500 text-white",
-    YELLOW: "bg-amber-400 text-slate-900",
-    GREEN: "bg-emerald-500 text-white",
-    BLUE: "bg-sky-500 text-white",
-};
+const COLOR_BADGE: Record<string, string> = Object.fromEntries(
+    COLORES_DE_GRUPO.map(c => [c.codigo, `${c.solido} ${c.solidoTexto}`]),
+);
 
 const SHIFT_LABEL: Record<string, string> = {
     MORNING: "☀️ Mañana",

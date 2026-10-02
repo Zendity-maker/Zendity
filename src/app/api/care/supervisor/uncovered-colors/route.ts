@@ -8,6 +8,7 @@ import { redistributeUncoveredColors } from '@/lib/shift-redistribute';
 import { logError, logWarn } from '@/lib/logger';
 import { inferShiftTypeFromAST, computeShiftCoverage, type ShiftT } from '@/lib/shift-coverage';
 import { clinicalDayCalendarUTCRange } from '@/lib/dates';
+import { nombreDeColor } from '@/lib/colores-de-grupo';
 
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
@@ -124,8 +125,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: 'shiftType inválido' }, { status: 400 });
         }
 
-        const colorLabels: Record<string, string> = { RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde' };
-        const colorLabel = colorLabels[color] || color;
+        const colorLabel = nombreDeColor(color);
 
         const result = await redistributeUncoveredColors({
             hqId,

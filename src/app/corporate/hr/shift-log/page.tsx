@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import { PUNTO_DE_COLOR } from '@/lib/colores-de-grupo';
 import {
     BookOpen, ChevronLeft, ChevronRight, Filter, RefreshCw,
     Moon, Sun, Sunset, Clock, CheckCircle2, AlertCircle,
@@ -21,13 +22,7 @@ const SHIFT_LABELS: Record<string, { label: string; icon: React.ReactNode; color
     SUPERVISOR_DAY:{ label: "Supervisor",  icon: <Shield size={14} />, color: "text-violet-700", bg: "bg-violet-50 border-violet-200" },
 };
 
-const COLOR_DOTS: Record<string, string> = {
-    RED:    "bg-rose-500",
-    YELLOW: "bg-amber-400",
-    GREEN:  "bg-emerald-500",
-    BLUE:   "bg-blue-500",
-    ALL:    "bg-slate-400",
-};
+const COLOR_DOTS: Record<string, string> = { ...PUNTO_DE_COLOR, ALL: "bg-slate-400" };
 
 const today = () => new Date().toISOString().split("T")[0];
 const thirtyDaysAgo = () => {

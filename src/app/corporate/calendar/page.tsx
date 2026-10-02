@@ -7,6 +7,7 @@ import { Calendar, dateFnsLocalizer, View, Views } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { Calendar as CalendarIcon, Loader2, Plus, Trash2, Clock, MapPin, UserSquare2, CheckCircle2, Users, User, Palette } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { COLORES_DE_GRUPO } from '@/lib/colores-de-grupo';
 
 const locales = { es };
 const localizer = dateFnsLocalizer({
@@ -328,15 +329,26 @@ export default function CorporateCalendarPage() {
 
                                 {targetPopulation === 'GROUP' && (
                                     <div className="grid grid-cols-2 gap-2 animate-in fade-in zoom-in-95">
-                                        {['RED', 'YELLOW', 'GREEN', 'BLUE'].map(color => (
+                                        {COLORES_DE_GRUPO.map(({ codigo: color, punto, nombreMayus }) => (
                                             <label key={color} className="flex items-center gap-2 p-2 bg-white border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
                                                 <input type="checkbox" checked={targetGroups.includes(color)} onChange={(e) => {
                                                     if (e.target.checked) setTargetGroups([...targetGroups, color]);
                                                     else setTargetGroups(targetGroups.filter(c => c !== color));
                                                 }} className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500" />
                                                 <div className="flex items-center gap-2">
-                                                    <div className={`w-3 h-3 rounded-full bg-${color.toLowerCase()}-500`}></div>
-                                                    <span className="text-sm font-bold text-slate-700 uppercase">{color}</span>
+                                                    {/* La clase era `bg-${color.toLowerCase()}-500`, construida
+                                                        con un template. Tailwind lee el codigo como texto, asi
+                                                        que una clase asi solo existe si alguien la escribio
+                                                        entera en OTRO sitio. Medido: los cuatro puntos SI se
+                                                        pintaban, de prestado — `bg-red-500` y compania viven
+                                                        literales en otras pantallas. Lo que de verdad estaba
+                                                        roto era el rotulo, que ensenaba «RED», y la familia de
+                                                        Tailwind, que no casaba con el resto. Pero el quinto
+                                                        color se habria pintado o no segun lo que hubiera suelto
+                                                        por ahi, que no es forma de decidir un color. */}
+                                                    <div className={`w-3 h-3 rounded-full ${punto}`}></div>
+                                                    {/* Y el rotulo decia «RED», el codigo del enum. */}
+                                                    <span className="text-sm font-bold text-slate-700">{nombreMayus}</span>
                                                 </div>
                                             </label>
                                         ))}

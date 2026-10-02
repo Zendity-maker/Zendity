@@ -6,6 +6,7 @@ import { notifyUser, notifyRoles } from '@/lib/notifications';
 import { SystemAuditAction } from '@prisma/client';
 import { todayStartAST, clinicalDayCalendarUTCRange, shiftDateDeCobertura } from '@/lib/dates';
 import { type ShiftT, ACTIVE_PRESENCE_MAX_HOURS } from '@/lib/shift-coverage';
+import { nombreDeColor } from '@/lib/colores-de-grupo';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -94,7 +95,7 @@ export async function POST(req: Request) {
                 reassigned: 0,
                 alreadyAssigned: 0,
                 target: { id: targetCaregiverId, name: targetName },
-                message: `Sin residentes ACTIVE en el Grupo ${color}.`,
+                message: `Sin residentes ACTIVE en el Grupo ${nombreDeColor(color)}.`,
             });
         }
 
@@ -165,10 +166,7 @@ export async function POST(req: Request) {
         }
 
         const totalNew = created + reassigned;
-        const colorLabels: Record<string, string> = {
-            RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde',
-        };
-        const colorLabel = colorLabels[color] || color;
+        const colorLabel = nombreDeColor(color);
 
         // ── Audit log ──
         try {

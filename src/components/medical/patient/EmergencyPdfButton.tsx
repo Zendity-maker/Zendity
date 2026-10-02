@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { nombreDeColor } from '@/lib/colores-de-grupo';
 
 
 interface EmergencyPdfButtonProps {
@@ -139,7 +140,7 @@ export default function EmergencyPdfButton({ patientId, className, children }: E
                             <div style={{ display: 'flex', gap: '12px', fontSize: '10px', color: '#475569', fontWeight: 600 }}>
                                 <span style={{ backgroundColor: '#E2E8F0', padding: '3px 10px', borderRadius: '6px' }}>Hab. {patientData?.roomNumber || 'N/A'}</span>
                                 {patientData?.colorGroup && (
-                                    <span style={{ backgroundColor: '#E2E8F0', padding: '3px 10px', borderRadius: '6px' }}>Grupo {patientData.colorGroup}</span>
+                                    <span style={{ backgroundColor: '#E2E8F0', padding: '3px 10px', borderRadius: '6px' }}>Grupo {nombreDeColor(patientData.colorGroup)}</span>
                                 )}
                                 <span style={{ backgroundColor: '#E2E8F0', padding: '3px 10px', borderRadius: '6px' }}>Dieta: {patientData?.diet || 'N/A'}</span>
                             </div>

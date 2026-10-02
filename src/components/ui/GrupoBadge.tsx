@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cn } from "./cn";
+import { COLORES_DE_GRUPO, type NombreMayusDeColor } from "@/lib/colores-de-grupo";
 
 /**
  * GrupoBadge — chip de color de zonificación clínica.
@@ -8,11 +9,10 @@ import { cn } from "./cn";
  * de color que define quién lo atiende durante el turno. En español
  * SIEMPRE — nunca "RED/YELLOW/GREEN/BLUE" en UI.
  *
- * Mapeo:
- *   ROJO     → #D9534F (critical-red)
- *   AMARILLO → #E5A93D (alert-amber)
- *   VERDE    → #22A06B (success-green)
- *   AZUL     → #2563EB
+ * Los colores, sus hex y sus tintes salen de `@/lib/colores-de-grupo`. Este
+ * componente era la unica definicion visual canonica que habia, y por eso el
+ * 02-oct-2026 la lista se mudo alla ENTERA en vez de copiarse otra vez. Abrir
+ * un color nuevo no toca este fichero.
  *
  * Diseño: tinte suave + borde 1px del color base + punto del color +
  * texto del color. NUNCA fondo saturado al 100% — eso "grita" en grids
@@ -22,7 +22,7 @@ import { cn } from "./cn";
  * a este componente, los consumidores hacen el match — el componente
  * solo acepta español.
  */
-export type GrupoColor = "ROJO" | "AMARILLO" | "VERDE" | "AZUL";
+export type GrupoColor = NombreMayusDeColor;
 
 interface GrupoStyle {
     bg: string;
@@ -31,32 +31,9 @@ interface GrupoStyle {
     dot: string;
 }
 
-const styles: Record<GrupoColor, GrupoStyle> = {
-    ROJO: {
-        bg: "bg-[#FCEDEC]",
-        border: "border-[#F0B5B3]",
-        text: "text-[#A23B38]",
-        dot: "bg-[#D9534F]",
-    },
-    AMARILLO: {
-        bg: "bg-[#FBF1DA]",
-        border: "border-[#EFD18C]",
-        text: "text-[#8A6420]",
-        dot: "bg-[#E5A93D]",
-    },
-    VERDE: {
-        bg: "bg-[#DDF3E8]",
-        border: "border-[#A4DEC0]",
-        text: "text-[#1A6E4B]",
-        dot: "bg-[#22A06B]",
-    },
-    AZUL: {
-        bg: "bg-[#DDE9FC]",
-        border: "border-[#A6C0EE]",
-        text: "text-[#1E489E]",
-        dot: "bg-[#2563EB]",
-    },
-};
+const styles: Record<GrupoColor, GrupoStyle> = Object.fromEntries(
+    COLORES_DE_GRUPO.map(c => [c.nombreMayus, c.insignia]),
+) as Record<GrupoColor, GrupoStyle>;
 
 export interface GrupoBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
     grupo: GrupoColor;

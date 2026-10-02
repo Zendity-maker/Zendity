@@ -258,6 +258,15 @@ export async function GET(req: Request) {
                 dietLowSodium: true, dietRenal: true, dietVegetarian: true, dietPegKcalMl: true,
                 downtonRisk: true, nortonRisk: true, requiresPosturalChanges: true, colorGroup: true,
                 status: true, leaveType: true, needsDialysis: true,
+                /**
+                 * Para la fila de llegada/salida de la tarjeta (02-oct-2026).
+                 *
+                 * Con `select` explicito un campo nuevo NO llega solo, y este
+                 * es booleano: sin pedirlo seria `undefined` en TODAS las filas,
+                 * que se lee igual que «ninguno es diurno» y la fila no saldria
+                 * nunca. Es el antipatron 9 de CLAUDE.md, y aqui no da error.
+                 */
+                esDiurno: true,
                 createdAt: true,
 
                 medications: {

@@ -41,6 +41,7 @@ import ForceCloseShiftButton from "@/components/ForceCloseShiftButton";
 import StaffChat from "@/components/StaffChat";
 import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
 import { tiposQueSolapan } from '@/lib/ventanas-de-turno';
+import { COLORES_DE_GRUPO, CODIGOS_DE_COLOR, NOMBRES_DE_COLOR, PUNTO_DE_COLOR, PILDORA_DE_COLOR, FONDO_SUAVE_DE_COLOR, nombreDeColor } from '@/lib/colores-de-grupo';
 
 /**
  * El rotulo de una pauta, que desde el 24-sep-2026 puede llevar DOS colores.
@@ -53,9 +54,7 @@ import { tiposQueSolapan } from '@/lib/ventanas-de-turno';
  * `colorLabels` en ambitos distintos, y depender de cual este a la vista es
  * como se rompio esto la primera vez.
  */
-const ETIQUETA_COLOR: Record<string, string> = {
-    RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde', ALL: 'Todos',
-};
+const ETIQUETA_COLOR: Record<string, string> = { ...NOMBRES_DE_COLOR, ALL: 'Todos' };
 function rotuloDePauta(colores: string[] | undefined, uno: string | null | undefined): string {
     const lista = (colores && colores.length > 0) ? colores : (uno ? [uno] : []);
     if (lista.length === 0) return 'sin color';
@@ -512,7 +511,10 @@ export default function SupervisorMissionControlPage() {
     // pauta YELLOW base → wall solo muestra el color real.
     const [releasingShift, setReleasingShift] = useState(false);
     const handleReleaseShift = async (scheduledShiftId: string, baseColor: string | null) => {
-        const colorLabel = baseColor === 'RED' ? 'rojo' : baseColor === 'YELLOW' ? 'amarillo' : baseColor === 'BLUE' ? 'azul' : baseColor === 'GREEN' ? 'verde' : baseColor ?? 'sin color';
+        // Era una cadena de cuatro ternarios con los nombres en minuscula. Un
+        // color nuevo caia en el `?? baseColor` y el confirm le preguntaba a la
+        // supervisora si libera «la pauta PURPLE».
+        const colorLabel = nombreDeColor(baseColor).toLowerCase();
         if (!confirm(`¿Liberar la pauta ${colorLabel} de esta cuidadora? Su color base dejará de contar en el wall.`)) return;
         setReleasingShift(true);
         try {
@@ -1091,9 +1093,9 @@ export default function SupervisorMissionControlPage() {
                 {/* ALERTA GRUPOS SIN COBERTURA                    */}
                 {/* ============================================== */}
                 {uncoveredColors.length > 0 && (() => {
-                    const colorLabel: Record<string, string> = { RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde' };
-                    const colorDotClass: Record<string, string> = { RED: 'bg-red-500', YELLOW: 'bg-yellow-400', BLUE: 'bg-blue-500', GREEN: 'bg-green-500' };
-                    const colorBgClass: Record<string, string> = { RED: 'bg-red-50 border-red-200', YELLOW: 'bg-amber-50 border-amber-200', BLUE: 'bg-blue-50 border-blue-200', GREEN: 'bg-green-50 border-green-200' };
+                    const colorLabel = NOMBRES_DE_COLOR;
+                    const colorDotClass = PUNTO_DE_COLOR;
+                    const colorBgClass = FONDO_SUAVE_DE_COLOR;
                     return (
                         <div className="bg-rose-50 border border-rose-200 rounded-[2rem] p-5">
                             <div className="flex items-center gap-3 mb-4">
@@ -1302,7 +1304,7 @@ export default function SupervisorMissionControlPage() {
                                                 <span className="text-white font-bold text-sm">{empName}</span>
                                                 {emp.colorGroup && emp.colorGroup !== 'ALL' && (
                                                     <span className="text-[10px] font-bold text-slate-300 bg-slate-700/60 px-2 py-0.5 rounded-full uppercase">
-                                                        Grupo {emp.colorGroup}
+                                                        Grupo {nombreDeColor(emp.colorGroup)}
                                                     </span>
                                                 )}
                                                 <span className="text-red-400 text-xs font-medium">Turno activo sin sesión</span>
@@ -2241,12 +2243,11 @@ export default function SupervisorMissionControlPage() {
                     // tres turnos: necesita saber si algún turno terminó sin que
                     // nadie entregara. Ver la nota allí.
 
-                    const COLOR_BADGES: Record<string, string> = {
-                        RED: 'bg-rose-500 text-white',
-                        YELLOW: 'bg-amber-400 text-slate-900',
-                        GREEN: 'bg-emerald-500 text-white',
-                        BLUE: 'bg-sky-500 text-white',
-                    };
+                    // De `colores-de-grupo.ts`. El rojo pasa de rose-500 a red-600 y el
+                    // azul de sky-500 a blue-600: eran la unica pantalla con esa familia.
+                    const COLOR_BADGES: Record<string, string> = Object.fromEntries(
+                        COLORES_DE_GRUPO.map(c => [c.codigo, `${c.solido} ${c.solidoTexto}`]),
+                    );
                     const shiftIcon = (s: string) => s === 'MORNING' ? '☀️' : s === 'EVENING' ? '🌆' : '🌙';
 
                     /**
@@ -2963,11 +2964,8 @@ export default function SupervisorMissionControlPage() {
             {/* ASIGNAR GRUPO MODAL — top-down assignment del wall */}
             {assigningColorModal && (() => {
                 const color = assigningColorModal;
-                const colorLabels: Record<string, string> = { RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde' };
-                const colorBgs: Record<string, string> = {
-                    RED: 'bg-red-500', YELLOW: 'bg-amber-400', BLUE: 'bg-blue-500', GREEN: 'bg-emerald-500',
-                };
-                const colorLabel = colorLabels[color] || color;
+                const colorBgs = PUNTO_DE_COLOR;
+                const colorLabel = nombreDeColor(color);
                 // Solo cuidadoras con sesión activa son candidatas (vienen
                 // de caregiverRounds, que ya filtra por sesión).
                 const candidates = caregiverRounds || [];
@@ -3012,7 +3010,7 @@ export default function SupervisorMissionControlPage() {
                                         {candidates.map((c: any) => (
                                             <option key={c.caregiverId} value={c.caregiverId}>
                                                 {c.name}
-                                                {c.colorGroup ? ` · Grupo ${colorLabels[c.colorGroup] || c.colorGroup}` : ''}
+                                                {c.colorGroup ? ` · Grupo ${nombreDeColor(c.colorGroup)}` : ''}
                                                 {c.coverageCount > 0 ? ` · +${c.coverageCount} cobertura` : ''}
                                             </option>
                                         ))}
@@ -3057,14 +3055,12 @@ export default function SupervisorMissionControlPage() {
 
             {/* CAMBIAR COLOR BASE DE UNA CUIDADORA — botón "cambiar" en tile */}
             {colorPickerCg && (() => {
-                const colorLabels: Record<string, string> = {
-                    RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde', ALL: 'Todos',
-                };
-                const colorBgs: Record<string, string> = {
-                    RED: 'bg-red-500', YELLOW: 'bg-amber-400', BLUE: 'bg-blue-500',
-                    GREEN: 'bg-emerald-500', ALL: 'bg-slate-700',
-                };
-                const options = ['RED', 'YELLOW', 'GREEN', 'BLUE', 'ALL'];
+                const colorLabels: Record<string, string> = { ...NOMBRES_DE_COLOR, ALL: 'Todos' };
+                const colorBgs: Record<string, string> = { ...PUNTO_DE_COLOR, ALL: 'bg-slate-700' };
+                // Este era el sitio que decidia a que colores puede cambiar una
+                // cuidadora. Un color que no estuviera aqui existia en la base y
+                // no habia forma de ponerselo a nadie.
+                const options = [...CODIGOS_DE_COLOR, 'ALL'];
                 const current = colorPickerCg.currentColor;
                 return (
                     <div
@@ -3147,11 +3143,8 @@ export default function SupervisorMissionControlPage() {
             {/* DRILL-DOWN MODAL — detalle de cuidadora */}
             {drillCaregiver && (() => {
                 const cg = drillCaregiver;
-                const colorLabels: Record<string, string> = { RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde', ALL: 'Toda la sede' };
-                const colorBgs: Record<string, string> = {
-                    RED: 'bg-red-500', YELLOW: 'bg-amber-400', BLUE: 'bg-blue-500',
-                    GREEN: 'bg-emerald-500', ALL: 'bg-slate-700',
-                };
+                const colorLabels: Record<string, string> = { ...NOMBRES_DE_COLOR, ALL: 'Toda la sede' };
+                const colorBgs: Record<string, string> = { ...PUNTO_DE_COLOR, ALL: 'bg-slate-700' };
                 const pct = cg.residentsInGroup > 0
                     ? Math.round((cg.attendedThisRound / cg.residentsInGroup) * 100)
                     : 0;
@@ -3313,15 +3306,8 @@ export default function SupervisorMissionControlPage() {
                                             (ausencia o cobertura manual). Las rondas se cuentan contra su color base.
                                         </p>
                                         {(() => {
-                                            const colorLabelMap: Record<string, string> = {
-                                                RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde',
-                                            };
-                                            const colorBadgeBg: Record<string, string> = {
-                                                RED: 'bg-red-100 text-red-700 border-red-200',
-                                                YELLOW: 'bg-amber-100 text-amber-700 border-amber-200',
-                                                BLUE: 'bg-blue-100 text-blue-700 border-blue-200',
-                                                GREEN: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-                                            };
+                                            const colorLabelMap = NOMBRES_DE_COLOR;
+                                            const colorBadgeBg = PILDORA_DE_COLOR;
                                             // Agrupar visualmente por color
                                             const grouped: Record<string, Array<{ name: string; room: string | null; patientId: string }>> = {};
                                             for (const c of (cg.coverageResidents || [])) {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { soloLosQueEstan } from '@/lib/residente-diurno';
+import { presenciaDeHoy } from '@/lib/residente-diurno';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
@@ -73,13 +73,18 @@ export async function GET(req: Request) {
          * sin contarse nunca, porque el Set no puede cerrarse ni limpiarse. No
          * molesta: BORRA el registro de 10 personas atendidas tres veces.
          *
-         * `soloLosQueEstan` no excluye a nadie dentro del horario diurno, asi
+         * `presenciaDeHoy` no excluye a nadie dentro del horario diurno, asi
          * que de dia la ronda si lo incluye: esta aqui y hay que visitarlo.
+         *
+         * Desde el 02-oct-2026 tiene en cuenta las marcas de llegada y salida
+         * (`JornadaDiurna`): si se fue a las 14:00 y alguien lo marco, la ronda
+         * de la tarde deja de pedirlo a las 14:01 en vez de a las 18:00. Sin
+         * marcas se comporta exactamente igual que antes.
          */
         const groupPatients = await prisma.patient.findMany({
             where: {
                 headquartersId: hqId, status: 'ACTIVE', colorGroup: myColor as any,
-                ...soloLosQueEstan(),
+                ...presenciaDeHoy(),
             },
             select: { id: true, name: true, roomNumber: true },
             orderBy: { roomNumber: 'asc' }

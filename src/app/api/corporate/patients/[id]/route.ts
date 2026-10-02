@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth';
 import { requireRole } from '@/lib/api-auth';
 import { withPhiAccessLog } from '@/lib/phi-audit';
 import { assertPatientInTenant } from '@/lib/patient-tenant';
+import { CODIGOS_DE_COLOR } from '@/lib/colores-de-grupo';
 
 /**
  * HIPAA — Expediente del residente. GET/PUT estaban SIN auth (cualquiera
@@ -279,7 +280,11 @@ async function patchPatientHandler(req: Request, { params }: { params: Promise<{
 
         const { colorGroup } = await req.json();
 
-        const validGroups = ['RED', 'YELLOW', 'GREEN', 'BLUE', 'UNASSIGNED'];
+        // De `colores-de-grupo.ts` + UNASSIGNED, que es «sacar del grupo». Es la
+        // puerta por la que un residente entra a un color: si un color nuevo no
+        // está en esta lista, se puede escoger en la pantalla y el guardado lo
+        // rechaza con «Grupo de color invalido».
+        const validGroups = [...CODIGOS_DE_COLOR, 'UNASSIGNED'];
         if (!colorGroup || !validGroups.includes(colorGroup)) {
             return NextResponse.json({ success: false, error: "Grupo de color invalido." }, { status: 400 });
         }

@@ -38,6 +38,7 @@
 import jsPDF from 'jspdf';
 import { dosisODejarloEnBlanco } from '@/lib/dosis';
 import { aFahrenheit } from '@/lib/vitals-thresholds';
+import { nombreDeColor } from '@/lib/colores-de-grupo';
 
 const ROJO: [number, number, number] = [190, 18, 60];
 const ROJO_BG: [number, number, number] = [254, 226, 226];
@@ -186,7 +187,7 @@ function pintarDossier(doc: jsPDF, m: DossierMeta, primero: boolean): string[] {
         doc.setFont('helvetica', 'normal').setFontSize(8);
         const sub = [
             m.habitacion ? `Hab. ${m.habitacion}` : null,
-            m.grupoColor ? `Grupo ${m.grupoColor}` : null,
+            m.grupoColor ? `Grupo ${nombreDeColor(m.grupoColor)}` : null,
             m.dieta ? `Dieta: ${m.dieta}` : null,
         ].filter(Boolean).join('  ·  ');
         doc.text(sub, M, pagina === 1 ? 18 : 13);

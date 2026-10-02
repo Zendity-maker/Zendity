@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
+import { coloresConResidentes } from '@/lib/shift-coverage';
 
 const WRITE_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
 
@@ -50,7 +51,24 @@ export async function GET(req: Request) {
             take: 4
         });
 
-        return NextResponse.json({ success: true, schedules });
+        /**
+         * Qué colores tienen residentes. Va en ESTA respuesta y no en un
+         * endpoint propio porque el builder ya hace esta llamada: cero viajes
+         * extra y el mismo hqId ya resuelto y autorizado arriba.
+         *
+         * Antes el builder lo llevaba escrito: `['RED','YELLOW','BLUE']`, con un
+         * comentario que explicaba que GREEN tenía cero residentes. Era verdad
+         * el día que se escribió. El 01-oct-2026 entró un residente diurno a
+         * GREEN y la constante se volvió falsa sin que nada avisara: el grupo de
+         * Jesús dejaba de contar para la cobertura, así que el builder no pedía
+         * que nadie lo cubriera y tampoco lo marcaba como hueco.
+         *
+         * Un dato de la base escrito como constante caduca; la diferencia es que
+         * una constante no se entera.
+         */
+        const coloresPoblados = await coloresConResidentes(hqId);
+
+        return NextResponse.json({ success: true, schedules, coloresPoblados });
     } catch (e) {
         console.error(e);
         return NextResponse.json({ success: false, error: 'Error cargando horarios' }, { status: 500 });

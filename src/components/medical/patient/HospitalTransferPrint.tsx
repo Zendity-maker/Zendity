@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { Printer, X, Loader2 } from "lucide-react";
+import { nombreDeColor } from '@/lib/colores-de-grupo';
 
 interface TransferData {
     patient: any;
@@ -233,7 +234,7 @@ export default function HospitalTransferPrint({ data, onClose }: Props) {
                         <span style={{ backgroundColor: '#E2E8F0', padding: '4px 12px', borderRadius: '6px' }}>Edad: {calcAge(patient?.dateOfBirth)}</span>
                         <span style={{ backgroundColor: '#E2E8F0', padding: '4px 12px', borderRadius: '6px' }}>Hab. {patient?.roomNumber || 'N/A'}</span>
                         {patient?.colorGroup && (
-                            <span style={{ backgroundColor: '#E2E8F0', padding: '4px 12px', borderRadius: '6px' }}>Grupo {patient.colorGroup}</span>
+                            <span style={{ backgroundColor: '#E2E8F0', padding: '4px 12px', borderRadius: '6px' }}>Grupo {nombreDeColor(patient.colorGroup)}</span>
                         )}
                         <span style={{ backgroundColor: '#E2E8F0', padding: '4px 12px', borderRadius: '6px' }}>Dieta: {patient?.diet || 'Regular'}</span>
                     </div>

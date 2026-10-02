@@ -25,6 +25,8 @@ import ResidentSummaryPrint from "@/components/medical/patient/ResidentSummaryPr
 import ActualizarFamiliaButton from "@/components/medical/patient/ActualizarFamiliaButton";
 import ModalidadCuidadoButton from "@/components/medical/patient/ModalidadCuidadoButton";
 import AvisoSinFamiliar from "@/components/medical/patient/AvisoSinFamiliar";
+import { COLORES_DE_GRUPO } from '@/lib/colores-de-grupo';
+import { formatASTTime } from '@/lib/dates';
 
 // Role-gate de Trabajo Social: mismo set que los endpoints /api/social/*.
 // Si el usuario no tiene primary ni secondaryRole en esta lista, la pestaña
@@ -184,6 +186,55 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
     };
 
     const [showEditModal, setShowEditModal] = useState(false);
+
+    /**
+     * LA JORNADA DE HOY DE UN RESIDENTE DIURNO.
+     *
+     * Vive tambien aqui y no solo en la tableta porque la tableta solo ensena a
+     * un residente a quien cubra SU color. Jesus esta en Verde y hoy nadie lleva
+     * Verde, asi que su tarjeta no le sale a nadie: sin esto, la unica via para
+     * marcar seria inalcanzable justo para el unico residente que la necesita.
+     *
+     * `undefined` = no se ha pedido. `null` = se pidio y no hay ninguna marca.
+     * No son lo mismo y no se pintan igual.
+     */
+    const [jornada, setJornada] = useState<{ llegadaAt: string | null; salidaAt: string | null } | null | undefined>(undefined);
+    const [marcando, setMarcando] = useState(false);
+
+    const cargarJornada = async () => {
+        try {
+            const res = await fetch('/api/care/diurno/jornada');
+            const data = await res.json();
+            if (!data.success) return;
+            const mia = (data.jornadas ?? []).find((j: any) => j.patientId === params.id);
+            setJornada(mia ? { llegadaAt: mia.llegadaAt, salidaAt: mia.salidaAt } : null);
+        } catch { /* se queda como estaba: sin afirmar nada */ }
+    };
+
+    const marcarJornada = async (marca: 'LLEGADA' | 'SALIDA', quitar = false) => {
+        if (marcando) return;
+        setMarcando(true);
+        try {
+            const res = quitar
+                ? await fetch(`/api/care/diurno/jornada?patientId=${params.id}&marca=${marca}`, { method: 'DELETE' })
+                : await fetch('/api/care/diurno/jornada', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ patientId: params.id, marca }),
+                });
+            const data = await res.json();
+            if (!data.success) { alert(data.error || 'No se pudo marcar.'); return; }
+            setJornada(data.jornada ? { llegadaAt: data.jornada.llegadaAt, salidaAt: data.jornada.salidaAt } : null);
+        } catch {
+            alert('No se pudo marcar. Intentalo otra vez.');
+        } finally {
+            setMarcando(false);
+        }
+    };
+
+    useEffect(() => {
+        if (patientData?.esDiurno) cargarJornada();
+    }, [patientData?.esDiurno]);
 
     /**
      * Esc cierra "Editar Perfil".
@@ -509,7 +560,50 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                 {patientData?.status === 'ACTIVE' && <span className="bg-emerald-100 text-emerald-700 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">ACTIVO</span>}
                                 {patientData?.status === 'TEMPORARY_LEAVE' && <span className="bg-amber-100 text-amber-700 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">PERMISO ({patientData.leaveType})</span>}
                                 {patientData?.needsDialysis && <span className="bg-blue-100 text-blue-700 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">🩺 Diálisis</span>}
-                                {patientData?.esDiurno && <span className="bg-amber-100 text-amber-800 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">☀️ Diurno · 7:00–18:00</span>}
+                                {/* La insignia decia siempre «7:00–18:00», tambien cuando las
+                                    marcas de hoy ya habian sustituido ese horario: dos cosas
+                                    distintas afirmadas a la vez en la misma linea. Las horas de
+                                    verdad estan en el bloque de al lado; esta solo dice la
+                                    modalidad, y el horario unicamente cuando es lo que vale. */}
+                                {patientData?.esDiurno && (
+                                    <span className="bg-amber-100 text-amber-800 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
+                                        ☀️ Diurno{(!jornada?.llegadaAt && !jornada?.salidaAt) ? ' · 7:00–18:00' : ''}
+                                    </span>
+                                )}
+                                {/* La jornada de HOY. El horario de la insignia de al lado
+                                    es lo que vale mientras nadie marque nada — marcar solo
+                                    lo afina. Por eso lo que no esta marcado no se deja en
+                                    blanco: se dice que vale el horario. */}
+                                {patientData?.esDiurno && jornada !== undefined && (
+                                    <span className="flex items-center gap-1.5 text-xs">
+                                        {jornada?.llegadaAt ? (
+                                            <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5">
+                                                Llego {formatASTTime(jornada.llegadaAt)}
+                                                <button onClick={() => marcarJornada('LLEGADA', true)} disabled={marcando}
+                                                    title="Quitar la marca de llegada"
+                                                    className="text-emerald-500 hover:text-emerald-900 disabled:opacity-40 leading-none">×</button>
+                                            </span>
+                                        ) : (
+                                            <button onClick={() => marcarJornada('LLEGADA')} disabled={marcando}
+                                                className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black uppercase tracking-wide px-3 py-1 rounded-full active:scale-95 transition-all">
+                                                Llego
+                                            </button>
+                                        )}
+                                        {jornada?.salidaAt ? (
+                                            <span className="bg-slate-50 text-slate-600 border border-slate-200 font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5">
+                                                Se fue {formatASTTime(jornada.salidaAt)}
+                                                <button onClick={() => marcarJornada('SALIDA', true)} disabled={marcando}
+                                                    title="Quitar la marca de salida"
+                                                    className="text-slate-400 hover:text-slate-800 disabled:opacity-40 leading-none">×</button>
+                                            </span>
+                                        ) : (
+                                            <button onClick={() => marcarJornada('SALIDA')} disabled={marcando}
+                                                className="bg-white hover:bg-slate-50 disabled:opacity-50 text-slate-600 border border-slate-300 font-black uppercase tracking-wide px-3 py-1 rounded-full active:scale-95 transition-all">
+                                                Se fue
+                                            </button>
+                                        )}
+                                    </span>
+                                )}
                                 {/* El diferenciador que pidio Andres: junto al
                                     nombre, no escondido en una pestaña. Quien
                                     abre este expediente tiene que saberlo antes
@@ -1107,12 +1201,11 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                 <div className="pt-4 border-t border-slate-100">
                                     <label className="block text-sm font-bold text-slate-700 mb-2">Grupo de Color</label>
                                     <div className="flex gap-3">
-                                        {[
-                                            { key: 'RED', bg: 'bg-red-500', ring: 'ring-red-500', label: 'Rojo' },
-                                            { key: 'YELLOW', bg: 'bg-yellow-400', ring: 'ring-yellow-400', label: 'Amarillo' },
-                                            { key: 'GREEN', bg: 'bg-green-500', ring: 'ring-green-500', label: 'Verde' },
-                                            { key: 'BLUE', bg: 'bg-blue-500', ring: 'ring-blue-500', label: 'Azul' },
-                                        ].map(c => {
+                                        {/* De `colores-de-grupo.ts`. ESTE es el sitio desde el
+                                            que un residente entra a un grupo: un color que no
+                                            saliera aqui existia en la base y en ninguna pantalla
+                                            habia forma de ponerselo a nadie. */}
+                                        {COLORES_DE_GRUPO.map(x => ({ key: x.codigo, bg: x.punto, ring: x.anillo, label: x.nombre })).map(c => {
                                             const isActive = editForm.colorGroup === c.key;
                                             return (
                                                 <button

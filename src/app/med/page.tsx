@@ -5,6 +5,7 @@ import { FRECUENCIAS, DIAS, tieneHoraLegible, esFrecuenciaValida } from "@/lib/r
 import { useAuth } from "@/context/AuthContext";
 import { useActiveHq } from "@/contexts/ActiveHqContext";
 import TaskAssignmentButton from "@/components/TaskAssignmentButton";
+import { PILDORA_CLARA_DE_COLOR, nombreDeColor } from '@/lib/colores-de-grupo';
 
 interface Medication { id: string; name: string; dosage: string; }
 interface Patient { id: string; name: string; roomNumber: string; colorGroup: string; medications: any[]; borradores?: any[]; }
@@ -262,10 +263,7 @@ export default function ZendityMedPage() {
     };
 
     const colorMapping: Record<string, string> = {
-        RED: "bg-red-50 text-red-700 border-red-200",
-        YELLOW: "bg-amber-50 text-amber-700 border-amber-200",
-        GREEN: "bg-emerald-50 text-emerald-700 border-emerald-200",
-        BLUE: "bg-blue-50 text-blue-700 border-blue-200",
+        ...PILDORA_CLARA_DE_COLOR,
         UNASSIGNED: "bg-slate-50 text-slate-700"
     };
 
@@ -303,7 +301,7 @@ export default function ZendityMedPage() {
                                     <p className="text-xs font-bold uppercase tracking-widest opacity-70">Cuarto {p.roomNumber || 'N/A'}</p>
                                 </div>
                                 <div className="w-8 h-8 rounded-full bg-white/50 flex items-center justify-center font-black">
-                                    {p.colorGroup ? p.colorGroup.charAt(0) : '?'}
+                                    {p.colorGroup ? nombreDeColor(p.colorGroup).charAt(0) : '?'}
                                 </div>
                             </div>
 

@@ -45,6 +45,22 @@ next-env.d.ts
 .env*.local
 test-results/
 playwright-report/
+# Los worktrees que crea Claude Code. No son codigo del proyecto: son copias
+# CONGELADAS del repo de otras sesiones (medido el 02-oct-2026: 575 MB, una del
+# 9-jul y otra del 29-sep).
+#
+# Por que importa que esten aqui y no solo "porque ocupan": Tailwind v4 no lleva
+# fichero de configuracion en este proyecto, asi que detecta las fuentes solo, y
+# lo unico que le dice que NO mire es este fichero. Con los worktrees dentro,
+# escaneaba TRES copias de src/ y generaba clases que el codigo real no pide.
+# Medido: 367.517 bytes de CSS en local contra 326.629 en un checkout limpio —
+# 41 KB y ~220 selectores que existen en `npm run dev` y NO al desplegar.
+#
+# Eso no es solo peso: es que comprobar un estilo en local deja de demostrar
+# nada sobre produccion, que es justo lo contrario de para lo que se comprueba.
+# Ya habia una clase viva asi (`ring-rose-500/20`, aportada por una copia vieja).
+.claude/worktrees/
+
 scripts/*
 # Los guards que protegen produccion SI se versionan. `scripts/*` ignora todo lo
 # nuevo que caiga en esta carpeta, asi que un guard recien escrito se queda fuera
@@ -111,6 +127,7 @@ scripts/*
 !scripts/hr-baja-empleado.ts
 !scripts/normalizar-estado-empleados.ts
 !scripts/verificar-ventana-vitales.ts
+!scripts/verificar-presencia-diurno.ts
 !scripts/simular-umbrales-vitales.ts
 !scripts/ver-senales-clinicas.ts
 !scripts/auditar-phi-en-correos.ts

@@ -4,6 +4,7 @@ import EmergencyPdfButton from "./EmergencyPdfButton";
 import { useAuth } from "@/context/AuthContext";
 import { edadEnAnios, fechaNacimientoLarga, fechaLocalLarga } from "@/lib/edad";
 import { formatDietSummary } from "@/lib/diet";
+import { COLORES_DE_GRUPO } from '@/lib/colores-de-grupo';
 
 /**
  * Roles autorizados para togglear el protocolo de rotación postural.
@@ -17,12 +18,9 @@ const PROTOCOL_TOGGLE_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'NURSE'];
  * salen a cada cuidadora en el tablet, así que en la ficha vale tanto como la
  * habitación. UNASSIGNED no se dibuja: no es un grupo, es su ausencia.
  */
-const GRUPOS_COLOR: Record<string, { nombre: string; punto: string }> = {
-    RED:    { nombre: 'Rojo',     punto: 'bg-red-500' },
-    YELLOW: { nombre: 'Amarillo', punto: 'bg-yellow-400' },
-    GREEN:  { nombre: 'Verde',    punto: 'bg-green-500' },
-    BLUE:   { nombre: 'Azul',     punto: 'bg-blue-500' },
-};
+const GRUPOS_COLOR: Record<string, { nombre: string; punto: string }> = Object.fromEntries(
+    COLORES_DE_GRUPO.map(c => [c.codigo, { nombre: c.nombre, punto: c.punto }]),
+);
 
 function Renglon({ etiqueta, valor, tono = 'text-slate-800' }: { etiqueta: string; valor: React.ReactNode; tono?: string }) {
     return (
