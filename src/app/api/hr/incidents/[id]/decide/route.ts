@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cuerpoDeCorreo } from '@/lib/cuerpo-de-correo';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
@@ -124,7 +125,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                     const directorNoteHtml = (directorNote || incident.directorNote)
                         ? `<div style="background:#eff6ff;border-left:4px solid #3b82f6;padding:14px;margin:16px 0;">
                             <div style="font-size:11px;font-weight:bold;color:#1d4ed8;text-transform:uppercase;margin-bottom:4px;">Nota del Director</div>
-                            <div style="white-space:pre-wrap;">${(directorNote || incident.directorNote || '').replace(/</g, '&lt;')}</div>
+                            <div>${cuerpoDeCorreo(directorNote || incident.directorNote || '')}</div>
                            </div>`
                         : '';
 
@@ -144,7 +145,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                             </table>
                             <div style="background:#fff7ed;border-left:4px solid #f59e0b;padding:14px;margin:16px 0;">
                                 <div style="font-size:11px;font-weight:bold;color:#b45309;text-transform:uppercase;margin-bottom:4px;">Descripción del incidente</div>
-                                <div style="white-space:pre-wrap;">${incident.description.replace(/</g, '&lt;')}</div>
+                                <div>${cuerpoDeCorreo(incident.description)}</div>
                             </div>
                             ${directorNoteHtml}
                             <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px;margin:20px 0;text-align:center;">

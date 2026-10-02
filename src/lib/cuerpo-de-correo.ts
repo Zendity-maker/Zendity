@@ -54,6 +54,26 @@ function escapar(t: string): string {
 }
 
 /**
+ * NEGRITA CON `**asi**`, Y SOLO ESO.
+ *
+ * Cuando se escribió este fichero decidí NO añadir Markdown, con el argumento
+ * de que lo que Andrés escribía era texto plano con asteriscos y una librería
+ * entera sería construir de más. Ese argumento dejó de valer al día siguiente:
+ * mandó el memorando de octubre con `**` en tres frases. Lo usó.
+ *
+ * Así que se añade la negrita, y nada más. No títulos, no enlaces, no cursiva:
+ * eso sigue sin tener un solo uso que lo justifique, y el día que lo tenga se
+ * verá el texto que lo pide.
+ *
+ * VA DESPUÉS DE ESCAPAR, a propósito. Si fuera antes, un `<b>` escrito a mano
+ * sobreviviría al escapado y esto dejaría de ser texto plano seguro. Como el
+ * `*` no es un carácter que el escapado toque, el orden es gratis.
+ */
+function negritas(escapado: string): string {
+    return escapado.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+
+/**
  * Las viñetas van en TABLA y no en `<ul>`.
  *
  * Outlook de escritorio ignora buena parte del `list-style` y el `padding` de
@@ -96,7 +116,7 @@ export function cuerpoDeCorreo(crudo: unknown): string {
 
         // Bloque de lista: todas sus líneas son viñetas.
         if (vinetas.length > 0 && vinetas.length === lineas.length) {
-            return listaHtml(lineas.map(l => escapar(l.match(VINETA)![1].trim())));
+            return listaHtml(lineas.map(l => negritas(escapar(l.match(VINETA)![1].trim()))));
         }
 
         /**
@@ -115,7 +135,7 @@ export function cuerpoDeCorreo(crudo: unknown): string {
             const resto = lineas.slice(corte);
             const soloVinetas = resto.every(l => VINETA.test(l));
             if (soloVinetas) {
-                const items = resto.map(l => escapar(l.match(VINETA)![1].trim()));
+                const items = resto.map(l => negritas(escapar(l.match(VINETA)![1].trim())));
                 return (cabecera ? parrafo(cabecera, '0 0 10px 0') : '') + listaHtml(items);
             }
         }
@@ -126,6 +146,37 @@ export function cuerpoDeCorreo(crudo: unknown): string {
 
 /** Un párrafo; los saltos simples de dentro se respetan como `<br>`. */
 function parrafo(texto: string, margen = '0 0 16px 0'): string {
-    const cuerpo = escapar(texto).split('\n').join('<br>');
+    const cuerpo = negritas(escapar(texto)).split('\n').join('<br>');
     return `<p style="margin:${margen};">${cuerpo}</p>`;
+}
+
+/**
+ * TEXTO HUMANO QUE VA DENTRO DE UN ELEMENTO QUE YA EXISTE.
+ *
+ * `cuerpoDeCorreo` monta un mensaje entero: párrafos, viñetas, sus márgenes.
+ * Eso está bien cuando el texto ES el correo, y está mal cuando el texto es un
+ * CAMPO dentro de una plantilla — el motivo de una cita cancelada, la nota de
+ * un turno, la descripción de una solicitud de limpieza. Ahí el `<p>` ya lo
+ * puso la plantilla, y meterle otro dentro produce HTML inválido.
+ *
+ * Esta versión no monta nada: escapa, respeta los saltos de línea como `<br>`
+ * y entiende las mismas negritas. Nada más.
+ *
+ * ═══ POR QUÉ HACÍA FALTA ═══
+ *
+ * Esos cuatro campos se interpolaban CRUDOS, sin escapar siquiera:
+ *
+ *     cleaning/requests:141 ............ ${description}
+ *     family-appointments/[id]:260 ..... ${reason}
+ *     hr/schedule/publish:378 .......... ${s.notes.trim()}
+ *     family/appointment-effects:226 ... ${args.description}
+ *
+ * No es una preocupación teórica: basta que alguien escriba «mejoró el <
+ * del pasillo» para que el resto del correo desaparezca, y nadie se entera
+ * porque el correo sale igual.
+ */
+export function textoDeCorreo(crudo: unknown): string {
+    const texto = String(crudo ?? '');
+    if (!texto.trim()) return '';
+    return negritas(escapar(texto.replace(/\r\n?/g, '\n'))).split('\n').join('<br>');
 }

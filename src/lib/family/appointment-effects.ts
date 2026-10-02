@@ -18,6 +18,7 @@
  */
 
 import { EventType, Prisma } from '@prisma/client';
+import { textoDeCorreo } from '@/lib/cuerpo-de-correo';
 import sgMail from '@sendgrid/mail';
 import { prisma } from '@/lib/prisma';
 import { astDateTime, parseTimeOfDay, formatASTDateLong, AST_TZ_LABEL } from '@/lib/dates';
@@ -223,7 +224,7 @@ export function buildApprovedAppointmentEmail(args: BuildApprovedEmailArgs): App
       <div style="margin-bottom:8px;"><span style="color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;">Duración</span><br/><strong>${args.durationMins} minutos</strong></div>
       <div><span style="color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;">Residente</span><br/><strong>${args.patientName.trim()}</strong></div>
     </div>
-    ${args.description ? `<p style="background:#f8fafc;padding:12px 16px;border-radius:10px;font-size:14px;color:#475569;margin:0 0 20px;"><em>${args.description}</em></p>` : ''}
+    ${args.description ? `<p style="background:#f8fafc;padding:12px 16px;border-radius:10px;font-size:14px;color:#475569;margin:0 0 20px;"><em>${textoDeCorreo(args.description)}</em></p>` : ''}
     <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:14px 18px;margin:20px 0;">
       <p style="margin:0 0 4px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#0369a1;">
         Cómo conectar

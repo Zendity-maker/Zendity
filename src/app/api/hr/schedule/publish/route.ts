@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { textoDeCorreo } from '@/lib/cuerpo-de-correo';
 import { prisma } from '@/lib/prisma';
 import { asignarPorPrimerTurnoDeNoche } from '@/lib/academy-assign';
 import sgMail from '@sendgrid/mail';
@@ -375,7 +376,7 @@ export async function POST(req: Request) {
                     const esLibre = s.shiftType === 'OFF';
                     const grupo = etiquetaDeGrupo(s);
                     const nota = s.notes && s.notes.trim()
-                        ? `<div style="margin:6px 0 0;padding:8px 12px;background:#FFFBEB;border-left:3px solid #E5A93D;border-radius:6px;color:#78350F;font-size:13px;">${s.notes.trim()}</div>`
+                        ? `<div style="margin:6px 0 0;padding:8px 12px;background:#FFFBEB;border-left:3px solid #E5A93D;border-radius:6px;color:#78350F;font-size:13px;">${textoDeCorreo(s.notes)}</div>`
                         : '';
                     return `
                     <tr>

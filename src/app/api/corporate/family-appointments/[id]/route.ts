@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { textoDeCorreo } from '@/lib/cuerpo-de-correo';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -257,7 +258,7 @@ async function patchHandler(
     <p style="margin:0 0 20px;">Estimado/a <strong>${appt.familyMember.name}</strong>,</p>
     <p>Lamentamos informarle que su solicitud de <strong>${typeLabel}</strong> para el <strong>${formattedDate}</strong> no ha podido ser aprobada en esta ocasión.</p>
     <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:16px 20px;margin:20px 0;">
-      <p style="margin:0;color:#7f1d1d;font-size:14px;">${reason}</p>
+      <p style="margin:0;color:#7f1d1d;font-size:14px;">${textoDeCorreo(reason)}</p>
     </div>
     <p style="color:#475569;">Por favor comuníquese con nosotros a través del portal o llámenos directamente para coordinar una nueva fecha.</p>
     <div style="margin-top:20px;text-align:center;">

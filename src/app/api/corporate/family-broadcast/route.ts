@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cuerpoDeCorreo } from '@/lib/cuerpo-de-correo';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { emailLogoSrc } from '@/lib/email-logo';
@@ -170,7 +171,7 @@ export async function POST(req: Request) {
   <div style="padding:36px 32px;background:#ffffff;color:#334155;line-height:1.7;font-size:16px;">
     <p style="font-weight:700;color:#0f172a;margin-bottom:20px;">Estimadas familias de ${hqName},</p>
     ${imageHtml}
-    <div style="white-space:pre-wrap;color:#475569;">${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+    <div style="color:#475569;">${cuerpoDeCorreo(text)}</div>
     <div style="margin-top:28px;padding-top:20px;border-top:1px solid #e2e8f0;">
       <a href="${process.env.NEXTAUTH_URL || 'https://app.zendity.com'}/family/messages"
          style="display:inline-block;background:#0d9488;color:#ffffff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;">

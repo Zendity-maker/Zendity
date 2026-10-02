@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { textoDeCorreo } from '@/lib/cuerpo-de-correo';
 import { requireRole } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 import sgMail from '@sendgrid/mail';
@@ -138,7 +139,7 @@ export async function POST(req: Request) {
                                             <p style="color: #64748b; margin: 0 0 16px;">SLA: 45 minutos</p>
                                             <div style="background: #f1f5f9; padding: 16px; border-radius: 8px; border-left: 4px solid #ef4444;">
                                                 <p style="margin: 0; font-weight: 600; color: #0F6E56;">${areaName}</p>
-                                                <p style="margin: 8px 0 0; color: #334155;">${description}</p>
+                                                <p style="margin: 8px 0 0; color: #334155;">${textoDeCorreo(description)}</p>
                                             </div>
                                             <p style="color: #64748b; font-size: 13px; margin-top: 16px;">
                                                 Solicitado por ${requesterName}. Abre Zéndity para tomar la solicitud.

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { textoDeCorreo } from '@/lib/cuerpo-de-correo';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -174,7 +175,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
                     : '';
                 const monthYear = paidDate.toLocaleDateString('es-PR', { month: 'long', year: 'numeric' });
                 const itemsHtml = invoice.items.map((item: any) =>
-                    `<tr><td style="padding:8px 0;color:#475569;">${item.description}</td><td style="padding:8px 0;text-align:right;font-weight:bold;">$${item.totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td></tr>`
+                    `<tr><td style="padding:8px 0;color:#475569;">${textoDeCorreo(item.description)}</td><td style="padding:8px 0;text-align:right;font-weight:bold;">$${item.totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td></tr>`
                 ).join('');
 
                 const receiptHtml = `
