@@ -223,6 +223,21 @@ export async function POST(req: Request) {
                     ...(prepDuration ? { prepDuration } : {}),
                     ...cambiosDeFrecuencia,
                     ...(medico !== null ? { prescribedBy: medico } : {}),
+                    /**
+                     * QUIEN TRAE EL MEDICAMENTO, tambien al MODIFICAR.
+                     *
+                     * La casilla nacio solo en el alta (01-oct-2026) y eso la
+                     * dejaba inalcanzable para las recetas que ya existian — que
+                     * es justo el caso del primer residente diurno, que entro con
+                     * sus cuatro recetas ya puestas. Un campo que solo se puede
+                     * poner al crear no se puede corregir nunca.
+                     *
+                     * `typeof === 'boolean'` y no truthiness: desmarcarla manda
+                     * `false`, y con un `? :` normal eso se leeria como «no llego»
+                     * y no se guardaria. El campo se quedaria marcado para
+                     * siempre.
+                     */
+                    ...(typeof traeLaFamilia === 'boolean' ? { traeLaFamilia } : {}),
                     // NO se fuerza isActive/status aqui. Ahora que DISCONTINUED
                     // es un estado de verdad, "modificar" no puede resucitar una
                     // receta descontinuada sin que nada lo diga: revivirla tiene

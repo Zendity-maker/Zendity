@@ -51,7 +51,7 @@ export default function ZendityMedPage() {
      * una receta semanal la devolvia a diaria y le borraba los dias.
      */
     const [editForm, setEditForm] = useState({
-        scheduleTimes: "", frequency: "DIARIO", scheduleDays: [] as number[], prepDuration: "1_SEMANA",
+        scheduleTimes: "", frequency: "DIARIO", scheduleDays: [] as number[], prepDuration: "1_SEMANA", traeLaFamilia: false,
     });
     const [submitting, setSubmitting] = useState(false);
 
@@ -178,6 +178,7 @@ export default function ZendityMedPage() {
                         frequency: editForm.frequency,
                         scheduleDays: editForm.scheduleDays,
                         prepDuration: editForm.prepDuration,
+                        traeLaFamilia: editForm.traeLaFamilia,
                     } : {}),
                     authorId: user?.id,
                     reason: crudReason
@@ -210,6 +211,7 @@ export default function ZendityMedPage() {
             frequency: esFrecuenciaValida(med.frequency) ? med.frequency : "DIARIO",
             scheduleDays: Array.isArray(med.scheduleDays) ? [...med.scheduleDays] : [],
             prepDuration: med.prepDuration ?? "1_SEMANA",
+            traeLaFamilia: med.traeLaFamilia === true,
         });
         setModalOpen(true);
     };
@@ -459,6 +461,32 @@ export default function ZendityMedPage() {
                                         </div>
                                     )}
                                 </>
+                            )}
+
+                            {/**
+                              * QUIEN TRAE EL MEDICAMENTO, también al modificar.
+                              *
+                              * La casilla nació solo en el alta y eso la dejaba
+                              * inalcanzable para las recetas que ya existían — que es
+                              * justo el caso del primer residente diurno, que entró con
+                              * sus cuatro recetas ya puestas. Un campo que solo se puede
+                              * poner al crear no se puede corregir nunca.
+                              */}
+                            {(crudAction === 'MODIFIED' || crudAction === 'AUTHORIZED') && (
+                                <label className="flex items-center gap-3 p-3 border-2 border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors">
+                                    <input
+                                        type="checkbox"
+                                        checked={editForm.traeLaFamilia}
+                                        onChange={e => setEditForm({ ...editForm, traeLaFamilia: e.target.checked })}
+                                        className="w-5 h-5 accent-teal-600"
+                                    />
+                                    <span className="text-sm font-bold text-slate-700">
+                                        Lo trae la familia
+                                        <span className="block text-[11px] font-medium text-slate-400">
+                                            No lo prepara el hogar. Se administra y se firma igual.
+                                        </span>
+                                    </span>
+                                </label>
                             )}
 
                             <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
