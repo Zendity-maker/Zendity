@@ -257,7 +257,14 @@ export default function SendEmailModal({ employees }: { employees: any[] }) {
 
                                 <div className={`border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all ${isPolishing ? 'border-indigo-400 bg-indigo-50/30' : 'border-slate-200'}`}>
                                     <div className="bg-slate-50 border-b border-slate-200 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center justify-between gap-2">
-                                        <span>Cuerpo del Menu Corporativo (HTML/Markdown)</span>
+                                        {/* El rotulo decia «HTML/Markdown» y Markdown no existia:
+                                            ninguna de las cinco rutas de correo lo convertia. Y el
+                                            placeholder de abajo enseña texto plano, que era justo lo
+                                            que NO funcionaba. Desde el 02-oct-2026 funciona el texto
+                                            plano —lo maqueta `cuerpoDeCorreo`— y el HTML sigue
+                                            pasando intacto, asi que el rotulo ya puede decir la
+                                            verdad. */}
+                                        <span>Cuerpo del comunicado — escribe normal, o pega HTML</span>
                                         <div className="flex items-center gap-2">
                                             <button
                                                 type="button"
@@ -274,7 +281,7 @@ export default function SendEmailModal({ employees }: { employees: any[] }) {
                                         onChange={setMessage}
                                         type="SUPERVISOR_MEMO"
                                         context="comunicado oficial b2b a colaborador"
-                                        placeholder={`Hola colaborador...\n\nPor este medio Zendity HR informa que...`}
+                                        placeholder={`Escribe normal. Una línea en blanco separa párrafos.\n\nPara una lista, empieza cada línea con *:\n* Primer punto\n* Segundo punto`}
                                         rows={6}
                                     />
                                 </div>

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cuerpoDeCorreo } from '@/lib/cuerpo-de-correo';
 import { remitenteDe, asuntoDe, responderA } from '@/lib/remitente-correo';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from "next-auth/next";
@@ -109,7 +110,7 @@ export async function POST(request: Request) {
             </div>
 
             <div style="background-color:#ffffff;color:#12211D;line-height:1.65;font-size:15px;">
-                ${html}
+                ${cuerpoDeCorreo(html)}
             </div>
 
             <div style="background-color:#F1F4F1;padding:16px 24px;text-align:center;font-size:12px;color:#66766F;line-height:1.6;">

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cuerpoDeCorreo } from '@/lib/cuerpo-de-correo';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { emailLogoSrc } from '@/lib/email-logo';
@@ -130,7 +131,7 @@ export async function POST(request: Request) {
         <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:620px;margin:0 auto;border:1px solid #DDE4DF;border-radius:12px;overflow:hidden;">
             ${cabecera}
             <div style="background-color:#ffffff;color:#12211D;line-height:1.65;">
-                ${html}
+                ${cuerpoDeCorreo(html)}
             </div>
             <div style="background-color:#F1F4F1;padding:16px 24px;text-align:center;font-size:12px;color:#66766F;line-height:1.6;">
                 ${pie}

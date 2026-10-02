@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cuerpoDeCorreo } from '@/lib/cuerpo-de-correo';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { emailLogoSrc } from '@/lib/email-logo';
@@ -69,7 +70,7 @@ export async function POST(request: Request) {
             <div style="padding: 32px; background-color: #ffffff; color: #1F2D3A; line-height: 1.6;">
                 <p style="margin-bottom: 24px;">Estimado(a) <strong>${employee.name}</strong>,</p>
                 <div style="background-color: #EAF4F5; padding: 20px; border-radius: 8px; border-left: 4px solid #0F6B78; white-space: pre-wrap;">
-                    ${html}
+                    ${cuerpoDeCorreo(html)}
                 </div>
             </div>
             <div style="background-color: #f1f5f9; padding: 16px; text-align: center; font-size: 12px; color: #1F2D3A;">

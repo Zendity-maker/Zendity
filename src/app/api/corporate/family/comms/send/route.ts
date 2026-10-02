@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cuerpoDeCorreo } from '@/lib/cuerpo-de-correo';
 import { prisma } from '@/lib/prisma';
 import { marcaSede, correoDeSede } from '@/lib/marca-sede';
 import { senderFrom } from '@/lib/family/appointment-effects';
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
         // Ver src/lib/marca-sede.ts.
         const corporateTemplate = correoDeSede(marca, `
             <p style="font-weight:700;color:#0f172a;margin:0 0 20px;">Estimado/a ${familyMember.name},</p>
-            <div style="white-space:pre-wrap;color:#475569;">${html}</div>
+            <div style="color:#475569;">${cuerpoDeCorreo(html)}</div>
             <div style="margin-top:28px;padding-top:20px;border-top:1px solid #e7e5e4;">
                 <p style="margin:0;color:#0f172a;font-weight:700;">Atentamente,</p>
                 <p style="margin:4px 0 0;color:#64748b;">La Dirección de ${hqName}</p>
