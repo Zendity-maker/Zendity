@@ -88,6 +88,19 @@ async function resolveAssignedPatients(caregiverId: string, hqId: string) {
         where: {
             headquartersId: hqId,
             status: 'ACTIVE',
+            /**
+             * UN DIURNO NO RECIBE RONDA AUTOMATICA DE VITALES.
+             *
+             * Y es NUNCA, no «solo fuera de su horario». Es mas simple y es
+             * coherente con como funciona el hogar: si un diurno necesita
+             * vitales, los pide enfermeria —POST /api/care/vitals/orden—, igual
+             * que para el turno de noche. Lo que se apaga es la exigencia que
+             * nace de abrir turno, no la capacidad de tomarlos.
+             *
+             * Medido el 01-oct-2026: 15 de 105 ponches de tarde ocurren DESPUES
+             * de las 18:00, cuando el diurno ya se fue. Ver src/lib/residente-diurno.ts.
+             */
+            esDiurno: false,
             ...(unrestricted || validColors.length === 0
                 ? {}
                 : { colorGroup: { in: validColors } })

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { estaEnElEdificio } from '@/lib/residente-diurno';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { aFahrenheit } from '@/lib/vitals-thresholds';
@@ -157,6 +158,11 @@ export async function GET(req: Request) {
                 // del hogar (HOSPITAL, DIALYSIS, OTHER). Un residente en hospital
                 // no puede tener "baño no registrado" — no está en la sede.
                 status: true, leaveType: true,
+                // Y `esDiurno` por lo mismo: de noche tampoco está. Sin pedirlo
+                // volvería undefined en TODAS las filas, y `estaEnElEdificio`
+                // diría que sí siempre — que se lee igual que «ninguno es
+                // diurno» (CLAUDE.md, antipatrón 9).
+                esDiurno: true,
                 pressureUlcers: { where: { status: 'ACTIVE' }, select: { id: true }, take: 1 }
             },
             orderBy: { roomNumber: 'asc' }
@@ -480,7 +486,20 @@ export async function GET(req: Request) {
             // Residentes fuera del hogar (HOSPITAL/DIALYSIS/OTHER) NO generan
             // brechas: no están físicamente en la sede para recibir cuidados.
             // Se muestra solo un badge informativo y se omite toda evaluación.
-            const isAway = (patient as any).status === 'TEMPORARY_LEAVE';
+            /**
+             * «NO ESTABA» ES MAS QUE TEMPORARY_LEAVE.
+             *
+             * Esta era la unica condicion que saltaba el bloque de brechas. Un
+             * diurno es ACTIVE y de noche no esta en el edificio, asi que entre
+             * las 22:00 y las 06:00 no puede existir ninguna fila suya y la
+             * auditoria escribia «Sin actividad registrada en este turno» con
+             * severidad CRITICA, sumando ademas a `totalCritical`. ~365 criticas
+             * falsas al ano sobre alguien perfectamente atendido.
+             *
+             * Ver src/lib/residente-diurno.ts.
+             */
+            const isAway = (patient as any).status === 'TEMPORARY_LEAVE'
+                || !estaEnElEdificio(patient as any);
             const leaveType = (patient as any).leaveType as string | null;
 
             if (isAway) {

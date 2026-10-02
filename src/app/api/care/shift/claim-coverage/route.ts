@@ -119,7 +119,7 @@ export async function POST(req: Request) {
                 status: 'ACTIVE',
                 colorGroup: { in: colors as any[] },
             },
-            select: { id: true, name: true, colorGroup: true },
+            select: { id: true, name: true, colorGroup: true, esDiurno: true },
         });
 
         if (patients.length === 0) {
@@ -218,8 +218,18 @@ export async function POST(req: Request) {
                 });
                 claimed++;
 
-                // VitalsOrder si ventana 4h abierta (y no existe ya uno PENDING)
-                if (vitalsWindowOpen) {
+                /**
+                 * VitalsOrder si ventana 4h abierta (y no existe ya uno PENDING).
+                 *
+                 * Y NUNCA A UN DIURNO. La guarda va AQUI y no en el `where` de
+                 * `patients` de arriba, porque esa lista alimenta tambien los
+                 * overrides de cobertura: sacar al diurno de ahi lo dejaria sin
+                 * que nadie lo cubriera de dia, que es lo contrario de lo que
+                 * hace falta. Se le cubre; no se le exige la ronda.
+                 *
+                 * Ver src/lib/residente-diurno.ts para la regla y lo medido.
+                 */
+                if (vitalsWindowOpen && !patient.esDiurno) {
                     const existingVital = await tx.vitalsOrder.findFirst({
                         where: { patientId: patient.id, shiftSessionId, status: 'PENDING' },
                         select: { id: true },

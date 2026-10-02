@@ -66,7 +66,7 @@ export default function ZendityMedPage() {
      */
     const [addForm, setAddForm] = useState({
         patientId: "", medicationId: "", scheduleTimes: "08:00 AM", prepDuration: "1_SEMANA",
-        frequency: "DIARIO", scheduleDays: [] as number[], prescribedBy: "",
+        frequency: "DIARIO", scheduleDays: [] as number[], prescribedBy: "", traeLaFamilia: false,
         reason: "Asignación Inicial de Fármaco",
     });
     const [medSearch, setMedSearch] = useState("");
@@ -238,6 +238,7 @@ export default function ZendityMedPage() {
                     frequency: addForm.frequency,
                     scheduleDays: addForm.scheduleDays,
                     prescribedBy: addForm.prescribedBy,
+                    traeLaFamilia: addForm.traeLaFamilia,
                     authorId: user?.id,
                     reason: addForm.reason
                 })
@@ -245,7 +246,7 @@ export default function ZendityMedPage() {
             const data = await res.json();
             if (data.success) {
                 setAddMedModalOpen(false);
-                setAddForm({ ...addForm, medicationId: "", scheduleTimes: "08:00 AM", frequency: "DIARIO", scheduleDays: [], prescribedBy: "", reason: "Asignación Inicial de Fármaco" });
+                setAddForm({ ...addForm, medicationId: "", scheduleTimes: "08:00 AM", frequency: "DIARIO", scheduleDays: [], prescribedBy: "", traeLaFamilia: false, reason: "Asignación Inicial de Fármaco" });
                 setMedSearch("");
                 fetchPatients();
             } else {
@@ -628,6 +629,32 @@ export default function ZendityMedPage() {
                                     Prescrito por <span className="font-medium text-slate-400">(médico que lo ordenó)</span>
                                 </label>
                                 <input type="text" value={addForm.prescribedBy} onChange={e => setAddForm({...addForm, prescribedBy: e.target.value})} maxLength={120} className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold outline-none focus:border-teal-500" placeholder="Ej: Dra. Rivera — Medicina Interna" />
+                            </div>
+                            {/**
+                              * QUIEN PONE EL MEDICAMENTO EN LA MANO.
+                              *
+                              * Nace con los residentes diurnos: «no le preparamos
+                              * medicamentos para ellos, el familiar los trae». No cambia
+                              * nada de cómo se administra ni de cómo se firma — la
+                              * cuidadora hace lo mismo. Lo que cambia es que si un día
+                              * falta, se sabe a quién llamar, y por eso se ve en la
+                              * tarjeta del pack al firmar.
+                              */}
+                            <div>
+                                <label className="flex items-center gap-3 p-3 border-2 border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors">
+                                    <input
+                                        type="checkbox"
+                                        checked={addForm.traeLaFamilia}
+                                        onChange={e => setAddForm({ ...addForm, traeLaFamilia: e.target.checked })}
+                                        className="w-5 h-5 accent-teal-600"
+                                    />
+                                    <span className="text-sm font-bold text-slate-700">
+                                        Lo trae la familia
+                                        <span className="block text-[11px] font-medium text-slate-400">
+                                            No lo prepara el hogar. Se administra y se firma igual.
+                                        </span>
+                                    </span>
+                                </label>
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Duración Preparación</label>

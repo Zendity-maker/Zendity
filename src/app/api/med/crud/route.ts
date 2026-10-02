@@ -45,6 +45,8 @@ export async function POST(req: Request) {
             action, patientId, medicationId, scheduleTimes, prepDuration, reason, patientMedicationId,
             // Los tres que faltaban. Ver src/lib/receta.ts.
             frequency, scheduleDays, prescribedBy,
+            // Quien pone el medicamento en la mano. Ver src/lib/residente-diurno.ts.
+            traeLaFamilia,
         } = await req.json();
 
         /**
@@ -125,6 +127,15 @@ export async function POST(req: Request) {
                     frequency: frecuencia,
                     scheduleDays: dias,
                     prescribedBy: medico,
+                    /**
+                     * QUIEN TRAE EL MEDICAMENTO.
+                     *
+                     * Nace con los residentes diurnos: «no le preparamos
+                     * medicamentos para ellos, el familiar los trae». No cambia
+                     * nada de como se administra ni de como se firma. Lo que
+                     * cambia es que si un dia falta, se sabe a quien llamar.
+                     */
+                    traeLaFamilia: traeLaFamilia === true,
                     status: frecuencia === 'PRN' ? 'PRN' : 'ACTIVE',
                 }
             });

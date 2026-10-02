@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { soloLosQueEstan } from '@/lib/residente-diurno';
 import { todayStartAST, clinicalDayCalendarUTCRange, clinicalDay } from '@/lib/dates';
 import { tiposQueCubren, compatibleShiftTypesAt, type FranjaT } from '@/lib/ventanas-de-turno';
 
@@ -119,8 +120,18 @@ export interface ShiftCoverage {
  * como fuente del fail-safe del censo — no depende de pautas.
  */
 export async function derivePopulatedColors(hqId: string): Promise<Set<string>> {
+    /**
+     * UN COLOR POBLADO SOLO POR DIURNOS AUSENTES NO ES UN COLOR QUE CUBRIR.
+     *
+     * De aqui salen los colores que se ESPERAN cubiertos, sin nocion de hora.
+     * Un grupo propio para diurnos —GREEN, que es el unico valor libre del
+     * enum— se volveria un color esperado las 24 horas, y la alarma de «color
+     * sin cubrir» sonaria toda la noche sobre gente que esta durmiendo en su
+     * casa. Si comparten color con residentes regulares no cambia nada, porque
+     * el color sigue poblado por los demas.
+     */
     const rows = await prisma.patient.findMany({
-        where: { headquartersId: hqId, status: 'ACTIVE' },
+        where: { headquartersId: hqId, status: 'ACTIVE', ...soloLosQueEstan() },
         select: { colorGroup: true },
         distinct: ['colorGroup'],
     });

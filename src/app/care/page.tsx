@@ -6522,7 +6522,21 @@ export default function ZendityCareTabletPage() {
                                                             <div key={m.id} className="flex justify-between items-center py-2 border-b border-slate-200 last:border-0 gap-2">
                                                                 <div className="flex-1 min-w-0">
                                                                     <p className="font-black text-slate-800 text-sm truncate">{m.medication?.name}</p>
-                                                                    <p className="text-[11px] text-slate-500 font-bold">{m.medication?.dosage} · {m.medication?.route || 'Oral'}</p>
+                                                                    <p className="text-[11px] text-slate-500 font-bold">
+                                                                        {m.medication?.dosage} · {m.medication?.route || 'Oral'}
+                                                                        {/**
+                                                                          * QUIEN TRAE EL MEDICAMENTO, DONDE SE FIRMA.
+                                                                          *
+                                                                          * Nace con los residentes diurnos: el familiar los
+                                                                          * trae, no los prepara el hogar. No cambia nada de
+                                                                          * como se administra ni de como se firma — lo que
+                                                                          * cambia es que si un dia falta, se sabe a quien
+                                                                          * llamar. Por eso va aqui y no en el expediente.
+                                                                          */}
+                                                                        {m.traeLaFamilia && (
+                                                                            <span className="ml-1.5 text-[10px] font-black uppercase text-indigo-700">· lo trae la familia</span>
+                                                                        )}
+                                                                    </p>
                                                                 </div>
                                                                 {status === 'ADMINISTERED' && (
                                                                     <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase rounded-full px-2.5 py-1 whitespace-nowrap">

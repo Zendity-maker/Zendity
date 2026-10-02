@@ -966,7 +966,28 @@ model Patient {
 
   requiresPosturalChanges Boolean    @default(false)
   colorGroup              ColorGroup @default(UNASSIGNED) // FASE 7: Zonificación
-  conciergeBalance        Float      @default(0.0) // FASE 18: Saldo Gift Cards B2C
+
+  /// RESIDENTE DIURNO — viene de día y se va a su casa.
+  ///
+  /// Zéndity se diseñó para gente que vive aquí, y eso está escrito como
+  /// `status: 'ACTIVE'` en 38 consultas de cuido: ACTIVE acabó significando
+  /// «está en el edificio». Un diurno es ACTIVE y no está en el edificio de
+  /// noche, así que sin este campo el sistema le exige trabajo que nadie puede
+  /// hacer — ventana de vitales al ponchar, ronda que no cierra nunca, brecha
+  /// crítica cada madrugada y su color contado como descubierto.
+  ///
+  /// NO se mete en `status` a propósito: un diurno SÍ está activo, y meterlo
+  /// ahí obligaría a revisar esas 38 consultas una por una. Este campo es otro
+  /// eje y las deja intactas.
+  ///
+  /// El horario (7:00–18:00) vive en src/lib/residente-diurno.ts, no aquí:
+  /// mientras haya un solo horario no es un dato, es una regla.
+  ///
+  /// El día que se queda a vivir, se pone en false. Toda su historia —vitales,
+  /// comidas, caídas, familia, facturación— cuelga de este mismo `id` y viaja
+  /// con él.
+  esDiurno         Boolean @default(false)
+  conciergeBalance Float   @default(0.0) // FASE 18: Saldo Gift Cards B2C
 
   // FASE 7: Facturación y Cuotas
   monthlyFee          Float @default(0.0)
@@ -1162,7 +1183,16 @@ model PatientMedication {
   medicationId String
 
   // Reglas del eMAR
-  frequency     String @default("DIARIO") // DIARIO, PRN (Por Razón Necesaria), SEMANAL
+  frequency     String  @default("DIARIO") // DIARIO, PRN (Por Razón Necesaria), SEMANAL
+  /// LA TRAE EL FAMILIAR, no la prepara el hogar.
+  ///
+  /// Nace con los residentes diurnos (01-oct-2026): «no le preparamos
+  /// medicamentos para ellos, el familiar los trae». No cambia NADA de cómo se
+  /// administra ni de cómo se firma — la cuidadora hace lo mismo. Lo que
+  /// cambia es que si un día falta, se sabe a quién llamar.
+  ///
+  /// Por eso va visible en la tarjeta del pack y no escondida en el expediente.
+  traeLaFamilia Boolean @default(false)
   scheduleTimes String // JSON Array Estructurado o CSV: "08:00, 14:00, 20:00"
 
   /// QUÉ DÍAS. Vacío = todos los días.

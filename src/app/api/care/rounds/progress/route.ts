@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { soloLosQueEstan } from '@/lib/residente-diurno';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
@@ -62,8 +63,24 @@ export async function GET(req: Request) {
         }
 
         // Residentes del grupo
+        /**
+         * EL DENOMINADOR DE LA RONDA SOLO CUENTA A QUIEN ESTA.
+         *
+         * Una ronda solo se da por completa con cobertura TOTAL del grupo. Con
+         * un diurno dentro, la cuidadora de noche atiende a los que estan y la
+         * ronda se queda en 10/11 PARA SIEMPRE: toast cada 3 minutos con su
+         * nombre, barra congelada, y —lo grave— las rondas 2 y 3 de la noche
+         * sin contarse nunca, porque el Set no puede cerrarse ni limpiarse. No
+         * molesta: BORRA el registro de 10 personas atendidas tres veces.
+         *
+         * `soloLosQueEstan` no excluye a nadie dentro del horario diurno, asi
+         * que de dia la ronda si lo incluye: esta aqui y hay que visitarlo.
+         */
         const groupPatients = await prisma.patient.findMany({
-            where: { headquartersId: hqId, status: 'ACTIVE', colorGroup: myColor as any },
+            where: {
+                headquartersId: hqId, status: 'ACTIVE', colorGroup: myColor as any,
+                ...soloLosQueEstan(),
+            },
             select: { id: true, name: true, roomNumber: true },
             orderBy: { roomNumber: 'asc' }
         });

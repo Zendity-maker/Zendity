@@ -141,6 +141,8 @@ async function putPatientHandler(req: Request, { params }: { params: Promise<{ i
             idNumber, medicareNumber, medicaidNumber, primaryFamilyMemberId,
             // Diálisis
             needsDialysis,
+            // Residente diurno. Ver src/lib/residente-diurno.ts.
+            esDiurno,
         } = body;
 
         const patientRaw = await prisma.patient.findUnique({ where: { id }, include: { intakeData: true } });
@@ -190,6 +192,20 @@ async function putPatientHandler(req: Request, { params }: { params: Promise<{ i
         // FASE 84 — dirección previa
         if (address !== undefined) updateData.address = address || null;
         if (needsDialysis !== undefined) updateData.needsDialysis = Boolean(needsDialysis);
+
+        /**
+         * RESIDENTE DIURNO — viene de día y se va a su casa.
+         *
+         * Cambiar esto cambia lo que el sistema le EXIGE: deja de abrírsele la
+         * ronda automática de vitales, sale del denominador de la ronda del
+         * turno cuando no está, y su color deja de contarse como descubierto
+         * de noche. No cambia nada de lo que se le puede HACER ni de lo que se
+         * registra. Ver src/lib/residente-diurno.ts.
+         *
+         * El día que se queda a vivir, se pone en false y toda su historia
+         * sigue colgando del mismo expediente.
+         */
+        if (esDiurno !== undefined) updateData.esDiurno = Boolean(esDiurno);
 
         // Sprint P — Admisión Unificada
         if (idNumber !== undefined) updateData.idNumber = idNumber || null;

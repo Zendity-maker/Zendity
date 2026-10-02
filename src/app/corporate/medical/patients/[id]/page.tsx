@@ -509,6 +509,7 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                 {patientData?.status === 'ACTIVE' && <span className="bg-emerald-100 text-emerald-700 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">ACTIVO</span>}
                                 {patientData?.status === 'TEMPORARY_LEAVE' && <span className="bg-amber-100 text-amber-700 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">PERMISO ({patientData.leaveType})</span>}
                                 {patientData?.needsDialysis && <span className="bg-blue-100 text-blue-700 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">🩺 Diálisis</span>}
+                                {patientData?.esDiurno && <span className="bg-amber-100 text-amber-800 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">☀️ Diurno · 7:00–18:00</span>}
                                 {/* El diferenciador que pidio Andres: junto al
                                     nombre, no escondido en una pestaña. Quien
                                     abre este expediente tiene que saberlo antes
@@ -576,6 +577,34 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                             className={`flex items-center gap-1.5 px-3 py-1 font-bold rounded-lg transition-all ml-1 border shadow-sm text-xs uppercase tracking-wide active:scale-95 ${patientData?.needsDialysis ? 'bg-blue-100 text-blue-700 border-blue-300 hover:bg-blue-200' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
                                         >
                                             🩺 {patientData?.needsDialysis ? 'Diálisis ✓' : 'Diálisis'}
+                                        </button>
+                                    )}
+                                    {/**
+                                      * RESIDENTE DIURNO — viene de día y se va a su casa.
+                                      *
+                                      * Va aquí, con Dieta y Diálisis: es una marca del
+                                      * residente, no una acción. Cambiarla cambia lo que el
+                                      * sistema le EXIGE —ronda de vitales, denominador de la
+                                      * ronda, cobertura por color— y no lo que se le puede
+                                      * hacer. Ver src/lib/residente-diurno.ts.
+                                      */}
+                                    {puedeEditarPerfil && (
+                                        <button
+                                            title={patientData?.esDiurno
+                                                ? 'Pasa a residente regular: vive en el hogar'
+                                                : 'Marcar como diurno: viene de 7:00 a 18:00 y se va a su casa'}
+                                            onClick={async () => {
+                                                const newVal = !patientData?.esDiurno;
+                                                const res = await fetch(`/api/corporate/patients/${params.id}`, {
+                                                    method: 'PUT',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ esDiurno: newVal })
+                                                });
+                                                if ((await res.json()).success !== false) fetchPatientData();
+                                            }}
+                                            className={`flex items-center gap-1.5 px-3 py-1 font-bold rounded-lg transition-all ml-1 border shadow-sm text-xs uppercase tracking-wide active:scale-95 ${patientData?.esDiurno ? 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
+                                        >
+                                            ☀️ {patientData?.esDiurno ? 'Diurno ✓' : 'Diurno'}
                                         </button>
                                     )}
                                     {/* Va aqui, con Dieta y Dialisis, y no en la
