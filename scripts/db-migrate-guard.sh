@@ -98,7 +98,15 @@ echo "   prod?: $IS_PROD"
 echo "═══════════════════════════════════════════════════════════════"
 
 if [[ $DRY_RUN -eq 1 ]]; then
-    echo "DRY-RUN: se habría ejecutado $( [[ "$IS_PROD" == true ]] && echo 'prisma migrate deploy' || echo 'prisma migrate dev' )"
+    SE_HABRIA="prisma migrate deploy"
+    for a in "${ARGS[@]:-}"; do
+        [[ "$a" == "--name" || "$a" == --name=* || "$a" == "--create-only" ]] && SE_HABRIA="prisma migrate dev"
+    done
+    if [[ "$SE_HABRIA" == "prisma migrate dev" && "$IS_PROD" == true ]]; then
+        echo "DRY-RUN: se habría BLOQUEADO (no se crean migraciones contra prod)"
+    else
+        echo "DRY-RUN: se habría ejecutado $SE_HABRIA"
+    fi
     exit 0
 fi
 
@@ -121,10 +129,46 @@ EOF
     exit 1
 fi
 
-if [[ "$IS_PROD" == true ]]; then
-    echo "✅ Guard pasado. Ejecutando: npx prisma migrate deploy"
-    npx prisma migrate deploy
-else
-    echo "✅ Guard pasado (no es prod). Ejecutando: npx prisma migrate dev ${ARGS[*]:-}"
+# ── QUÉ COMANDO, Y POR QUÉ NO LO DECIDE EL HOST ─────────────────────────
+#
+# Esto elegía por host: prod → `deploy`, cualquier otra cosa → `dev`. Pero la
+# cabecera de este mismo fichero dice «npm run db:migrate  # la aplica con
+# migrate deploy», y el flujo que documenta —crear el SQL con `migrate diff` y
+# luego aplicarlo— no necesita `dev` para nada. El comentario y el código
+# decían cosas distintas.
+#
+# Y la diferencia no es de estilo. `migrate dev`:
+#   · crea y borra una BASE SOMBRA en el mismo endpoint;
+#   · y es el único de los dos que puede ofrecer «reset all data».
+# Eso contra la rama de desarrollo, que es la copia de producción desde la que
+# se trabaja a diario, y que el 02-oct-2026 ya se vació una vez.
+#
+# Lo que decide es la INTENCIÓN, no dónde se apunta:
+#   · sin `--name`  → aplicar lo que ya está escrito en disco → `deploy`
+#   · con `--name`  → generar una migración nueva desde el schema → `dev`,
+#                     que es lo único que sabe hacerlo, y jamás contra prod.
+#
+# Así el camino por defecto —el que se escribe sin pensar— es el que no puede
+# borrar nada.
+QUIERE_CREAR=0
+for a in "${ARGS[@]:-}"; do
+    [[ "$a" == "--name" || "$a" == --name=* || "$a" == "--create-only" ]] && QUIERE_CREAR=1
+done
+
+if [[ $QUIERE_CREAR -eq 1 ]]; then
+    if [[ "$IS_PROD" == true ]]; then
+        cat <<'EOF'
+🛑 BLOQUEADO — no se CREAN migraciones contra producción.
+
+`migrate dev` crea una base sombra en el endpoint y puede ofrecer un reset.
+Genera la migración contra la rama de desarrollo, revisa el SQL, y aplícala
+luego aquí con `npm run db:migrate` (sin --name), que usa `migrate deploy`.
+EOF
+        exit 1
+    fi
+    echo "✅ Guard pasado. Creando migración: npx prisma migrate dev ${ARGS[*]:-}"
     npx prisma migrate dev "${ARGS[@]:-}"
+else
+    echo "✅ Guard pasado. Aplicando lo pendiente: npx prisma migrate deploy"
+    npx prisma migrate deploy
 fi

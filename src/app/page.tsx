@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import type { ExecReportData } from '@/lib/exec-report-pdf';
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useInterval } from "@/hooks/useInterval";
@@ -338,7 +339,10 @@ export default function InsightsDashboard() {
     setGeneratingExecPeriod(period);
     try {
       const res = await fetch(`/api/corporate/exec-report?period=${period}`);
-      const data = await res.json();
+      // Tipado a proposito: `await res.json()` es `any`, y ese `any` era el
+      // unico puente entre el route y el PDF. El 03-oct-2026 se renombraron
+      // tres campos y tsc paso limpio con el PDF leyendo undefined en los tres.
+      const data: { success: boolean; error?: string } & ExecReportData = await res.json();
       if (!data.success) { alert(data.error || 'No se pudo generar el reporte.'); return; }
       const { generateExecReportPDF } = await import('@/lib/exec-report-pdf');
       generateExecReportPDF(data);

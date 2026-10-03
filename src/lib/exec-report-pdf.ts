@@ -11,16 +11,33 @@ export type ExecReportData = {
         admisiones: number; egresos: number; hospitalizaciones: number;
     };
     clinico: {
-        meds: { total: number; administered: number; omitted: number; refused: number; held: number; pending: number; compliancePct: number };
-        vitals: { total: number; critical: number };
-        rotations: number;
+        meds: { total: number; administered: number; missed: number; omitted: number; refused: number; held: number; pending: number; compliancePct: number };
+        /** `critical` = nivel LLAMAR de vitals-thresholds; `anomalos` incluye ANOTAR. */
+        vitals: { total: number; critical: number; anomalos: number };
+        /**
+         * Separadas a proposito: el 85% de las filas son el boton de Rondas sin
+         * lado escrito, y solo el 19% son de residentes con UPP. Ver la nota del
+         * route.
+         */
+        rotaciones: { conDecubito: number; rondas: number; total: number };
         incidents: Record<string, number>;
     };
     operacional: {
         sessionsOpened: number; sessionsClosed: number; sessionsForcedClosed: number;
         absences: number;
-        handovers: { total: number; completed: number; completedPct: number };
-        overridesCreated: number;
+        /**
+         * El relevo medido contra los TURNOS, no contra los relevos firmados:
+         * ese cociente era 1 por construccion. `pct` es null si no hubo turnos.
+         */
+        relevo: {
+            turnos: number; conRelevo: number; sinRelevo: number;
+            cerradosPorSupervision: number; pct: number | null;
+        };
+        /** Por ACTO, no por fila: 1.212 filas eran 119 reorganizaciones. */
+        redistribuciones: {
+            actos: number; residentesMovidos: number; turnosAfectados: number;
+            porAusencia: number; porLlegadaTarde: number;
+        };
     };
     personal: {
         totalStaff: number;
@@ -51,6 +68,12 @@ export type ExecReportData = {
         satisfaccion: number | null;
         encuestasRespondidas: number;
         encuestasEnviadas: number;
+        /**
+         * El trimestre de donde sale ese promedio, p.ej. "2026-Q4". La encuesta
+         * tiene su propio reloj y no es el del informe: va impreso para que no
+         * se lea como si fuera de los ultimos 30 dias.
+         */
+        trimestreEncuesta: string;
         /** Residentes cuya familia recibió una actualización clínica en el periodo. */
         actualizadas: number;
         /** Residentes con familia registrada — el denominador honesto. */
@@ -73,10 +96,25 @@ export type ExecReportData = {
     } | null;
 };
 
+/**
+ * EL ROTULO DICE LA VENTANA DE VERDAD.
+ *
+ * Decia «RESUMEN DEL MES» y «RESUMEN DE LA SEMANA», que un director lee como
+ * «septiembre» y «esta semana». El route no corta por mes ni por semana
+ * natural: resta 30 y 7 dias de AHORA. Asi que el resumen «del mes» del 3 de
+ * octubre es del 3 de septiembre al 3 de octubre — dos trozos de dos meses.
+ *
+ * La cabecera ya imprimia el rango exacto con fecha y hora debajo, asi que el
+ * dato estaba; lo que mentia era el titulo, que es lo que se lee. El unico
+ * bloque cortado por mes natural es el cierre financiero, y ese ya lo dice en
+ * su propio rotulo: «CIERRE DE SEPTIEMBRE DE 2026 — MES COMPLETO».
+ *
+ * El del dia si es el dia: `todayStartAST()`, las 6 AM del dia clinico.
+ */
 const PERIOD_LABEL: Record<string, string> = {
     day: 'RESUMEN DEL DÍA',
-    week: 'RESUMEN DE LA SEMANA',
-    month: 'RESUMEN DEL MES',
+    week: 'ÚLTIMOS 7 DÍAS',
+    month: 'ÚLTIMOS 30 DÍAS',
 };
 
 function fmtDate(iso: string): string {
@@ -119,7 +157,10 @@ export function generateExecReportPDF(d: ExecReportData): void {
     doc.setTextColor(203, 213, 225); doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
     doc.text(`${d.hqName} — ${PERIOD_LABEL[d.period]}`, marginX + 6, y + 14);
     doc.setTextColor(148, 163, 184); doc.setFontSize(8);
-    doc.text(`Período: ${fmtDateTime(d.periodStart)}  →  ${fmtDateTime(d.periodEnd)}`, marginX + 6, y + 18.5);
+    // `→` salia como «!'»: las helvetica que jsPDF trae de serie son WinAnsi y
+    // no tienen la flecha. Lo que se imprime es basura, en la primera linea del
+    // documento. Un guion la hace.
+    doc.text(`Período: ${fmtDateTime(d.periodStart)}  --  ${fmtDateTime(d.periodEnd)}`, marginX + 6, y + 18.5);
     y += 26;
 
     doc.setTextColor(100, 116, 139); doc.setFontSize(8);
@@ -182,28 +223,63 @@ export function generateExecReportPDF(d: ExecReportData): void {
     };
 
     // Helper: línea de detalle "label: value"
+    /**
+     * Repartia `usableW / n` por entrada y escribia cada una en su x, sin
+     * comprobar que cupiera. Al añadir «Sin administrar» el 03-oct-2026 fueron
+     * seis columnas y el PDF imprimio «Meds administrados: 7399Sin
+     * administrar: 273»: dos cifras pegadas, sin separacion, ilegibles.
+     *
+     * No se veia en ninguna comprobacion de tipos ni en el JSON. Se vio al
+     * mirar el PDF.
+     *
+     * Ahora se miden las entradas y se reparte el sitio que de verdad hay: si
+     * no cabe en una fila, se parte en dos. Un dato clinico que no se lee no
+     * es un dato.
+     */
     const detailLine = (entries: Array<{ label: string; value: string | number }>) => {
-        pageBreakIfNeeded(6);
-        const part = usableW / entries.length;
-        entries.forEach((e, i) => {
-            const x = marginX + i * part;
-            doc.setTextColor(100, 116, 139); doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-            doc.text(`${e.label}: `, x, y);
-            const lw = doc.getTextWidth(`${e.label}: `);
-            doc.setTextColor(30, 41, 59); doc.setFont('helvetica', 'bold');
-            doc.text(String(e.value), x + lw, y);
-        });
-        y += 5;
+        const texto = (e: { label: string; value: string | number }) => `${e.label}: ${e.value}`;
+        const anchoDe = (e: typeof entries[number]) => {
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+            return doc.getTextWidth(texto(e)) + 6;   // 6 mm de aire entre columnas
+        };
+
+        // Se parte en filas que quepan, en vez de encogerlas hasta solaparse.
+        const filas: typeof entries[] = [];
+        let fila: typeof entries = [];
+        let ancho = 0;
+        for (const e of entries) {
+            const w = anchoDe(e);
+            if (fila.length && ancho + w > usableW) { filas.push(fila); fila = []; ancho = 0; }
+            fila.push(e); ancho += w;
+        }
+        if (fila.length) filas.push(fila);
+
+        for (const f of filas) {
+            pageBreakIfNeeded(6);
+            let x = marginX;
+            for (const e of f) {
+                doc.setTextColor(100, 116, 139); doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+                doc.text(`${e.label}: `, x, y);
+                const lw = doc.getTextWidth(`${e.label}: `);
+                doc.setTextColor(30, 41, 59); doc.setFont('helvetica', 'bold');
+                doc.text(String(e.value), x + lw, y);
+                x += anchoDe(e);
+            }
+            y += 5;
+        }
     };
 
     // ─── Censo y movimientos ─────────────────────────────────────────
     sectionHeader('CENSO Y MOVIMIENTOS');
     kpiRow([
-        { label: 'En piso', value: d.censo.activeNow, sub: 'Residentes ACTIVE' },
-        { label: 'En licencia', value: d.censo.leaveNow, sub: 'TEMPORARY_LEAVE' },
-        { label: 'Admisiones', value: d.censo.admisiones, sub: 'Nuevos en período' },
-        { label: 'Egresos', value: d.censo.egresos, sub: 'Discharged' },
-        { label: 'Hospitalizaciones', value: d.censo.hospitalizaciones, sub: 'A hospital' },
+        /* DOS de estas cinco son la foto de HOY y tres son acumulados del
+           periodo. Antes solo una lo decia, y las cinco se leian en fila como
+           si fueran lo mismo. Ahora cada subtitulo dice cual es. */
+        { label: 'En el hogar', value: d.censo.activeNow, sub: 'Activos · hoy' },
+        { label: 'En licencia', value: d.censo.leaveNow, sub: 'Hospital o permiso · hoy' },
+        { label: 'Admisiones', value: d.censo.admisiones, sub: 'Nuevos en el período' },
+        { label: 'Egresos', value: d.censo.egresos, sub: 'Altas en el período' },
+        { label: 'Traslados a hospital', value: d.censo.hospitalizaciones, sub: 'En el período' },
     ]);
 
     // ─── Clínico ─────────────────────────────────────────────────────
@@ -214,19 +290,30 @@ export function generateExecReportPDF(d: ExecReportData): void {
         // administrados dividido entre administrados. Un 100% que no puede bajar
         // no informa, decora. Baja a la linea de detalle, con sus numeros
         // crudos al lado para que se pueda juzgar.
-        { label: 'Vitales tomados', value: d.clinico.vitals.total, sub: `${d.clinico.vitals.critical} críticos` },
-        { label: 'Rotaciones UPP', value: d.clinico.rotations, sub: 'Posturales' },
+        { label: 'Vitales tomados', value: d.clinico.vitals.total, sub: `${d.clinico.vitals.critical} para llamar · ${d.clinico.vitals.anomalos} alterados` },
+        /* «Rotaciones UPP 5212 / Posturales» eran dos cosas falsas: el 85% son
+           rondas sin lado escrito y solo el 19% son de residentes con UPP. */
+        { label: 'Cambios de decúbito', value: d.clinico.rotaciones.conDecubito, sub: `${d.clinico.rotaciones.rondas} rondas sin lado anotado` },
         { label: 'Observaciones HR', value:
             (d.clinico.incidents.OBSERVATION || 0) + (d.clinico.incidents.WARNING || 0) +
             (d.clinico.incidents.SUSPENSION || 0) + (d.clinico.incidents.TERMINATION || 0),
             sub: `OBS ${d.clinico.incidents.OBSERVATION || 0} · WARN ${d.clinico.incidents.WARNING || 0} · SUSP ${d.clinico.incidents.SUSPENSION || 0}` },
     ]);
+    /* LAS «SIN ADMINISTRAR» FALTABAN, Y SON LA CATEGORIA GRANDE.
+       Esta linea imprimia administrados, omitidos, rehusados, en espera y
+       pendientes — todo menos MISSED. Medido el 03-oct-2026 en Cupey, 30 dias:
+       5.040 administradas, 2 omitidas, 4 rehusadas, 1 en espera… y 189 MISSED
+       que no salian en ninguna parte. El director archivaba un papel que decia
+       que en un mes hubo DOS medicamentos sin dar. Hubo 191.
+       El porcentaje de cumplimiento si las contaba, asi que el numero grande
+       estaba bien; lo que faltaba era la linea que explica de donde sale. */
     detailLine([
         { label: 'Meds administrados', value: d.clinico.meds.administered },
-        { label: 'Omitidos', value: d.clinico.meds.omitted },
+        { label: 'Sin administrar', value: d.clinico.meds.missed },
+        { label: 'Omitidos con motivo', value: d.clinico.meds.omitted },
         { label: 'Rehusados', value: d.clinico.meds.refused },
         { label: 'En espera', value: d.clinico.meds.held },
-        { label: 'Pendientes', value: d.clinico.meds.pending },
+        { label: 'Aún sin vencer', value: d.clinico.meds.pending },
     ]);
 
     // ─── Operacional ─────────────────────────────────────────────────
@@ -234,9 +321,18 @@ export function generateExecReportPDF(d: ExecReportData): void {
     kpiRow([
         { label: 'Sesiones abiertas', value: d.operacional.sessionsOpened, sub: 'Clock-ins' },
         { label: 'Sesiones cerradas', value: d.operacional.sessionsClosed, sub: `${d.operacional.sessionsForcedClosed} forzadas` },
-        { label: 'Ausencias', value: d.operacional.absences, sub: 'Marcadas isAbsent' },
-        { label: 'Relevos firmados', value: d.operacional.handovers.completed, sub: `${d.operacional.handovers.completedPct}% completados` },
-        { label: 'Redistribuciones', value: d.operacional.overridesCreated, sub: 'Overrides creados' },
+        /* «Marcadas isAbsent» era el nombre de la columna, no del hecho. Y el
+           numero llevaba las de dos empleadas borradas: 4 impresas, 1 real. */
+        { label: 'Ausencias del equipo', value: d.operacional.absences, sub: 'Horarios publicados' },
+        /* Era «Relevos firmados / 100% completados»: firmado y completado son
+           el mismo acto, asi que el cociente no podia ser otro. Ahora el
+           denominador son los turnos, que si pueden quedarse sin relevo. */
+        { label: 'Turnos sin relevo', value: d.operacional.relevo.sinRelevo,
+          sub: `${d.operacional.relevo.cerradosPorSupervision} los cerró supervisión` },
+        /* 1.212 «overrides creados» eran 119 reorganizaciones: la fila es por
+           residente movido, y 764 de las 1.212 no cambiaban de grupo. */
+        { label: 'Redistribuciones', value: d.operacional.redistribuciones.actos,
+          sub: `${d.operacional.redistribuciones.turnosAfectados} turnos · ${d.operacional.redistribuciones.residentesMovidos} movidos` },
     ]);
 
     // ─── Personal ────────────────────────────────────────────────────
@@ -247,7 +343,9 @@ export function generateExecReportPDF(d: ExecReportData): void {
         // mismo número apagado del resto del informe, promediado — o sea el
         // promedio de una cifra invertida. Se sustituye por el cierre de turno,
         // que es un hecho y ya se calcula.
-        { label: 'Turnos cerrados con el relevo', value: `${d.operacional.handovers.completedPct}%`, sub: `${d.operacional.handovers.completed} de ${d.operacional.handovers.total}` },
+        { label: 'Turnos cerrados con el relevo',
+          value: d.operacional.relevo.pct == null ? '—' : `${d.operacional.relevo.pct}%`,
+          sub: `${d.operacional.relevo.conRelevo} de ${d.operacional.relevo.turnos}` },
         // La formacion no estaba en ningun resumen. Un hogar cuyo personal se
         // forma es distinto de uno que no, y ese dato no salia por ninguna
         // parte — el complianceScore no lo refleja: las dos personas con score
@@ -273,7 +371,12 @@ export function generateExecReportPDF(d: ExecReportData): void {
             // La tasa de respuesta va SIEMPRE al lado del promedio. Un 4.8 de
             // dos respuestas sobre diecinueve no dice nada del hogar; dice que
             // diecisiete no contestaron, y esa es la noticia.
-            sub: `${d.familias.encuestasRespondidas}/${d.familias.encuestasEnviadas} respondieron`,
+            // Y el TRIMESTRE va en el mismo renglon. La encuesta tiene su
+            // propio reloj: en un informe rotulado «ultimos 30 dias», o peor
+            // en el de un dia, este promedio no es del periodo que se esta
+            // leyendo. Al tercer dia de octubre, es de un trimestre de tres
+            // dias. Decirlo cuesta siete caracteres.
+            sub: `${d.familias.encuestasRespondidas}/${d.familias.encuestasEnviadas} respondieron · ${d.familias.trimestreEncuesta}`,
         },
         {
             label: 'Familias informadas',

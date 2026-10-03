@@ -170,6 +170,8 @@ Solo hacer commit si TSC_EXIT: 0 y sin errores en archivos de producción (tests
 10. **Filtrar por una fecha que está nula justo en las filas que importan** — ver abajo.
 11. **Escribir la lista de colores en el sitio donde se usa** — ver abajo.
 12. **Un dato de la base escrito como constante** — ver abajo.
+13. **Un rótulo que dice más de lo que el número cuenta** — ver abajo.
+14. **Dos ficheros unidos por un `any`** — ver abajo.
 
 ---
 
@@ -458,6 +460,104 @@ Debe decir **0 de 130 secciones**. Comprueba también "siempre la más corta" y
 "siempre la misma letra". Y ojo con pasarse: 0% de claves largas es una
 sobrecorrección —lo repartido de verdad es 25%— aunque en la práctica no abra
 nada.
+
+---
+
+## 🏷️ El rótulo dice más de lo que el número cuenta
+
+*03-oct-2026, verificando el resumen ejecutivo del director.* De veintiocho
+incongruencias, **cinco eran la misma**: el cálculo contaba una cosa y la
+palabra de encima prometía otra. Nadie mintió; el rótulo se escribió primero y
+el número se buscó después.
+
+| decía | contaba de verdad |
+|---|---|
+| «Rotaciones UPP 5.212 · Posturales» | 85% son el botón de Rondas **sin lado escrito**, y solo el 19% de residentes con UPP. Cambios de decúbito reales: **763** |
+| «Redistribuciones 1.212 · Overrides creados» | filas, una por residente movido. Reorganizaciones: **117**. Y 764 de las 1.212 iban de un color **al mismo color** |
+| «Ausencias 4 · Marcadas isAbsent» | **3 de 4** eran de dos empleadas borradas. Reales: **1** |
+| «Relevos firmados · 100% completados» | firmado y completado se escriben en el mismo acto: 242/242. Contra turnos: **92%**, y de los 21 sin relevo **16 los cerró supervisión** |
+| «Satisfacción 4.6» en un informe de 30 días | la encuesta es **trimestral**. El 3-oct, un trimestre de tres días |
+
+**La prueba, y cuesta un minuto:** lee el rótulo en voz alta como si no
+conocieras el código, y pregúntate qué entendería alguien que solo ve esa
+palabra y ese número. «5.212 rotaciones UPP» se entiende como cinco mil cambios
+posturales a residentes con úlceras. Si lo que entiende no es lo que el `where`
+cuenta, el rótulo está mal — y arreglar el rótulo suele ser más honesto que
+retorcer la consulta para que cuadre con él.
+
+**Y el subtítulo `sub:` no es decoración: es donde cabe lo que falta.** «21
+turnos sin relevo / 16 los cerró supervisión» es una conversación distinta de
+«21 turnos sin relevo» a secas.
+
+### El caso aparte: el filtro escrito a mano que ya existía en un sitio
+
+«Vitales críticos» comparaba `spo2 < 94`, `systolic > 160`, `diastolic > 100`.
+Esa es la **cuarta** copia de los umbrales; `vitals-thresholds.ts` existe desde
+el 05-sep precisamente porque había dos copias divergentes.
+
+Lo que la hace instructiva es que **se equivocaba en los dos sentidos a la vez**:
+
+- `>160`, `>100` y `<94` son las bandas **ANOTAR** de la enfermera, no las de
+  llamar (`>180`, `>110`, `<90`). Inflaba: **92 de los 162** no eran críticos.
+- Y no miraba **pulso ni temperatura**, dos de los cuatro signos que pueden
+  exigir una llamada. Perdía **134**.
+
+162 impresos contra 204 reales. Los dos errores se tapaban y el total parecía
+razonable. **Un número que sale de dos equivocaciones de signo contrario es el
+que más tarda en detectarse** — y la única forma de verlo fue comparar contra la
+fuente única, no mirar el número.
+
+---
+
+## 🔗 Dos ficheros unidos por un `any`
+
+*03-oct-2026.* Se renombraron tres campos de la respuesta de
+`/api/corporate/exec-report`. `npx tsc --noEmit` pasó **limpio** con el PDF
+leyendo `undefined` en los tres.
+
+El único puente entre el route y `exec-report-pdf.ts` era esta línea de
+`page.tsx`:
+
+```ts
+const data = await res.json();      // any
+generateExecReportPDF(data);        // any entra donde se espera ExecReportData
+```
+
+`await res.json()` devuelve `any`, y un `any` no comprueba nada. Los dos
+ficheros definían la misma forma por separado y nadie los casaba.
+
+**El arreglo son dos líneas**: `import type { ExecReportData }` en el route,
+declarar el objeto `const payload: ExecReportData = {...}`, y tipar el `json()`
+en el cliente. Comprobado rompiendo un campo a propósito: ahora falla la
+compilación en el sitio del cambio.
+
+**Dónde buscar esto:** cualquier `await res.json()` que alimente una función
+tipada. El tipo existe, solo que nadie se lo dio.
+
+---
+
+## 📄 Un PDF se comprueba abriéndolo
+
+*03-oct-2026.* Con los tipos cuadrando y el JSON del endpoint correcto, el PDF
+salía con tres defectos:
+
+- `Meds administrados: 7399Sin administrar: 273` — pegados. `detailLine`
+  repartía `usableW / n` sin comprobar que cupiera, y al añadir una sexta
+  columna se solaparon.
+- `Período: 03 sept 2026 !' 03 oct 2026` — **`→` no existe en las helvetica que
+  jsPDF trae de serie** (son WinAnsi). Sale basura, en la primera línea.
+- Tres subtítulos cortados a media palabra.
+
+Ninguno aparece en el JSON, ni en los tipos, ni en la base.
+
+```bash
+npx tsx scripts/ver-resumen-ejecutivo.ts payload.json salida.pdf
+qlmanage -t -s 1700 -o . salida.pdf     # a PNG, para mirarlo
+```
+
+El script documenta el truco que no es obvio: `doc.save()` no se parchea en el
+prototype, porque jsPDF define sus métodos en `jsPDF.API` y los copia al
+construir. Hay que parchear **los dos**.
 
 ---
 
