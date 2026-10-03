@@ -785,6 +785,45 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                         <HeartCrack className="w-5 h-5" /> Registrar Fallecimiento
                                     </button>
                                 )}
+                                {/*
+                                    SE PUEDE EGRESAR SIN VOLVER AL PISO.
+                                    ─────────────────────────────────────
+                                    Esta rama ofrecía solo «Retornar» y «Registrar
+                                    Fallecimiento»: desde el hospital se podía cerrar el
+                                    expediente por fallecimiento pero NO por egreso. El
+                                    botón de «Baja Definitiva» vivía dentro del bloque
+                                    `status === 'ACTIVE'` de arriba y es el único
+                                    disparador del modal.
+
+                                    Asi que para dar de alta a alguien que estaba en el
+                                    hospital habia que marcarle primero un retorno al
+                                    piso — y `RETURN` pone `leaveType` y `leaveDate` a
+                                    null, o sea que **el retorno falso borra la
+                                    hospitalizacion**.
+
+                                    Paso de verdad: Dwight Santiago Perez salio el
+                                    26-sep-2026 («disfagia y sin respuesta») y nunca
+                                    volvio. El 01-oct se fue del hospital directo a casa
+                                    de su esposa, a hospicio. Para poder escribir ese
+                                    hecho verdadero hubo que escribir uno falso, y hoy
+                                    su ficha tiene los dos campos en null y tres
+                                    traslados que ya no constan como estado.
+
+                                    Irse a casa, a otra institucion o a hospicio desde el
+                                    hospital es un alta normal. El servidor nunca lo
+                                    impidio —`case "DISCHARGED"` acepta cualquier estado
+                                    de partida—; lo impedia este render.
+
+                                    `leaveType` NO se limpia al egresar, y es a proposito:
+                                    deja escrito que la salida fue desde el hospital, que
+                                    es justo lo que se perdia.
+                                */}
+                                {puedeDarDeBaja && (
+                                    <button onClick={() => { setTipoBaja('DISCHARGED'); setActionReason(''); setShowDischargeModal(true); }} className="flex items-center justify-center gap-2 bg-rose-500 hover:bg-rose-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
+                                        <ArrowRightOnRectangleIcon className="w-5 h-5" /> Baja Definitiva
+                                        <span className="text-[10px] font-medium opacity-80">· sin retornar</span>
+                                    </button>
+                                )}
                             </>
                         )}
                         {(patientData?.status === 'DISCHARGED' || patientData?.status === 'DECEASED') && (
