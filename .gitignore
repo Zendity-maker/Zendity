@@ -60,6 +60,11 @@ playwright-report/
 # nada sobre produccion, que es justo lo contrario de para lo que se comprueba.
 # Ya habia una clase viva asi (`ring-rose-500/20`, aportada por una copia vieja).
 .claude/worktrees/
+# Ojo: esta linea ya estaba, y aun asi `distracted-chaum` y `sad-wiles` salian
+# en cada `git status` — .gitignore NO desversiona lo que YA esta versionado.
+# Estaban dentro como gitlinks (modo 160000) apuntando a un commit que no vive
+# en este repo, y uno de los dos ni existia en disco. Se sacaron del indice el
+# 03-oct-2026 con `git rm --cached`, que es el paso que faltaba.
 
 scripts/*
 # Los guards que protegen produccion SI se versionan. `scripts/*` ignora todo lo

@@ -11,8 +11,16 @@ export const maxDuration = 300;
 
 /**
  * CRON — Resumen familiar diario ("El día de…")
- * Programado a las 23:00 UTC (= 7:00 PM AST) — después de cena y actividades
- * vespertinas, antes de hora de dormir familiar. Ver vercel.json.
+ *
+ * ⏸️ NO ESTÁ PROGRAMADO. Está PAUSADO a propósito — ver el bloque de abajo.
+ *
+ * Esta cabecera decía «Programado a las 23:00 UTC (= 7:00 PM AST) … Ver
+ * vercel.json», diez líneas antes del gate que explica que se quitó de
+ * vercel.json justamente por eso. Las dos cosas estaban escritas en el mismo
+ * fichero y se contradecían; la de arriba es la que se lee primero.
+ *
+ * Cuando se reactive, el horario previsto es 23:00 UTC = 7:00 PM AST: después
+ * de la cena y las actividades de la tarde, antes de la hora de dormir.
  *
  * Para cada residente ACTIVO con al menos un familiar REGISTRADO:
  *   1. Reúne SOLO actividad de estilo de vida del día clínico
