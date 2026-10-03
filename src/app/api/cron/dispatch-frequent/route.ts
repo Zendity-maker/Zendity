@@ -94,8 +94,8 @@ export async function GET(req: Request) {
     // Dosis PENDING cuya hora ya pasó → MISSED. Sin este barrido, materializar
     // solo acumularia PENDING y el cumplimiento seguiria sin significar nada.
     results.push(await runTask('emar-vencidas', async () => {
-        const n = await marcarDosisVencidas();
-        return NextResponse.json({ success: true, marcadas: n });
+        const { falladas, anuladas } = await marcarDosisVencidas();
+        return NextResponse.json({ success: true, marcadas: falladas, anuladas });
     }, req));
     results.push(await runTask('shift-redistribute', shiftRedistributeGET, req));
     results.push(await runTask('expire-cleaning-requests', expireCleaningGET, req));

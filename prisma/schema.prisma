@@ -1419,11 +1419,23 @@ enum MedStatus {
   OMITTED
   HELD
 
-  /// ANULADA: esta fila registra un acto que YA esta registrado en otra.
+  /// ANULADA: esta fila no corresponde a un acto que debiera haber ocurrido.
   ///
   /// No es un estado clinico — no dice nada sobre el residente. Dice que la
-  /// fila sobra: la misma dosis se escribio dos veces por dos caminos
-  /// distintos.
+  /// fila sobra. Hay DOS motivos por los que sobra:
+  ///
+  ///   1. **Esta duplicada**: la misma dosis se escribio dos veces por dos
+  ///      caminos distintos. Es el motivo original (21-sep-2026).
+  ///   2. **El residente ya no estaba** (03-oct-2026): se le dio de alta o
+  ///      fallecio, y el barrido de vencidas seguia convirtiendo en MISSED las
+  ///      dosis que el cron le habia materializado esa manana. Medido ese dia:
+  ///      109 de las 273 MISSED de toda la historia —el 40%— eran de residentes
+  ///      que ya no estaban. Nadie fallo: el sistema acuso a alguien que no
+  ///      estaba aqui.
+  ///
+  /// Los dos motivos comparten lo que importa: la fila se conserva —borrar un
+  /// registro clinico no es una opcion— y no describe ni un acierto ni un
+  /// fallo, asi que no puede contar en ninguna de las dos direcciones.
   ///
   /// EXISTE PORQUE BORRAR NO ES UNA OPCION. El 21-sep-2026 seis dosis
   /// quedaron contadas dos veces (Jose Ramon Garcia x5, Loida Correa x1):

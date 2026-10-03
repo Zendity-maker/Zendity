@@ -279,6 +279,23 @@ ausencias no son hechos. `shift-coverage`, `cuidadora-a-cargo` y
 `uncovered-colors` ya lo filtran — si escribes una consulta nueva contra
 `ScheduledShift` y no lo lleva, eres la divergencia.
 
+**Y tiene una versión de ESCRITURA, que es peor.** *03-oct-2026.* El cron que
+materializa las dosis del día filtra `status: 'ACTIVE'`; el barrido que las
+vence, `marcarDosisVencidas`, no miraba al residente: convertía en MISSED por la
+hora y nada más. Esa asimetría entre el escritor y el barrido **fabricaba
+omisiones**: de las 273 MISSED de toda la historia, **109 eran de residentes
+dados de alta o fallecidos**, el 40 %, y 84 de ellas estaban pautadas DESPUÉS de
+la salida. Carlos I. Aponte falleció el 10-jun y tenía 20 dosis fechadas
+después, creadas en septiembre.
+
+Una consulta que lista de más se ve. Una que ESCRIBE de más se queda escrita en
+un expediente clínico. Al tocar un cron que escribe sobre personas, la pregunta
+no es solo «¿filtra?» sino **«¿filtra lo mismo que el que escribió la fila?»**.
+
+Las 84 se pasaron a `VOIDED` con rastro en `SystemAuditLog`; las 25 restantes se
+quedaron MISSED porque el residente SÍ estaba cuando tocaba la dosis — anularlas
+habría sido borrar una omisión real para que un número saliera mejor.
+
 **Pero no es un filtro que se ponga en todas partes.** Una búsqueda de UN
 expediente por id NO debe filtrar: hay que poder abrir el de alguien que
 falleció. La regla es por la forma de la consulta:
@@ -286,8 +303,11 @@ falleció. La regla es por la forma de la consulta:
 - **Lista o conteo** para trabajo pendiente, una pantalla o una métrica → filtra
 - **Un registro por id**, historial o auditoría → no filtra
 
-Al 10-sep-2026 quedan **83 consultas** unidas a `patient` por sede sin `status`
-que piden revisión una por una. No se tocan en bloque.
+Las consultas unidas a `patient` por sede sin `status` **ya no se cuentan a
+mano**: `npx tsx scripts/auditar-patient-status.ts` las mide. El 03-oct-2026
+eran 89, se arreglaron 15 y quedan **74** — y esas 74 no son deuda, son las que
+DEBEN quedarse sin filtrar (historiales, auditorías, informes de un periodo ya
+cerrado). El detector señala y no juzga; la decisión sigue siendo una por una.
 
 ---
 

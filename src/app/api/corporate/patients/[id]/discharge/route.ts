@@ -144,13 +144,13 @@ export async function POST(
          */
         const cierraElExpediente = action === 'DISCHARGED' || action === 'DECEASED';
 
-        const { updatedPatient, recetasCerradas } = await prisma.$transaction(async (tx) => {
+        const { updatedPatient, recetasCerradas, dosisAnuladas } = await prisma.$transaction(async (tx) => {
             const paciente = await tx.patient.update({
                 where: { id: patientId },
                 data: updateData,
             });
 
-            if (!cierraElExpediente) return { updatedPatient: paciente, recetasCerradas: 0 };
+            if (!cierraElExpediente) return { updatedPatient: paciente, recetasCerradas: 0, dosisAnuladas: 0 };
 
             const vivas = await tx.patientMedication.findMany({
                 where: {
@@ -162,7 +162,7 @@ export async function POST(
                 },
                 select: { id: true },
             });
-            if (vivas.length === 0) return { updatedPatient: paciente, recetasCerradas: 0 };
+            if (vivas.length === 0) return { updatedPatient: paciente, recetasCerradas: 0, dosisAnuladas: 0 };
 
             await tx.patientMedication.updateMany({
                 where: { id: { in: vivas.map(v => v.id) } },
@@ -184,11 +184,38 @@ export async function POST(
                 })),
             });
 
-            return { updatedPatient: paciente, recetasCerradas: vivas.length };
+            /**
+             * Y LAS DOSIS QUE EL CRON YA HABIA CREADO ESA MANANA.
+             *
+             * Descontinuar la receta impide las dosis de MANANA, pero no toca
+             * las filas que ya existen de HOY: el cron de las 4 AM las
+             * materializo cuando el residente todavia estaba. Si se quedan
+             * PENDING, el barrido las convierte en omisiones media hora despues
+             * de cerrar su turno, y la pantalla de direccion las pinta en
+             * negrita rosa al lado de la linea del alta de esa misma persona.
+             *
+             * El barrido ya no las acusa (`marcarDosisVencidas` las manda a
+             * VOIDED), pero esperar a que venzan deja entre una y ocho horas en
+             * las que la dosis consta como pendiente de dar a alguien que ya no
+             * esta. Se cierra aqui, en la misma transaccion que la receta, que
+             * es donde se sabe.
+             *
+             * Solo las PENDING: una dosis ya firmada esta manana SE DIO, y eso
+             * no se toca. Esto no reescribe historia, cancela futuro.
+             */
+            const sinDar = await tx.medicationAdministration.updateMany({
+                where: {
+                    status: 'PENDING',
+                    patientMedication: { patientId },
+                },
+                data: { status: 'VOIDED' },
+            });
+
+            return { updatedPatient: paciente, recetasCerradas: vivas.length, dosisAnuladas: sinDar.count };
         }, { timeout: 20000 });
 
-        if (recetasCerradas > 0) {
-            console.log(`[discharge] ${recetasCerradas} recetas descontinuadas al cerrar ${patientId} (${action})`);
+        if (recetasCerradas > 0 || dosisAnuladas > 0) {
+            console.log(`[discharge] ${recetasCerradas} recetas descontinuadas y ${dosisAnuladas} dosis del dia anuladas al cerrar ${patientId} (${action})`);
         }
 
         /**

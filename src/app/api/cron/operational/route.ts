@@ -87,9 +87,14 @@ export async function GET(request: Request) {
          */
         let dosisVencidas = 0;
         try {
-            dosisVencidas = await marcarDosisVencidas();
-            if (dosisVencidas > 0) {
-                console.log(`[cron/operational] ${dosisVencidas} dosis marcadas como no administradas`);
+            // `falladas` son las que de verdad quedaron sin dar; `anuladas`, las
+            // de residentes que ya no estaban y que antes se contaban como
+            // fallos. Se nombran por separado para que el conteo del cron no
+            // vuelva a mezclar las dos cosas.
+            const r = await marcarDosisVencidas();
+            dosisVencidas = r.falladas;
+            if (r.falladas > 0 || r.anuladas > 0) {
+                console.log(`[cron/operational] ${r.falladas} dosis sin administrar · ${r.anuladas} anuladas (residente ya no está)`);
             }
         } catch (e) {
             // No tumba el resto del cron, pero se nombra. El fallo mudo es lo

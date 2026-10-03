@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { astDateTime, parseTimeOfDay, todayStartAST } from '@/lib/dates';
 import { MedStatus, MedActiveStatus } from '@prisma/client';
+import { notifyUser } from '@/lib/notifications';
+import { logWarn } from '@/lib/logger';
 
 /**
  * Materialización de las dosis del día y barrido de las vencidas.
@@ -380,25 +382,180 @@ export async function materializarDosisDelDia(): Promise<{
  * /api/cron/operational cada hora. Con el de 15 minutos, el cierre de un turno
  * se detecta como mucho un cuarto de hora tarde.
  */
-export async function marcarDosisVencidas(): Promise<number> {
+export async function marcarDosisVencidas(): Promise<{ falladas: number; anuladas: number }> {
     const ahora = Date.now();
 
     const pendientes = await prisma.medicationAdministration.findMany({
         where: { status: MedStatus.PENDING, scheduledTime: { not: null } },
-        select: { id: true, scheduledTime: true },
+        /**
+         * El estado del residente viaja ahora. Sin el, este barrido acusaba a
+         * quien ya no estaba — ver abajo.
+         */
+        select: {
+            id: true,
+            scheduledTime: true,
+            patientMedication: { select: { patient: { select: { status: true } } } },
+        },
         orderBy: { scheduledTime: 'asc' },
         take: 5000,
     });
 
-    const vencidas = pendientes
-        .filter(d => ahora >= finDelTurnoDe(d.scheduledTime!).getTime() + GRACIA_RELEVO_MS)
-        .map(d => d.id);
+    const vencidas = pendientes.filter(
+        d => ahora >= finDelTurnoDe(d.scheduledTime!).getTime() + GRACIA_RELEVO_MS,
+    );
+    if (vencidas.length === 0) return { falladas: 0, anuladas: 0 };
 
-    if (vencidas.length === 0) return 0;
+    /**
+     * ═══ A QUIEN YA NO ESTA NO SE LE ACUSA DE NADA ═══
+     *
+     * El cron que MATERIALIZA las dosis solo las crea para residentes ACTIVE
+     * (`materializarDosisDelDia`, mas arriba). Este barrido no miraba al
+     * residente: convertia en MISSED por la hora y nada mas. La asimetria
+     * fabricaba omisiones solas.
+     *
+     * El dia que alguien se va al hospital o fallece a media jornada, las dosis
+     * que el cron ya le habia creado esa manana vencen igual, y la pantalla de
+     * direccion las pintaba en negrita rosa —«N medicamentos sin administrar»—
+     * al lado de la linea «Un residente al hospital» de esa misma persona.
+     *
+     * Medido el 03-oct-2026 en produccion: de las 273 MISSED de TODA la
+     * historia, **109 eran de residentes DISCHARGED o DECEASED**. El 40%.
+     *
+     * Van a VOIDED y no a MISSED porque no describen un fallo de nadie: la fila
+     * sobra. VOIDED ya existia para las duplicadas y tiene justo la propiedad
+     * que hace falta —no entra en el numerador ni en el denominador de ninguna
+     * metrica, porque todas usan listas explicitas—. Ver el enum en el schema.
+     *
+     * TEMPORARY_LEAVE NO entra aqui a proposito. Ahi caben una dialisis de
+     * cuatro horas y una visita con la familia: el residente vuelve, y que una
+     * dosis no se diera mientras estaba fuera SI es algo que el hogar tiene que
+     * saber. Solo se anula a quien ya no vuelve.
+     */
+    const seFue = (d: typeof vencidas[number]) => {
+        const st = d.patientMedication?.patient?.status;
+        return st === 'DISCHARGED' || st === 'DECEASED';
+    };
 
-    const r = await prisma.medicationAdministration.updateMany({
-        where: { id: { in: vencidas } },
-        data: { status: MedStatus.MISSED },
-    });
-    return r.count;
+    const aAnular = vencidas.filter(seFue).map(d => d.id);
+    const aFallar = vencidas.filter(d => !seFue(d)).map(d => d.id);
+
+    const [anuladas, falladas] = await Promise.all([
+        aAnular.length
+            ? prisma.medicationAdministration.updateMany({
+                where: { id: { in: aAnular } }, data: { status: MedStatus.VOIDED },
+            })
+            : Promise.resolve({ count: 0 }),
+        aFallar.length
+            ? prisma.medicationAdministration.updateMany({
+                where: { id: { in: aFallar } }, data: { status: MedStatus.MISSED },
+            })
+            : Promise.resolve({ count: 0 }),
+    ]);
+
+    // Y se le dice a quien acaba de cerrar turno. Ver abajo.
+    if (aFallar.length > 0) await avisarDeLoQueQuedoSinFirmar(aFallar);
+
+    return { falladas: falladas.count, anuladas: anuladas.count };
+}
+
+/**
+ * «ESTAS QUEDARON SIN FIRMAR. SI LAS DISTE, FIRMALAS.»
+ *
+ * ═══ POR QUE HACIA FALTA ═══
+ *
+ * Andres, 03-oct-2026: «¿Zendi le pregunta si los medicamentos fueron
+ * administrados antes de declararlos missing?».
+ *
+ * No. El barrido era un `updateMany` mudo. La cuidadora NO se enteraba de que
+ * una dosis suya acababa de quedar como no administrada, y habia una asimetria
+ * sin defensa: si ella marca una dosis como omitida A MANO, el sistema notifica
+ * a supervision y enfermeria con un EMAR_ALERT (`/api/care/meds`). Si la marca
+ * el cron, no se entera NADIE — ni ella, ni enfermeria, ni supervision. El caso
+ * que mas importa era justo el que iba en silencio.
+ *
+ * ═══ POR QUE DESPUES Y NO ANTES ═══
+ *
+ * Preguntar ANTES de marcar seria un interrogatorio a destiempo: la dosis vence
+ * media hora despues de cerrar el turno, cuando ella ya se fue a su casa. Y
+ * dejar la fila sin resolver esperando respuesta devolveria el problema que el
+ * barrido vino a arreglar — el cumplimiento sin significado.
+ *
+ * Asi que se marca, y se avisa: la via para corregirlo ya existe —la tarjeta
+ * ensena «Ya consta sin dar» y firmar la devuelve a ADMINISTERED— pero nadie
+ * sabia que habia algo que corregir.
+ *
+ * ═══ EL TEXTO NO ACUSA ═══
+ *
+ * No dice «fallaste N dosis». Dice que quedaron sin firmar y que si se dieron,
+ * se firmen. Es la regla de [[veracidad-no-puntuacion]]: ante un problema de
+ * REGISTRO, hacer el dato veraz, no crear una metrica que castigue la conducta.
+ * Una cuidadora a la que el sistema acusa aprende a no registrar.
+ */
+async function avisarDeLoQueQuedoSinFirmar(ids: string[]): Promise<void> {
+    try {
+        const dosis = await prisma.medicationAdministration.findMany({
+            where: { id: { in: ids } },
+            select: {
+                scheduledTime: true,
+                patientMedication: {
+                    select: { patient: { select: { headquartersId: true, colorGroup: true } } },
+                },
+            },
+        });
+
+        /**
+         * A quien se le dice: a quien tenia turno ABIERTO cuando vencio la
+         * dosis. No se busca por color ni por pauta a proposito — un relevo, una
+         * sustituta o una redistribucion cambian quien cubria a quien, y errar
+         * el destinatario convierte un aviso util en una acusacion a la persona
+         * equivocada. Quien estaba en el piso lo sabe; quien no, ignora el aviso.
+         */
+        const porSede = new Map<string, { cuantas: number; desde: Date; hasta: Date }>();
+        for (const d of dosis) {
+            const hq = d.patientMedication?.patient?.headquartersId;
+            if (!hq || !d.scheduledTime) continue;
+            const fin = finDelTurnoDe(d.scheduledTime);
+            const prev = porSede.get(hq);
+            porSede.set(hq, {
+                cuantas: (prev?.cuantas ?? 0) + 1,
+                desde: prev && prev.desde < d.scheduledTime ? prev.desde : d.scheduledTime,
+                hasta: prev && prev.hasta > fin ? prev.hasta : fin,
+            });
+        }
+
+        for (const [hqId, info] of porSede) {
+            const enPiso = await prisma.shiftSession.findMany({
+                where: {
+                    headquartersId: hqId,
+                    startTime: { lte: info.hasta },
+                    OR: [{ actualEndTime: null }, { actualEndTime: { gte: info.desde } }],
+                },
+                select: { caregiverId: true },
+                distinct: ['caregiverId'],
+                take: 20,
+            });
+
+            const cuantas = info.cuantas;
+            const mensaje = cuantas === 1
+                ? 'Una dosis del turno que acaba de cerrar quedó sin firmar. Si se dio, fírmala en la tableta y deja de contar como fallada.'
+                : `${cuantas} dosis del turno que acaba de cerrar quedaron sin firmar. Si se dieron, fírmalas en la tableta y dejan de contar como falladas.`;
+
+            for (const s of enPiso) {
+                await notifyUser(s.caregiverId, {
+                    type: 'EMAR_ALERT',
+                    title: 'Dosis sin firmar',
+                    message: mensaje,
+                    link: '/care',
+                });
+            }
+        }
+    } catch (e) {
+        /**
+         * Un fallo avisando NO puede tumbar el barrido: marcar las dosis es lo
+         * que sostiene que el cumplimiento signifique algo, y el aviso es la
+         * mejora de encima. Se nombra, eso si — el fallo mudo es lo que
+         * escondio este modulo cinco meses.
+         */
+        logWarn('emar.aviso_dosis_sin_firmar', e);
+    }
 }
