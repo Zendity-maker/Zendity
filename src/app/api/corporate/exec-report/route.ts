@@ -194,8 +194,32 @@ export async function GET(req: Request) {
              * primeros viven como estado— y eso es un sprint, no una linea.
              *
              * Mientras tanto se cuenta la fuente que SI es append-only: las
-             * notas de traslado que escribe /api/care/hospitalize. No es el
-             * numero de personas, es el de traslados, y el rotulo lo dice.
+             * notas que escribe /api/care/hospitalize. No es el numero de
+             * personas, es el de veces, y el rotulo lo dice.
+             *
+             * ─── Y EL ROTULO TAMPOCO PUEDE DECIR «HOSPITAL» ───
+             *
+             * Clasificadas a mano las 47 notas del historico (03-oct-2026), el
+             * boton de «traslado hospitalario de emergencia» NO se usa solo para
+             * eso:
+             *
+             *     35  traslado al hospital, aparentemente de verdad
+             *      5  procedimiento — dialisis, cambio de cateter, terapias
+             *      3  caida
+             *      2  FALLECIMIENTO  («Fallecio», «Fallecio pasiente»)
+             *      2  cita programada («Cita de veterano») — no es emergencia
+             *
+             * Doce de 47 no son un traslado al hospital, y dos son justo lo
+             * contrario de una salida temporal. Eso no es que el piso lo use
+             * mal: es que **es el unico boton que hay** para registrar que un
+             * residente salio del edificio. Comprobado: las 47 notas que
+             * mencionan «hospital» en todo el historico de DailyLog son
+             * exactamente estas 47 — no hay ni una escrita por fuera.
+             *
+             * Asi que el rotulo dice «Salidas registradas» y el subtitulo nombra
+             * las tres cosas que entran. Clasificar por regex sobre texto libre
+             * escrito por el piso seria cambiar un rotulo falso por un numero
+             * falso, que es peor.
              */
             prisma.dailyLog.count({
                 where: {

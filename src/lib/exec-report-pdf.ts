@@ -279,7 +279,10 @@ export function generateExecReportPDF(d: ExecReportData): void {
         { label: 'En licencia', value: d.censo.leaveNow, sub: 'Hospital o permiso · hoy' },
         { label: 'Admisiones', value: d.censo.admisiones, sub: 'Nuevos en el período' },
         { label: 'Egresos', value: d.censo.egresos, sub: 'Altas en el período' },
-        { label: 'Traslados a hospital', value: d.censo.hospitalizaciones, sub: 'En el período' },
+        /* «Traslados a hospital» prometia mas de lo que el numero cuenta: de las 47
+           notas del historico, 2 son fallecimientos y 2 citas programadas. Ver la
+           nota del route. */
+        { label: 'Salidas registradas', value: d.censo.hospitalizaciones, sub: 'Hospital, citas, diálisis' },
     ]);
 
     // ─── Clínico ─────────────────────────────────────────────────────
