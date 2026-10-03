@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import {  AppointmentStatus } from '@prisma/client';
+import { ENROLLED_PATIENT_STATUSES } from '@/lib/billable-residents';
 
 
 
@@ -17,7 +18,9 @@ export async function GET(request: Request) {
 
         const appointments = await prisma.conciergeAppointment.findMany({
             where: {
-                patient: { headquartersId: hqId }
+                // Asignar especialista ESCRIBE a la familia («X estara a cargo
+                // de la sesion el…»). A la de un residente que ya no esta, no.
+                patient: { headquartersId: hqId, status: { in: ENROLLED_PATIENT_STATUSES } }
             },
             include: {
                 patient: { select: { name: true, roomNumber: true } },

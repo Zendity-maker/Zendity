@@ -114,7 +114,10 @@ export async function estadoOperativo(hqId: string): Promise<EstadoOperativo> {
         }),
         prisma.dailyLog.count({
             where: {
-                patient: { headquartersId: hqId },
+                // El propio reporte de un fallecimiento es una alerta clinica
+                // sin resolver: sin este filtro, la tarjeta «Corriendo ahora» se
+                // pone roja durante 24 h por la muerte que acaba de registrarse.
+                patient: { headquartersId: hqId, status: 'ACTIVE' },
                 isClinicalAlert: true, isResolved: false,
                 createdAt: { gte: hace24h },
             },

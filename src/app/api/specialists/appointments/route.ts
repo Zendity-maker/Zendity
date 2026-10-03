@@ -20,7 +20,10 @@ export async function GET(req: Request) {
         // Aquí extraeremos las citas asignadas al especialista conectado o no asignadas de su HQs si es nuevo request (simplificado para MVP: ver todas las citas pendientes de su provider type en el HQ)
         const appointments = await prisma.conciergeAppointment.findMany({
             where: {
-                patient: { headquartersId },
+                // El especialista lee nombre y habitacion y va a buscar al
+                // residente al cuarto. Una cita de alguien que ya no esta no se
+                // cierra sola: nada la caduca.
+                patient: { headquartersId, status: 'ACTIVE' },
                 service: { providerType: role } // THERAPIST ve terapias, BEAUTY ve belleza
             },
             include: {

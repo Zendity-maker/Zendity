@@ -22,7 +22,10 @@ export default async function FallRiskDashboard() {
 
     // Traer a todos los residentes y su última evaluación de caída
     const patients = await prisma.patient.findMany({
-        where: { headquartersId: hqId },
+        // Los tres cuadrantes piden EVALUAR el riesgo de caida. A quien ya no
+        // esta no se le evalua nada: medido el 03-oct-2026, 23 residentes
+        // DISCHARGED/DECEASED caian en «Pendientes de Evaluacion Critica».
+        where: { headquartersId: hqId, status: 'ACTIVE' },
         include: {
             fallRiskAssessments: {
                 orderBy: { evaluatedAt: 'desc' },

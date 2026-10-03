@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { ENROLLED_PATIENT_STATUSES } from '@/lib/billable-residents';
 
 /**
  * GET /api/corporate/intake/pending-count
@@ -30,6 +31,10 @@ export async function GET() {
                 status: 'PENDIENTE_REVISION',
                 patient: {
                     headquartersId: hqId,
+                    // Un badge que no puede llegar a cero deja de leerse, y con
+                    // el se pierde el aviso de los ingresos de verdad. Medido el
+                    // 03-oct-2026: 22 intakes de residentes que ya no estan.
+                    status: { in: ENROLLED_PATIENT_STATUSES },
                 },
             },
         });

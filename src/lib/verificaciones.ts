@@ -31,6 +31,7 @@ import { prisma } from '@/lib/prisma';
 import { llegaAlPiso } from '@/lib/receta';
 // Alias: el chequeo de este archivo ya se llama `alergiasSinDocumentar`.
 import { alergiasSinDocumentar as sinDatoDeAlergia } from '@/lib/alergias';
+import { ENROLLED_PATIENT_STATUSES } from '@/lib/billable-residents';
 
 export type Severidad = 'CRITICA' | 'ALTA' | 'MEDIA';
 
@@ -234,7 +235,10 @@ async function aprobadoSinEfecto(hqId: string): Promise<Hallazgo> {
 
     // PAI aprobado que nunca envio su copia a la familia.
     const planes = await prisma.lifePlan.findMany({
-        where: { patient: { headquartersId: hqId }, status: 'APPROVED', emailSentAt: null },
+        // Entra en el correo diario a direccion como CRITICA. El PAI sin enviar
+        // de un expediente cerrado no se puede cerrar: ese residente ya no sale
+        // en la lista desde donde se envia.
+        where: { patient: { headquartersId: hqId, status: { in: ENROLLED_PATIENT_STATUSES } }, status: 'APPROVED', emailSentAt: null },
         select: { patient: { select: { name: true } } },
     });
     planes.forEach(p =>

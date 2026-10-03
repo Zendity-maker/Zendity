@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { ENROLLED_PATIENT_STATUSES } from '@/lib/billable-residents';
 
 /**
  * GET /api/corporate/intake/pending-list
@@ -30,6 +31,10 @@ export async function GET() {
                 status: 'PENDIENTE_REVISION',
                 patient: {
                     headquartersId: hqId,
+                    // Pide sellar clinicamente un ingreso, que es irreversible, y
+                    // encima no se puede: `confirmIntake` aborta pidiendo cuota
+                    // mensual de un residente que ya se fue. Trabajo imposible.
+                    status: { in: ENROLLED_PATIENT_STATUSES },
                 },
             },
             include: {

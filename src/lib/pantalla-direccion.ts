@@ -142,7 +142,18 @@ export async function construirPantallaDireccion(hqId: string, hqNombre: string)
         prisma.medicationAdministration.count({
             where: {
                 status: { in: ['MISSED', 'OMITTED'] },
-                patientMedication: { patient: { headquartersId: hqId } },
+                /**
+                 * El ESCRITOR ya filtra y el LECTOR no, y esa asimetria fabrica
+                 * el numero. `materializarDosisDelDia` solo crea dosis para
+                 * `status: 'ACTIVE'`, pero `marcarDosisVencidas` las pasa a
+                 * MISSED por la hora y sin mirar al residente. Asi que el dia
+                 * que alguien sale a media jornada, sus dosis ya creadas se
+                 * vuelven omisiones solas y esta linea las pinta en negrita rosa
+                 * al lado de «Un residente al hospital» de la misma persona.
+                 * Medido el 03-oct-2026: 109 dosis MISSED/PENDING de residentes
+                 * que ya no estan.
+                 */
+                patientMedication: { patient: { headquartersId: hqId, status: 'ACTIVE' } },
                 createdAt: { gte: desde },
             },
         }),

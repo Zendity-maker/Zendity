@@ -7,6 +7,7 @@ import { todayStartAST } from '@/lib/dates';
 import { calcularCobertura, comidasVencidas } from '@/lib/cobertura-comidas';
 import { TicketStatus } from '@prisma/client';
 import OpenAI from 'openai';
+import { ENROLLED_PATIENT_STATUSES } from '@/lib/billable-residents';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -43,10 +44,30 @@ interface BriefingBullet {
 async function buildContext(effectiveHqId: string | 'ALL') {
     const today = todayStartAST();
     const hqFilter = effectiveHqId === 'ALL' ? {} : { headquartersId: effectiveHqId };
-    const hqFilterViaPatient = effectiveHqId === 'ALL' ? {} : { patient: { headquartersId: effectiveHqId } };
+    /**
+     * EL BRIEFING MANDA A ACTUAR, ASI QUE SOLO CUENTA A QUIEN SIGUE AQUI.
+     *
+     * Estos dos filtros alimentan los bullets que el director recibe cada
+     * manana: vitales anomalos con «Coordina una revision medica urgente», y el
+     * cumplimiento eMAR con «Solicitar reporte de enfermeria sobre causas de
+     * omisiones». Sin el estado del residente, el dia que alguien fallece o se
+     * va al hospital a media manana sus ultimos vitales siguen disparando la
+     * revision urgente, y las dosis que el cron ya materializo se vuelven MISSED
+     * y hunden el cumplimiento del dia.
+     *
+     * Matricula y no ACTIVE a secas: el hospitalizado sigue siendo residente del
+     * hogar. El que se fue, no.
+     *
+     * Con `ALL` no hay filtro de sede y tampoco se añade el de estado, para no
+     * cambiar en una rama lo que no se cambia en la otra. Es una limitacion
+     * conocida de esa vista, no un olvido.
+     */
+    const hqFilterViaPatient = effectiveHqId === 'ALL'
+        ? {}
+        : { patient: { headquartersId: effectiveHqId, status: { in: ENROLLED_PATIENT_STATUSES } } };
     const hqFilterViaPatientMed = effectiveHqId === 'ALL'
         ? {}
-        : { patientMedication: { patient: { headquartersId: effectiveHqId } } };
+        : { patientMedication: { patient: { headquartersId: effectiveHqId, status: { in: ENROLLED_PATIENT_STATUSES } } } };
 
     const [
         patientsCount,

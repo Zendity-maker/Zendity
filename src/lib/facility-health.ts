@@ -48,7 +48,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { todayStartAST } from '@/lib/dates';
-import { enrolledResidentsWhere } from '@/lib/billable-residents';
+import { enrolledResidentsWhere, ENROLLED_PATIENT_STATUSES } from '@/lib/billable-residents';
 import { eMARdeHoy } from '@/lib/emar-dia';
 
 export interface FacilityHealthBreakdown {
@@ -134,7 +134,10 @@ export async function calculateFacilityHealthScore(hqId: string): Promise<Facili
         prisma.patient.count({ where: enrolledResidentsWhere(hqId) }),
         // UPPs activas (cualquier grado)
         prisma.pressureUlcer.count({
-            where: { status: 'ACTIVE', patient: { headquartersId: hqId } },
+            // Penaliza −3 por ulcera con tope −20. La de un expediente cerrado
+            // no la va a curar nadie, asi que restaria para siempre. Hoy son 0
+            // (medido 03-oct-2026): el arreglo es para que no empiece.
+            where: { status: 'ACTIVE', patient: { headquartersId: hqId, status: { in: ENROLLED_PATIENT_STATUSES } } },
         }),
         // Caídas con severidad SEVERE o FATAL últimos 30 días
         prisma.fallIncident.count({

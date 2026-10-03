@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { ROLES_APRUEBAN, TOPE_MENSUAL } from '@/lib/concierge';
+import { ENROLLED_PATIENT_STATUSES } from '@/lib/billable-residents';
 
 /**
  * GET /api/corporate/concierge/cola
@@ -23,7 +24,9 @@ export async function GET() {
         const [pedidos, citas, especialistas] = await Promise.all([
             prisma.conciergeOrder.findMany({
                 where: {
-                    patient: { headquartersId: hqId },
+                    // Aprobar y «Entregar» mete un cargo en la factura del mes
+                    // de esa familia. No se le factura a un expediente cerrado.
+                    patient: { headquartersId: hqId, status: { in: ENROLLED_PATIENT_STATUSES } },
                     status: { in: ['PENDING', 'APPROVED'] },
                 },
                 select: {

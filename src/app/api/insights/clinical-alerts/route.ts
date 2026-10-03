@@ -48,7 +48,10 @@ export async function GET() {
             prisma.pressureUlcer.findMany({
                 where: {
                     status: 'ACTIVE',
-                    patient: { headquartersId: hqId },
+                    // Una ulcera ACTIVE no caduca sola: sin filtrar al residente
+                    // se queda en «UPPs Activas» de la home pidiendo curacion
+                    // para siempre. Es el caso de Wilfredo, 84 dias fallecido.
+                    patient: { headquartersId: hqId, status: 'ACTIVE' },
                 },
                 include: { patient: { select: { id: true, name: true, roomNumber: true } } },
                 orderBy: { identifiedAt: 'desc' },

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { notifyRoles } from '@/lib/notifications';
 import { withPhiAccessLog } from '@/lib/phi-audit';
+import { ENROLLED_PATIENT_STATUSES } from '@/lib/billable-residents';
 
 export const dynamic = 'force-dynamic';
 
@@ -86,7 +87,9 @@ async function getUppHandler(req: Request) {
         const ulcers = await prisma.pressureUlcer.findMany({
             where: {
                 status: { in: ['ACTIVE', 'HEALING'] },
-                patient: { headquartersId: effectiveHqId },
+                // Matricula y no ACTIVE a secas: el hospitalizado sigue siendo
+                // residente y su ulcera sigue contando. Quien se fue, no.
+                patient: { headquartersId: effectiveHqId, status: { in: ENROLLED_PATIENT_STATUSES } },
             },
             include: {
                 patient: { select: { id: true, name: true, roomNumber: true, colorGroup: true } },

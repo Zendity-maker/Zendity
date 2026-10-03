@@ -25,6 +25,7 @@ import { PUEDEN_REVISAR_CAMBIO } from '@/lib/cambios-de-condicion';
 import { DIAS_SIN_CURACION, DIAS_SIN_VALORACION, ULCERA_ABIERTA } from '@/lib/upp';
 import { HORAS_PARA_REVISAR_CAMBIO, pasoElCompromiso, horasEsperando, detectarPatrones, etiquetaArea } from '@/lib/cambios-de-condicion';
 import { relevoPendienteDeVerdad } from '@/lib/relevos';
+import { ENROLLED_PATIENT_STATUSES } from '@/lib/billable-residents';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,7 +72,9 @@ export async function GET() {
                 where: {
                     status: 'ADMINISTERED', prnMotivo: { not: null }, prnEfecto: null,
                     createdAt: { gte: limitePRN },
-                    patientMedication: { patient: { headquartersId: hqId } },
+                    // «PRN sin saber si hizo efecto» en urgencia ALTA sobre
+                    // alguien que ya no esta es trabajo que no se puede cerrar.
+                    patientMedication: { patient: { headquartersId: hqId, status: { in: ENROLLED_PATIENT_STATUSES } } },
                 },
             }),
             // findMany y no count: hace falta la EDAD del mas viejo, no cuantos
