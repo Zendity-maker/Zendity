@@ -25,7 +25,7 @@ import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { assertPatientInTenant } from '@/lib/patient-tenant';
 import { logError } from '@/lib/logger';
-import { fechaDeLaJornada, jornadaEfectiva, marcasCuadran } from '@/lib/residente-diurno';
+import { fechaDeLaJornada, jornadaEfectiva, marcasCuadran, marcasSeContradicen } from '@/lib/residente-diurno';
 import { formatASTTime } from '@/lib/dates';
 
 export const dynamic = 'force-dynamic';
@@ -173,34 +173,37 @@ export async function POST(req: Request) {
         }
 
         /**
-         * QUE LA MARCA NO INVIERTA LA JORNADA.
+         * QUE LA MARCA NO SE CONTRADIGA CON LA OTRA.
          *
-         * Caso real: nadie marco la salida de ayer y a las 06:30 alguien pulsa
-         * «Se fue». Quedaria `salidaAt = 06:30` con la llegada valiendo las
-         * 7:00 — una ventana vacia. `jornadaEfectiva` ya la ignora y vuelve al
-         * horario, asi que el residente no desaparece del cuidado; pero dejar
-         * escribir una fila que no puede ser cierta es guardar basura en un
-         * registro clinico y obligar a todo lector a defenderse de ella.
+         * Se rechazan DOS cosas, y ninguna de las dos es «salirse del horario»:
          *
-         * Se rechaza DICIENDO POR QUE y con que hora choca, no con un «datos
-         * invalidos»: quien pulso esta delante del residente y necesita saber
-         * si se equivoco de boton o de persona.
+         *   · Las dos marcas puestas y la salida no posterior a la llegada. Son
+         *     dos hechos observados que no pueden ser los dos ciertos, y desde
+         *     aquí nadie puede decidir cuál sobra.
+         *   · Una salida suelta ANTERIOR a la hora de entrada. Es el caso real:
+         *     nadie marcó la salida de ayer y a las 06:30 alguien la pulsa hoy.
+         *     Deja una jornada vacía, y una jornada vacía saca al residente del
+         *     cuidado el día entero.
+         *
+         * Lo que SÍ se acepta: llegar a las 19:10. El horario es una suposición
+         * y un dato observado le gana — la primera versión lo rechazaba, y eso
+         * se encontró pulsando el botón. La jornada queda abierta hasta el final
+         * del día; NO se inventa una hora de salida.
          */
         const propuesta = {
             llegadaAt: marca === 'LLEGADA' ? ahora : (existente?.llegadaAt ?? null),
             salidaAt: marca === 'SALIDA' ? ahora : (existente?.salidaAt ?? null),
         };
         if (!marcasCuadran(ahora, propuesta)) {
-            const { desde, hasta } = jornadaEfectiva(ahora, null);
-            const choca = marca === 'LLEGADA'
-                ? `la salida ya marcada`
-                : (propuesta.llegadaAt ? `la llegada ya marcada` : `la hora de entrada (${formatASTTime(desde)})`);
+            const { desde } = jornadaEfectiva(ahora, null);
+            const porQue = marcasSeContradicen(propuesta)
+                ? `esa hora no es posterior a la ${marca === 'SALIDA' ? 'llegada' : 'salida'} ya marcada`
+                : `esa hora es anterior a la de entrada (${formatASTTime(desde)}), así que la jornada quedaría vacía`;
             return NextResponse.json({
                 success: false,
-                error: `Esa hora es anterior a ${choca}, así que la jornada quedaría al revés. `
-                    + `Si la marca anterior estaba mal, quítala primero.`,
+                error: `No se guardó: ${porQue}. `
+                    + `Si la marca anterior estaba mal, quítala primero con la ✕.`,
                 jornada: existente ?? null,
-                limites: { desde, hasta },
             }, { status: 400 });
         }
 

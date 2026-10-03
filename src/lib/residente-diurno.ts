@@ -159,27 +159,44 @@ export function fechaDeLaJornada(instante: Date = new Date()): Date {
 }
 
 /**
- * ¿CUADRAN LAS MARCAS?
+ * ¿SE CONTRADICEN LAS DOS MARCAS?
  *
- * Una marca suelta puede dejar la jornada INVERTIDA. El caso real: nadie marcó
- * la salida de ayer, y a las 06:30 alguien pulsa «Se fue» en la tarjeta. Queda
- * `salidaAt = 06:30` y `llegadaAt = null`, o sea una ventana de 7:00 a 06:30:
- * vacía. Y una ventana vacía, leída a secas, dice «no está» las 24 horas del
- * día — el residente desaparece del denominador de la ronda, su color deja de
- * esperarse cubierto y la auditoría tampoco levanta «sin actividad». Nadie lo
- * visita y nadie se entera, por un toque.
+ * Solo hay contradicción cuando las DOS existen y la salida no es posterior a
+ * la llegada. Eso son dos hechos observados que no pueden ser los dos ciertos,
+ * y nadie puede decidir cuál sobra desde aquí.
  *
- * Eso NO es «no está»: es «estas dos marcas no pueden ser las dos ciertas».
- * Son dos cosas distintas y no pueden pintarse igual.
+ * Lo que NO es contradicción: una marca sola que se sale del horario. El
+ * horario es una SUPOSICIÓN —lo que vale mientras nadie diga otra cosa— y un
+ * dato observado le gana siempre. La primera versión los trataba al revés y
+ * rechazaba marcar una llegada a las 19:10 porque la salida supuesta de las
+ * 18:00 «ya había pasado»: el valor por defecto ganándole al hecho. Se encontró
+ * pulsando el botón, no leyendo el código.
+ */
+export function marcasSeContradicen(marcas?: MarcasDeJornada | null): boolean {
+    return !!marcas?.llegadaAt && !!marcas?.salidaAt && marcas.salidaAt <= marcas.llegadaAt;
+}
+
+/**
+ * ¿Cuadran las marcas? (Se contradicen, o dejan una ventana vacía.)
+ *
+ * La contradicción de arriba, más el caso de la salida suelta anterior a la
+ * entrada: nadie marcó la salida de ayer y a las 06:30 alguien pulsa «Se fue».
+ * Queda `salidaAt = 06:30` sin llegada, o sea una ventana de 7:00 a 06:30:
+ * vacía. Leída a secas dice «no está» las 24 horas y el residente desaparece
+ * del cuidado entero por un toque.
+ *
+ * El POST rechaza las dos; esto queda como defensa del lado de la lectura.
  */
 export function marcasCuadran(
     instante: Date = new Date(),
     marcas?: MarcasDeJornada | null,
 ): boolean {
-    if (!marcas?.llegadaAt && !marcas?.salidaAt) return true;
-    const desde = marcas?.llegadaAt ?? astDateTime(instante, HORARIO_DIURNO.entra, 0);
-    const hasta = marcas?.salidaAt ?? astDateTime(instante, HORARIO_DIURNO.sale, 0);
-    return desde < hasta;
+    if (marcasSeContradicen(marcas)) return false;
+    // Salida suelta anterior a la hora de entrada: no se sabe qué pasó.
+    if (marcas?.salidaAt && !marcas.llegadaAt) {
+        return marcas.salidaAt > astDateTime(instante, HORARIO_DIURNO.entra, 0);
+    }
+    return true;
 }
 
 /**
@@ -200,10 +217,17 @@ export function marcasCuadran(
  * la jornada se componía el 1 de octubre y un diurno no estaba nunca. No daba
  * error: daba `false` a mediodía.
  *
- * Y si las marcas no cuadran, **se ignoran y vale el horario**. Es la dirección
- * segura: ante un registro que no puede ser cierto, el residente sigue
- * contando para el cuidado. Quien tiene que enterarse es la pantalla, y para
- * eso está `marcasCuadran`.
+ * ═══ EL HECHO LE GANA A LA SUPOSICIÓN ═══
+ *
+ * Si llegó DESPUÉS de las 18:00, la salida supuesta de las 18:00 ya no dice
+ * nada: se sabe que está y no se sabe cuándo se fue, así que la jornada queda
+ * abierta hasta el final del día natural. No es inventarse una hora de salida
+ * —eso sería escribirla en `salidaAt`, y no se hace nunca— es la misma clase de
+ * cota que ya eran las 18:00, movida a donde el dato la empuja.
+ *
+ * Y si las marcas no cuadran, se ignoran y vale el horario. Dirección segura:
+ * ante un registro que no puede ser cierto, el residente sigue contando para el
+ * cuidado. Quien tiene que enterarse es la pantalla (`marcasCuadran`).
  */
 export function jornadaEfectiva(
     instante: Date = new Date(),
@@ -214,10 +238,12 @@ export function jornadaEfectiva(
         hasta: astDateTime(instante, HORARIO_DIURNO.sale, 0),
     };
     if (!marcasCuadran(instante, marcas)) return porHorario;
-    return {
-        desde: marcas?.llegadaAt ?? porHorario.desde,
-        hasta: marcas?.salidaAt ?? porHorario.hasta,
-    };
+
+    const desde = marcas?.llegadaAt ?? porHorario.desde;
+    const finDelDia = astDateTime(instante, 24, 0);
+    const hasta = marcas?.salidaAt
+        ?? (desde >= porHorario.hasta ? finDelDia : porHorario.hasta);
+    return { desde, hasta };
 }
 
 /**
@@ -306,8 +332,16 @@ export function presenciaDeHoy(instante: Date = new Date()): Record<string, unkn
         ]);
     }
 
-    // Desde las 18: hace falta una salida marcada POSTERIOR a ahora; la llegada
-    // por defecto (7:00) ya pasó, así que null vale.
+    /**
+     * Desde las 18: dos formas de estar, y la segunda es la llegada tardía.
+     *
+     *   · Salida marcada POSTERIOR a ahora — se quedó más tarde. La llegada por
+     *     defecto (7:00) ya pasó, así que un `llegadaAt` nulo vale.
+     *   · O llegó DESPUÉS de la hora de salida supuesta y nadie ha marcado que
+     *     se fuera. Ahí las 18:00 no dicen nada: el dato observado le gana a la
+     *     suposición y la jornada queda abierta hasta el final del día.
+     */
+    const salidaPorDefecto = astDateTime(instante, HORARIO_DIURNO.sale, 0);
     return envuelve([
             noEsDiurno,
             {
@@ -316,6 +350,15 @@ export function presenciaDeHoy(instante: Date = new Date()): Record<string, unkn
                         fecha,
                         salidaAt: { gt: instante },
                         OR: [{ llegadaAt: null }, { llegadaAt: { lte: instante } }],
+                    },
+                },
+            },
+            {
+                jornadasDiurnas: {
+                    some: {
+                        fecha,
+                        salidaAt: null,
+                        llegadaAt: { gte: salidaPorDefecto, lte: instante },
                     },
                 },
             },

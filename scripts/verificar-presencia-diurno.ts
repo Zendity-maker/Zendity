@@ -37,6 +37,7 @@ import {
     estuvoEnElEdificioDurante,
     jornadaEfectiva,
     marcasCuadran,
+    marcasSeContradicen,
     fechaDeLaJornada,
     presenciaDeHoy,
     type MarcasDeJornada,
@@ -60,7 +61,18 @@ const aLas = (hora: number, minuto = 0) => astDateTime(DIA, hora, minuto);
  */
 function loQueDiriaElWhere(instante: Date, marcas: MarcasDeJornada | null): boolean {
     const where = presenciaDeHoy(instante) as any;
-    const ramaDeLaJornada = where.AND[0].OR[1].jornadasDiurnas;
+    /**
+     * TODAS las alternativas que hablan de `jornadasDiurnas`, no una fija.
+     *
+     * Estaba escrito `where.AND[0].OR[1]` — la segunda, a dedo. En cuanto
+     * `presenciaDeHoy` añadió una tercera rama (la llegada tardía), el
+     * simulador dejó de verla y marcó nueve divergencias que no existían. Un
+     * verificador que lee el resultado por índice deja de verificar en silencio
+     * el día que el resultado crece; es el mismo fallo que persigue.
+     */
+    const ramasDeLaJornada = (where.AND[0].OR as any[])
+        .filter(r => r.jornadasDiurnas)
+        .map(r => r.jornadasDiurnas);
     const fecha = fechaDeLaJornada(instante);
 
     // Sin fila, `none` se cumple siempre y `some` no se cumple nunca.
@@ -80,13 +92,25 @@ function loQueDiriaElWhere(instante: Date, marcas: MarcasDeJornada | null): bool
             const campo = f[clave] ?? null;
             if (valor === null) return campo === null;
             if (campo === null) return false;
-            if (valor.lte !== undefined) return campo <= valor.lte;
-            if (valor.gt !== undefined) return campo > valor.gt;
-            throw new Error(`comparador no soportado en el simulador: ${JSON.stringify(valor)}`);
+            // Un objeto puede traer VARIOS comparadores a la vez ({gte, lte});
+            // hay que exigirlos todos, no quedarse con el primero que aparezca.
+            const soportados = ['lte', 'lt', 'gte', 'gt'];
+            const usados = Object.keys(valor).filter(k => soportados.includes(k));
+            if (usados.length === 0) throw new Error(`comparador no soportado: ${JSON.stringify(valor)}`);
+            return usados.every(k => {
+                if (k === 'lte') return campo <= valor.lte;
+                if (k === 'lt') return campo < valor.lt;
+                if (k === 'gte') return campo >= valor.gte;
+                return campo > valor.gt;
+            });
         });
 
-    if (ramaDeLaJornada.none) return !filas.some(f => cumple(f, ramaDeLaJornada.none));
-    return filas.some(f => cumple(f, ramaDeLaJornada.some));
+    // Son alternativas de un OR: basta con que una se cumpla.
+    return ramasDeLaJornada.some(rama =>
+        rama.none
+            ? !filas.some(f => cumple(f, rama.none))
+            : filas.some(f => cumple(f, rama.some)),
+    );
 }
 
 /** Las formas que puede tener una jornada en la vida real. */
@@ -99,6 +123,8 @@ const CASOS: Array<{ nombre: string; marcas: MarcasDeJornada | null }> = [
     { nombre: 'se fue temprano (14:00)', marcas: { llegadaAt: aLas(7, 0), salidaAt: aLas(14, 0) } },
     { nombre: 'se quedó tarde (20:30)', marcas: { llegadaAt: aLas(7, 0), salidaAt: aLas(20, 30) } },
     { nombre: 'solo salida, sin llegada', marcas: { llegadaAt: null, salidaAt: aLas(16, 0) } },
+    { nombre: 'llego TARDE (19:10), sin salida', marcas: { llegadaAt: aLas(19, 10), salidaAt: null } },
+    { nombre: 'llego tarde (19:10) y se fue a las 21', marcas: { llegadaAt: aLas(19, 10), salidaAt: aLas(21, 0) } },
     { nombre: 'fila vacía (no debería existir)', marcas: { llegadaAt: null, salidaAt: null } },
 ];
 
@@ -148,6 +174,14 @@ const esperado: Array<[string, boolean, string]> = [
         estaEnElEdificioConMarcas(residente, aLas(19), { llegadaAt: aLas(7), salidaAt: aLas(20, 30) }), true + ''],
     ['llegó y nadie marcó salida; a las 19:00 NO está (vuelve al horario)',
         estaEnElEdificioConMarcas(residente, aLas(19), { llegadaAt: aLas(7), salidaAt: null }), false + ''],
+    ['llegó a las 19:10 y nadie marcó salida; a las 20:00 SÍ está',
+        estaEnElEdificioConMarcas(residente, aLas(20), { llegadaAt: aLas(19, 10), salidaAt: null }), true + ''],
+    ['llegó a las 19:10; a las 18:30 todavía NO estaba',
+        estaEnElEdificioConMarcas(residente, aLas(18, 30), { llegadaAt: aLas(19, 10), salidaAt: null }), false + ''],
+    ['una llegada tardía NO es una contradicción (se puede guardar)',
+        marcasCuadran(aLas(19, 10), { llegadaAt: aLas(19, 10), salidaAt: null }), true + ''],
+    ['salida anterior a la llegada SÍ es contradicción',
+        marcasSeContradicen({ llegadaAt: aLas(14), salidaAt: aLas(9) }), true + ''],
     ['un residente REGULAR está a las 3 de la mañana',
         estaEnElEdificioConMarcas({ esDiurno: false }, aLas(3), null), true + ''],
 ];
