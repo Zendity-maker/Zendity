@@ -47,10 +47,11 @@ El guard:
 - Cualquier comando que cargue `.env` y toque DB → impacta producción
 - **`.env.local` apunta a la rama de desarrollo** y gana sobre `.env` en Next.js
 
-### Ya hay rama de desarrollo — 27-sep-2026
+### Hay rama de desarrollo — creada el 27-sep-2026, restaurada el 02-oct
 
-Proyecto Zendity `sweet-cloud-50963332`, rama **`desarrollo`**, copia de `main`
-hecha el 27-sep. Su endpoint es `ep-silent-silence-aebwfpsh`; producción es
+Proyecto Zendity `sweet-cloud-50963332`, rama **`desarrollo`**, copia de `main`.
+Se creó el 27-sep y se restauró el 02-oct (ver el aviso de abajo), así que **sus
+datos son del 02-oct**, no de septiembre. Su endpoint es `ep-silent-silence-aebwfpsh`; producción es
 `ep-wispy-queen-ae20881h`. Son distintos, y de ahí sale todo lo demás.
 
 | | dónde vive | a qué habla |
@@ -63,9 +64,10 @@ Esa segunda fila es la trampa: un script de medición sigue leyendo producción,
 es lo que se quiere para medir — pero **si escribe, escribe en producción**. Para
 apuntar un script a la rama hay que pasarle la URL a mano.
 
-Comprobado el día de crearla: las dos bases traían lo mismo (49 residentes, 41
-usuarios, 30.464 administraciones, 1.629 turnos, 2 sedes) y una tabla creada en
-desarrollo **no aparece** en producción.
+Comprobado el día de crearla: las dos bases traían lo mismo (entonces 49
+residentes, 41 usuarios, 30.464 administraciones, 1.629 turnos, 2 sedes) y una
+tabla creada en desarrollo **no aparece** en producción. Esa última parte es lo
+que no caduca: la rama está aislada y se puede escribir en ella sin miedo.
 
 > **02-oct-2026: la rama se vació y se restauró el mismo día.** Por la mañana
 > tenía las 114 tablas y **cero filas**, sin `_prisma_migrations` — la huella de
@@ -86,8 +88,17 @@ desarrollo **no aparece** en producción.
 > 2. **No correr `prisma migrate dev` contra una rama sin `_prisma_migrations`.**
 >    Vería tablas sin historial y ofrecería resetear.
 
-Los datos son una **foto del 27-sep** y no se actualizan solos. Para refrescarla se
-borra la rama y se vuelve a crear (`npx neonctl branches delete/create`).
+Los datos son una **foto**, del día en que se restauró por última vez, y no se
+actualizan solos. **Para refrescarla, `restore`, no `delete`+`create`:**
+
+```bash
+npx neonctl branches restore br-odd-voice-ael9hp2i ^parent --project-id sweet-cloud-50963332
+```
+
+`restore` conserva el endpoint, así que `.env.local` no se toca. Borrarla y
+recrearla da un endpoint nuevo y deja `.env.local` apuntando a algo que ya no
+existe — y la contraseña caducada de septiembre enseñó que un `.env.local` roto
+no se nota hasta que alguien lo arregla mal.
 
 ### El guard de `npm run dev`
 
