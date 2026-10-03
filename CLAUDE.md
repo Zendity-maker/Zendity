@@ -67,24 +67,24 @@ Comprobado el día de crearla: las dos bases traían lo mismo (49 residentes, 41
 usuarios, 30.464 administraciones, 1.629 turnos, 2 sedes) y una tabla creada en
 desarrollo **no aparece** en producción.
 
-> **⚠️ 02-oct-2026: la rama está VACÍA.** Medido contra
-> `ep-silent-silence-aebwfpsh`: 114 tablas, **0 sedes, 0 residentes, 0 usuarios**,
-> 15 MB, y **no existe la tabla `_prisma_migrations`**. El esquema es el de
-> `schema.prisma` de finales de septiembre (tiene `colorGroup2`, no tiene
-> `esDiurno`). Esa huella —esquema completo, cero filas, cero historial— es la de
-> un `db push` o un reset sobre la rama, no la de una copia de `main`.
+> **02-oct-2026: la rama se vació y se restauró el mismo día.** Por la mañana
+> tenía las 114 tablas y **cero filas**, sin `_prisma_migrations` — la huella de
+> un `db push` o un reset sobre ella, no la de una copia. `npm run dev` llevaba
+> levantando contra una base sin datos.
 >
-> Consecuencias, las dos que importan:
+> Se restauró con `npx neonctl branches restore br-odd-voice-ael9hp2i ^parent
+> --project-id sweet-cloud-50963332` y volvió a traer lo de producción (2 sedes,
+> 33 residentes activos, 44 usuarios, 31.894 administraciones, 9 migraciones).
+> **El orden de los argumentos es lo único que importa**: destino primero,
+> origen después. Invertido, sobrescribe producción. `restore` conserva el
+> endpoint, así que `.env.local` no se toca.
 >
-> 1. `npm run dev` levanta la app contra una base sin datos. No rompe nada —ese
->    lado sigue siendo seguro— pero **probar ahí no prueba nada**: no hay sesión
->    útil, los endpoints devuelven 401 y las pantallas salen vacías.
-> 2. **No correr `prisma migrate dev` contra esa rama.** Vería 114 tablas sin
->    historial de migraciones y ofrecería resetear. La salida segura es
->    `migrate resolve --applied` de las que ya refleja y luego `migrate deploy`,
->    o borrarla y recrearla desde `main`.
+> Dos cosas que quedaron aprendidas:
 >
-> Mientras siga así, lo que se mida se mide contra producción, en solo lectura.
+> 1. **Comprobar que trae FILAS, no solo tablas.** Un esquema completo y vacío
+>    se parece a una copia buena hasta que cuentas.
+> 2. **No correr `prisma migrate dev` contra una rama sin `_prisma_migrations`.**
+>    Vería tablas sin historial y ofrecería resetear.
 
 Los datos son una **foto del 27-sep** y no se actualizan solos. Para refrescarla se
 borra la rama y se vuelve a crear (`npx neonctl branches delete/create`).
