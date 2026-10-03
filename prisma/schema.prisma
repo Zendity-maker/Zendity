@@ -1069,7 +1069,30 @@ model Patient {
   /// El día que se queda a vivir, se pone en false. Toda su historia —vitales,
   /// comidas, caídas, familia, facturación— cuelga de este mismo `id` y viaja
   /// con él.
-  esDiurno         Boolean @default(false)
+  esDiurno Boolean @default(false)
+
+  /// FICHA ANULADA — esta fila nunca fue un residente.
+  ///
+  /// No es un estado clinico y no dice nada de ninguna persona: dice que el
+  /// EXPEDIENTE sobra. Se creo por un doble envio, por un reintento, o alguien
+  /// lo abrio dos veces, y se cerro al darse cuenta.
+  ///
+  /// POR QUE HIZO FALTA UN CAMPO Y NO BASTABA `dischargeReason`. Los cuatro
+  /// duplicados de catorce dias (medidos el 03-oct-2026) se cerraron con el
+  /// motivo escrito a mano: «Duplicado», «Perfil Doble», «Doble perfil»,
+  /// «Registro duplicado creado por error el 02-...». Cuatro formas de decir lo
+  /// mismo en texto libre. Una consulta no puede contar sobre eso, y el
+  /// resumen ejecutivo del director los contaba como altas y como egresos
+  /// reales: «Admisiones 7» eran 3 residentes, «Egresos 10» eran 2 altas.
+  ///
+  /// MISMA FAMILIA QUE `MedStatus.VOIDED`: la fila se conserva —borrar un
+  /// registro clinico no es una opcion— y no describe ni un ingreso ni una
+  /// salida, asi que no puede contar en ninguna de las dos direcciones.
+  ///
+  /// NO sustituye a `status`: una ficha anulada sigue DISCHARGED, porque de
+  /// hecho se cerro. Esto dice POR QUE, y es lo que permite excluirla de los
+  /// conteos sin esconderla del expediente.
+  fichaAnulada     Boolean @default(false)
   conciergeBalance Float   @default(0.0) // FASE 18: Saldo Gift Cards B2C
 
   // FASE 7: Facturación y Cuotas

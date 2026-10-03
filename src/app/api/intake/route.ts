@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { bloqueoPorBAA } from '@/lib/acuerdos-sede';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { residenteRecienCreado, MINUTOS_VENTANA_DUPLICADO } from '@/lib/residente-duplicado';
+import { crearResidenteSinDuplicar, MINUTOS_VENTANA_DUPLICADO } from '@/lib/residente-duplicado';
 
 /**
  * DEPRECATED — Sprint P.4
@@ -68,26 +68,36 @@ export async function POST(req: Request) {
          * hizo lo correcto, y un error en rojo le hace intentarlo otra vez —
          * que es justo lo que produce el duplicado.
          */
-        const yaExiste = await residenteRecienCreado(finalHqId, name);
-        if (yaExiste) {
-            console.warn(`[intake] doble envio evitado para "${name}" — ya existe ${yaExiste.id}`);
+        /**
+         * La comprobacion y la creacion van DENTRO de la misma transaccion, con
+         * un cerrojo sobre «esta sede + este nombre». Antes se leia y luego se
+         * escribia, y dos envios a la vez leian los dos «no hay duplicado»:
+         * medido el 03-oct-2026, dos de los cuatro duplicados de catorce dias
+         * nacieron en el MISMO SEGUNDO, con nombre identico y la guarda puesta.
+         */
+        const { yaExistia, creado } = await crearResidenteSinDuplicar(finalHqId, name, (tx) =>
+            tx.patient.create({
+                data: {
+                    name,
+                    headquartersId: finalHqId,
+                    // Fecha de ingreso = fecha de registro (regla del dueño).
+                    admissionDate: new Date(),
+                    colorGroup: colorGroup || 'UNASSIGNED',
+                },
+            }),
+        );
+
+        if (yaExistia) {
+            console.warn(`[intake] doble envio evitado para "${name}" — ya existe ${yaExistia.id}`);
             return NextResponse.json({
                 success: true,
                 duplicado: true,
-                patient: yaExiste,
-                message: `${yaExiste.name.trim()} ya se dio de alta hace un momento. Se sigue con ese expediente.`,
+                patient: yaExistia,
+                message: `${yaExistia.name.trim()} ya se dio de alta hace un momento. Se sigue con ese expediente.`,
             });
         }
 
-        const patient = await prisma.patient.create({
-            data: {
-                name,
-                headquartersId: finalHqId,
-                // Fecha de ingreso = fecha de registro (regla del dueño).
-                admissionDate: new Date(),
-                colorGroup: colorGroup || 'UNASSIGNED',
-            }
-        });
+        const patient = creado!;
 
         // 2. Almacenar la fuente de la verdad inmutable (Zendity Intake)
         await prisma.intakeData.create({

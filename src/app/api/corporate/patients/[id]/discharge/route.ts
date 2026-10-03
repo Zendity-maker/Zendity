@@ -23,7 +23,7 @@ export async function POST(
         const invokerId = (session.user as any).id as string;
         const sessionHqId = (session.user as any).headquartersId as string;
 
-        const { action, leaveType, date, reason } = await req.json();
+        const { action, leaveType, date, reason, fichaAnulada } = await req.json();
         const { id: patientId } = await params;
 
         if (!patientId || !action) {
@@ -102,6 +102,21 @@ export async function POST(
                     dischargeDate: date ? new Date(date) : new Date(),
                     dischargeReason: reason || "No reason provided",
                     roomNumber: null, // Liberamos el cuarto
+                    /**
+                     * `fichaAnulada: true` cuando lo que se cierra es un
+                     * EXPEDIENTE que sobra —un doble envio, un perfil abierto
+                     * dos veces— y no una persona que se fue.
+                     *
+                     * Viaja como bandera explicita del cuerpo y NO se adivina
+                     * del texto del motivo. Los cuatro duplicados de catorce
+                     * dias se cerraron con «Duplicado», «Perfil Doble», «Doble
+                     * perfil» y «Registro duplicado creado por error el 02-...»:
+                     * cuatro formas de decir lo mismo. Adivinarlo con un
+                     * `includes('duplic')` fallaria el dia que alguien escriba
+                     * «se abrio dos veces», y marcaria de mas el dia que un alta
+                     * real mencione la palabra.
+                     */
+                    ...(fichaAnulada === true ? { fichaAnulada: true } : {}),
                 };
                 break;
 

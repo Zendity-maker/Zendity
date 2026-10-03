@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { IntakeStatus, DietTexture } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { categorizeMedication, normalizeMedicationName } from "@/lib/medication-categorize";
+import { crearResidenteSinDuplicar } from '@/lib/residente-duplicado';
 
 // Sprint Diet System — el form de intake escribe IntakeData.dietSpecifics con
 // ids que matchean DietTexture (REGULAR | BLANDA | MAJADA | PUREE | LICUADO |
@@ -89,17 +90,35 @@ export async function saveIntakeDraft(data: {
       if (!data.name || !data.headquartersId) {
         return { success: false, error: "Falta Nombre o Sede para iniciar el Intake" };
       }
-      const newPatient = await prisma.patient.create({
-        data: {
-          name: data.name,
-          headquartersId: data.headquartersId,
-          // Fecha de ingreso = fecha de registro (regla del dueño).
-          admissionDate: new Date(),
-          downtonRisk: false,
-          nortonRisk: false,
-        }
-      });
-      currentPatientId = newPatient.id;
+      /**
+       * LA SEXTA PUERTA, Y LA UNICA QUE NO TENIA GUARDA.
+       *
+       * `/api/intake` y `/api/preingreso` llevaban la guarda contra el doble
+       * envio desde que se escribio; esta server action crea residentes por su
+       * cuenta y no la tenia. Se encontro el 03-oct-2026 buscando por que
+       * seguian apareciendo duplicados con la guarda puesta: una de las causas
+       * era la carrera (ya cerrada con un cerrojo) y la otra era esto.
+       *
+       * Un sitio que escribe la misma fila por otra puerta no es una excepcion
+       * aceptable: es la puerta por la que entra lo que las otras impiden.
+       */
+      const { yaExistia, creado } = await crearResidenteSinDuplicar(
+        data.headquartersId,
+        data.name,
+        (tx) => tx.patient.create({
+          data: {
+            name: data.name!,
+            headquartersId: data.headquartersId!,
+            // Fecha de ingreso = fecha de registro (regla del dueño).
+            admissionDate: new Date(),
+            downtonRisk: false,
+            nortonRisk: false,
+          },
+        }),
+      );
+      // Si ya existia se sigue con ESE expediente, que es lo que quien pulso
+      // queria: no un error en rojo que le haga intentarlo otra vez.
+      currentPatientId = yaExistia ? yaExistia.id : creado!.id;
     }
 
     const { patientId, headquartersId, name, ...intakeFields } = data;

@@ -36,6 +36,7 @@
  * proteger frente a este.
  */
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 
 export const MINUTOS_VENTANA_DUPLICADO = 10;
 
@@ -72,4 +73,64 @@ export async function residenteRecienCreado(
 
     const igual = recientes.find(p => normalizarNombre(p.name) === limpio);
     return igual ? { id: igual.id, name: igual.name } : null;
+}
+
+/**
+ * CREAR UN RESIDENTE SIN QUE DOS ENVÍOS A LA VEZ CREEN DOS.
+ *
+ * ═══ POR QUÉ NO BASTABA `residenteRecienCreado` ═══
+ *
+ * La guarda de arriba LEE y luego el llamador ESCRIBE, y entre las dos cosas no
+ * hay nada. Dos peticiones simultáneas leen las dos «no hay duplicado» y las dos
+ * insertan. No es teórico: medido el 03-oct-2026 en producción, de los cuatro
+ * duplicados de catorce días, **dos nacieron en el mismo segundo**:
+ *
+ *     Jose R. Lozada Pagan   ×2 a las 17:41:59 — 0,0 min de diferencia
+ *     Jose L. Tapia Rivera   ×2 a las 12:14:22 y 12:14:23
+ *
+ * Nombres idénticos, guarda puesta, y pasó igual. La guarda no estaba mal
+ * escrita: la carrera le ganaba. Es lo que la hacía parecer que funcionaba —
+ * atrapa el reintento lento, que es el caso visible, y pierde el doble toque,
+ * que es el que de verdad ocurre.
+ *
+ * ═══ CÓMO SE CIERRA ═══
+ *
+ * Un cerrojo de aviso de PostgreSQL (`pg_advisory_xact_lock`) sobre la clave
+ * «esta sede + este nombre», tomado DENTRO de la transacción que comprueba y
+ * crea. El segundo envío espera a que el primero termine, y entonces ya ve el
+ * residente que el primero creó.
+ *
+ * Se eligió esto y no un índice único porque dos residentes REALES pueden
+ * llamarse igual con los años, y un índice lo impediría para siempre. El
+ * cerrojo solo serializa los diez minutos de la ventana; pasados, dos personas
+ * con el mismo nombre se admiten sin problema.
+ *
+ * El cerrojo se suelta solo al terminar la transacción, con éxito o con error:
+ * `pg_advisory_xact_lock` es de transacción, no de sesión. Un fallo a mitad no
+ * deja la puerta trancada.
+ */
+export async function crearResidenteSinDuplicar<T>(
+    hqId: string,
+    nombre: string,
+    crear: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<{ yaExistia: { id: string; name: string } | null; creado: T | null }> {
+    const limpio = normalizarNombre(nombre);
+
+    return prisma.$transaction(async (tx) => {
+        // La clave del cerrojo es la sede + el nombre normalizado. Dos altas de
+        // personas distintas no se estorban; dos de la misma se ponen en fila.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${hqId}|${limpio}`}))`;
+
+        const desde = new Date(Date.now() - MINUTOS_VENTANA_DUPLICADO * 60_000);
+        const recientes = await tx.patient.findMany({
+            where: { headquartersId: hqId, createdAt: { gte: desde } },
+            select: { id: true, name: true },
+            orderBy: { createdAt: 'desc' },
+            take: 50,
+        });
+        const igual = limpio ? recientes.find(p => normalizarNombre(p.name) === limpio) : null;
+        if (igual) return { yaExistia: { id: igual.id, name: igual.name }, creado: null };
+
+        return { yaExistia: null, creado: await crear(tx) };
+    });
 }
