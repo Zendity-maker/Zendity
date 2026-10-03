@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
+import { validarColorFloorMap } from '@/lib/floor-map';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { normalizePlan } from '@/lib/entitlements';
@@ -82,6 +84,17 @@ export async function GET(_req: NextRequest) {
                 licenseNumber: true,
                 subscriptionPlan: true,
                 subscriptionStatus: true,
+                /**
+                 * Qué grupo de color está en qué planta.
+                 *
+                 * Con `select` explícito un campo nuevo NO llega solo: sin esta
+                 * línea el mapa sería `undefined` en todas las filas, y eso se
+                 * lee igual que «ninguna sede tiene pisos configurados». La
+                 * pantalla pintaría el editor vacío y el primer guardado
+                 * BORRARÍA el mapa de verdad. Antipatrón 9 de CLAUDE.md, con
+                 * pérdida de datos al final.
+                 */
+                colorFloorMap: true,
                 _count: {
                     select: {
                         // Matrícula, no ocupación del turno: incluye a los que
@@ -152,8 +165,29 @@ export async function POST(req: NextRequest) {
             }, { status: 400 });
         }
 
+        /**
+         * Las plantas tambien al crear, y por la MISMA puerta que el PATCH.
+         *
+         * OJO CON LA JUSTIFICACION: esto NO lo alcanza nadie desde
+         * /corporate/sedes. El boton «Nueva Sede» se quito de esa pantalla,
+         * `openCreate()` no se llama desde ningun sitio, y aunque se llamara
+         * este POST es SUPER_ADMIN y esa pantalla echa a SUPER_ADMIN — nadie
+         * puede ver ese formulario y llegar aqui. El alta real vive en
+         * /api/admin/sedes.
+         *
+         * Se queda porque es soporte de API coherente —el PATCH lo acepta, el
+         * POST tambien, y por la misma validacion— pero la razon es esa y no
+         * «que la pantalla no prometa de mas». El primer comentario decia lo
+         * segundo y describia un camino que no se puede recorrer.
+         */
+        const pisos = validarColorFloorMap(body.colorFloorMap);
+        if (!pisos.ok) {
+            return NextResponse.json({ success: false, error: pisos.error }, { status: 400 });
+        }
+
         const hq = await prisma.headquarters.create({
             data: {
+                ...(pisos.mapa ? { colorFloorMap: pisos.mapa } : {}),
                 name: String(body.name).trim(),
                 capacity: capacityInt,
                 licenseExpiry: expiryDate,
@@ -258,6 +292,31 @@ export async function PATCH(req: NextRequest) {
         if (body.address !== undefined) data.address = body.address || null;
         if (body.billingAddress !== undefined) data.billingAddress = body.billingAddress || null;
         if (body.licenseNumber !== undefined) data.licenseNumber = body.licenseNumber || null;
+
+        /**
+         * QUÉ GRUPO DE COLOR ESTÁ EN QUÉ PLANTA.
+         *
+         * Operacional, no comercial: es cómo el hogar reparte su piso, igual
+         * que renombrarse. Hasta hoy (03-oct-2026) NINGUNA pantalla lo escribía
+         * —las 20 referencias del repo solo leían— así que la única forma de
+         * mapear un color era un script contra producción. Se descubrió al
+         * abrir MORADO: el color existía, los residentes se le podían asignar,
+         * y todos caían en el saco ámbar «Sin piso asignado» sin que hubiera
+         * manera de arreglarlo desde la aplicación.
+         *
+         * La validación vive en `floor-map.ts`, junto al parser que lo lee. El
+         * parser es defensivo a propósito —ante basura devuelve un mapa vacío,
+         * que al LEER es lo correcto— y por eso escribir necesita su propia
+         * puerta: guardar basura aquí dejaría el hogar entero sin pisos y sin
+         * un solo error que lo dijera.
+         */
+        if (body.colorFloorMap !== undefined) {
+            const v = validarColorFloorMap(body.colorFloorMap);
+            if (!v.ok) {
+                return NextResponse.json({ success: false, error: v.error }, { status: 400 });
+            }
+            data.colorFloorMap = v.mapa ?? Prisma.DbNull;
+        }
 
         // CAMPOS COMERCIALES — solo Zendity (17-ago-2026).
         //

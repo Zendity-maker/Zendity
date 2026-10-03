@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Building2, Plus, Pencil, X, Users, Bed, Calendar, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 import { getPlanDisplayName, PLAN_PRICING } from "@/lib/entitlements";
+import { COLORES_DE_GRUPO, CODIGOS_DE_COLOR } from "@/lib/colores-de-grupo";
+import { parseColorFloorMap } from "@/lib/floor-map";
 
 // Paleta warm
 const COLORS = {
@@ -33,6 +35,8 @@ interface HQRow {
     licenseNumber: string | null;
     subscriptionPlan: string;
     subscriptionStatus: string;
+    /** { "RED": "Piso 1", … }. `null` = la sede es de una sola planta. */
+    colorFloorMap: Record<string, string> | null;
     _count: { patients: number; users: number };
 }
 
@@ -51,9 +55,25 @@ interface FormState {
     licenseNumber: string;
     subscriptionPlan: string;
     isActive: boolean;
+    /**
+     * Un piso por color, como TEXTO de un input.
+     *
+     * Se guarda con TODOS los colores presentes aunque estén vacíos, para que
+     * el formulario pinte una fila por color sin tener que preguntarle al mapa
+     * si la clave existe. Lo que viaja al servidor son solo las que tienen
+     * algo: una cadena vacía significa «sin piso», no un piso llamado «».
+     */
+    pisos: Record<string, string>;
 }
 
+const pisosVacios = () => Object.fromEntries(CODIGOS_DE_COLOR.map(c => [c, ""]));
+
+/** Los grupos que se quedarían sin planta, por su nombre en español. */
+const CODIGOS_DE_GRUPO_SIN_PLANTA = (pisos: Record<string, string>) =>
+    COLORES_DE_GRUPO.filter(c => !(pisos[c.codigo] ?? "").trim()).map(c => c.nombre);
+
 const BLANK_FORM: FormState = {
+    pisos: pisosVacios(),
     name: "",
     capacity: "50",
     licenseExpiry: "",
@@ -142,6 +162,23 @@ export default function SedesPage() {
             licenseNumber: row.licenseNumber || "",
             subscriptionPlan: row.subscriptionPlan || "PRO",
             isActive: row.isActive,
+            /**
+             * El mapa guardado se lee con el MISMO parser que usa el resto de
+             * la app, no en bruto.
+             *
+             * `{...pisosVacios(), ...row.colorFloorMap}` parecía equivalente y
+             * no lo es: el lector acepta claves en minúscula y con espacios
+             * —a propósito, porque este campo lo escribieron scripts a mano—,
+             * así que un `{"red":"Piso 1"}` guardado metía `red` como clave
+             * APARTE. La fila Rojo salía vacía aunque el wall estuviera leyendo
+             * Rojo = Piso 1, y el primer guardado borraba el valor bueno.
+             */
+            pisos: (() => {
+                const leido = parseColorFloorMap(row.colorFloorMap);
+                const out = pisosVacios();
+                for (const c of CODIGOS_DE_COLOR) out[c] = leido.get(c) ?? "";
+                return out;
+            })(),
         });
         setModalOpen(true);
     }
@@ -163,6 +200,27 @@ export default function SedesPage() {
                 address: form.address.trim() || null,
                 billingAddress: form.billingAddress.trim() || null,
                 licenseNumber: form.licenseNumber.trim() || null,
+                /**
+                 * Solo los colores que tienen piso. Un input vacío significa
+                 * «sin piso», no un piso llamado cadena vacía — mandarlo tal
+                 * cual dejaría una entrada que el lector descarta y el editor
+                 * vuelve a pintar, y nadie entendería por qué no se guarda.
+                 *
+                 * Si no queda ninguno viaja `null`, que es «una sola planta»:
+                 * un estado legítimo, el que tiene Mayagüez hoy.
+                 */
+                colorFloorMap: (() => {
+                    const m: Record<string, string> = {};
+                    // Se recorre la LISTA de colores, no las claves del estado:
+                    // así no puede salir de aquí una clave que el formulario no
+                    // pintó. Si un mapa guardado traía algo raro, se queda fuera
+                    // en vez de volver al servidor y tumbar el guardado entero.
+                    for (const c of CODIGOS_DE_COLOR) {
+                        const v = (form.pisos[c] ?? "").trim();
+                        if (v) m[c] = v;
+                    }
+                    return Object.keys(m).length > 0 ? m : null;
+                })(),
             };
             if (modalMode === "edit") {
                 payload.id = form.id;
@@ -522,6 +580,88 @@ export default function SedesPage() {
                                             className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                                         />
                                     </div>
+                                </div>
+                            </div>
+
+                            {/* ══ EN QUÉ PLANTA ESTÁ CADA GRUPO ══
+                                Hasta el 03-oct-2026 este mapa NO se podía tocar desde
+                                ninguna pantalla: las 20 referencias del repo solo leían,
+                                y la única forma de mapear un color era un script contra
+                                producción. Se vio al abrir MORADO — el color existía, se
+                                le podían asignar residentes, y todos caían en el saco
+                                ámbar «Sin piso asignado» sin manera de arreglarlo. */}
+                            <div>
+                                <h3 className="text-xs font-black uppercase tracking-widest mb-1" style={{ color: COLORS.teal }}>
+                                    Plantas del hogar
+                                </h3>
+                                {/* ESTE TEXTO DECÍA «no rompe nada pero tampoco agrupa».
+                                    Era falso, y es justo el patrón que CLAUDE.md llama «la
+                                    frase que sustituye a una mentira tampoco puede ser una».
+                                    La verdad: `hasFloorsConfigured` es `size > 0`, así que
+                                    rellenar UN color cambia el modo de la sede ENTERA — el
+                                    wall empieza a pintar la caja ámbar de huérfanos y el
+                                    selector de cobertura pasa a pedir una planta a la vez. */}
+                                <p className="text-xs text-slate-500 mb-3">
+                                    En qué planta está cada grupo de color. El wall del supervisor y el selector de
+                                    cobertura agrupan por aquí. <span className="font-semibold text-slate-600">Es todo
+                                    o nada:</span> en cuanto UN grupo tenga planta, la sede pasa a trabajar por
+                                    plantas y los que queden en blanco salen marcados en ámbar como «Sin piso
+                                    asignado». Déjalos todos vacíos si el hogar es de una sola planta.
+                                </p>
+
+                                {/* El aviso solo cuando el mapa queda a medias, que es el
+                                    estado que hace daño. No se infiere la causa: se dice qué
+                                    falta y qué pasa, que es lo que se sabe. */}
+                                {(() => {
+                                    const conPlanta = CODIGOS_DE_COLOR.filter(c => (form.pisos[c] ?? "").trim());
+                                    const sinPlanta = CODIGOS_DE_GRUPO_SIN_PLANTA(form.pisos);
+                                    if (conPlanta.length === 0 || sinPlanta.length === 0) return null;
+                                    return (
+                                        <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 leading-relaxed">
+                                            Quedan sin planta: {sinPlanta.join(", ")}. Esos grupos saldrán en ámbar en el
+                                            wall, y en el selector de cobertura no se agruparán con ninguna planta.
+                                            Si el hogar es de una sola planta, vacía también los demás.
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* Las plantas que ya se usan, para que no se escriba
+                                    «piso 2» en un color y «Piso 2» en otro: eso parte el
+                                    hogar en dos plantas que son la misma. El servidor
+                                    unifica la ortografía de todas formas; esto es para
+                                    que no haga falta. */}
+                                <datalist id="plantas-en-uso">
+                                    {Array.from(new Set(Object.values(form.pisos).map(v => v.trim()).filter(Boolean)))
+                                        .sort()
+                                        .map(pl => <option key={pl} value={pl} />)}
+                                </datalist>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {COLORES_DE_GRUPO.map(c => (
+                                        <div key={c.codigo} className="flex items-center gap-3">
+                                            {/* La insignia de `colores-de-grupo.ts`, no hex + alfa a
+                                                mano. Rehecha a ojo, el texto quedaba del color base
+                                                sobre un tinte al 10% de si mismo: amarillo a 1.9:1 y
+                                                verde a 3.0:1, cuando AA pide 4.5:1 — el nombre del
+                                                grupo, que es lo unico que identifica la fila, era lo
+                                                menos legible del bloque. Los tonos de `insignia` ya
+                                                estan elegidos para leerse, y el sexto color entra
+                                                aqui solo. */}
+                                            <span className={`inline-flex items-center gap-2 shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold w-32 ${c.insignia.bg} ${c.insignia.border} ${c.insignia.text}`}>
+                                                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${c.insignia.dot}`} />
+                                                {c.nombre}
+                                            </span>
+                                            <input
+                                                type="text"
+                                                list="plantas-en-uso"
+                                                value={form.pisos[c.codigo] ?? ""}
+                                                onChange={e => setForm({ ...form, pisos: { ...form.pisos, [c.codigo]: e.target.value } })}
+                                                placeholder="Sin planta"
+                                                aria-label={`Planta del grupo ${c.nombre}`}
+                                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                            />
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
 

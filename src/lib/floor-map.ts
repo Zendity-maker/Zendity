@@ -19,6 +19,8 @@
  *      pasa 'RED' (enum), pero defensivo si llega 'red' / 'Red'.
  */
 
+import { CODIGOS_DE_COLOR, nombreDeColor } from '@/lib/colores-de-grupo';
+
 // ── Tipos públicos ──────────────────────────────────────────────────────────
 
 export type ColorFloorMap = Map<string, string>;
@@ -182,4 +184,91 @@ export function groupItemsByFloor<T>(
  */
 export function hasFloorsConfigured(map: ColorFloorMap): boolean {
     return map.size > 0;
+}
+
+// ── Escritura ───────────────────────────────────────────────────────────────
+
+/**
+ * VALIDA Y NORMALIZA UN MAPA QUE VIENE DE UNA PANTALLA.
+ *
+ * El parser de arriba es DEFENSIVO: ante basura devuelve un mapa vacío, que es
+ * lo correcto al LEER —una pantalla no debe reventar por un dato malo— pero es
+ * exactamente lo que no se quiere al ESCRIBIR. Guardar basura en silencio y
+ * descubrirlo al leer significa que el mapa queda vacío, que `floorOf` devuelve
+ * null para todos, y que el hogar entero cae en «Sin piso asignado» sin que
+ * nadie haya visto un error. Por eso guardar tiene su propia puerta y esta
+ * explica qué está mal.
+ *
+ * Qué hace, y por qué cada cosa:
+ *
+ *   · **Solo acepta colores que existen.** Una clave inventada —un typo como
+ *     `PURPEL`, o un `ALL`, que no es un color— se queda ahí para siempre sin
+ *     corresponder a nadie, y nada la señala. La lista sale de
+ *     `colores-de-grupo.ts`: abrir un color lo habilita aquí solo.
+ *
+ *   · **Unifica la ortografía del piso.** El valor es texto libre («Piso 2»), y
+ *     el parser respeta mayúsculas y minúsculas. Sin esto, escribir «piso 2»
+ *     en un color y «Piso 2» en otro parte el hogar en dos plantas que son la
+ *     misma: el wall las agrupa por separado y la cobertura cuenta de más.
+ *     Gana la primera ortografía que aparece.
+ *
+ *   · **Un mapa sin ninguna entrada se guarda como `null`.** No es lo mismo que
+ *     un mapa roto: `null` significa «esta sede es de una sola planta», que es
+ *     un estado legítimo y es el de Mayagüez. Dejarlo como `{}` diría lo mismo
+ *     al leer, pero `null` es lo que ya hay escrito y dos representaciones de
+ *     la misma cosa acaban divergiendo.
+ */
+export function validarColorFloorMap(
+    raw: unknown,
+): { ok: true; mapa: Record<string, string> | null } | { ok: false; error: string } {
+    if (raw === null || raw === undefined) return { ok: true, mapa: null };
+    if (typeof raw !== 'object' || Array.isArray(raw)) {
+        return { ok: false, error: 'El mapa de pisos tiene que ser un objeto color → piso.' };
+    }
+
+    const permitidos = new Set(CODIGOS_DE_COLOR);
+    const salida: Record<string, string> = {};
+    /** ortografía en minúsculas → la que gana. */
+    const vistos = new Map<string, string>();
+
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+        const color = String(k ?? '').trim().toUpperCase();
+        if (!color) continue;
+        if (!permitidos.has(color)) {
+            return { ok: false, error: `«${k}» no es un grupo de color.` };
+        }
+
+        if (v === null || v === undefined) continue; // sin piso: se omite
+
+        // El `typeof` ANTES de tocar el valor: `String(v)` sobre un objeto llama
+        // a su `toString`, que puede lanzar, y entonces esta funcion —que existe
+        // para decir que algo esta mal— revienta en vez de decirlo.
+        if (typeof v !== 'string') {
+            return { ok: false, error: `El piso de ${nombreDeColor(color)} tiene que ser texto.` };
+        }
+
+        /**
+         * Se colapsa el espacio INTERIOR, no solo las puntas.
+         *
+         * `trim()` deja «Piso  2» (dos espacios) distinto de «Piso 2», y
+         * `toLowerCase()` tampoco los junta: se guardarian como dos plantas. Y
+         * no se notaria mirando la pantalla, porque HTML colapsa los espacios
+         * seguidos y las dos cabeceras se leen «Piso 2» — el wall enseñaria la
+         * misma planta dos veces y la cobertura la contaria de mas. Es el mismo
+         * daño que la diferencia de mayusculas, por una puerta que no se ve.
+         * De paso mata los saltos de linea.
+         */
+        const piso = v.replace(/\s+/g, ' ').trim();
+        if (!piso) continue; // era solo espacios: sin piso
+
+        if (piso.length > 40) {
+            return { ok: false, error: `El piso de ${nombreDeColor(color)} es demasiado largo.` };
+        }
+
+        const llave = piso.toLowerCase();
+        if (!vistos.has(llave)) vistos.set(llave, piso);
+        salida[color] = vistos.get(llave)!;
+    }
+
+    return { ok: true, mapa: Object.keys(salida).length > 0 ? salida : null };
 }

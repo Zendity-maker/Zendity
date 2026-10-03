@@ -11,6 +11,7 @@
  *   7.  groupItemsByFloor con sentinel ámbar al final
  *   8.  Case-insensitivity defensiva ('red' / 'Red' / 'RED')
  *   9.  hasFloorsConfigured booleano
+ *   11. validarColorFloorMap — la puerta de ESCRITURA (03-oct-2026)
  *
  * Multi-tenant (item 5 del brief) NO se prueba aquí — es un test
  * de DB / endpoint que vive en smoke-floor-map-e2e.ts.
@@ -18,17 +19,7 @@
  * Run:  npx tsx scripts/smoke-floor-map-unit.ts
  */
 
-import {
-    parseColorFloorMap,
-    floorOf,
-    floorsForCaregiver,
-    floorOfPatient,
-    hasUnmappedFloor,
-    groupItemsByFloor,
-    hasFloorsConfigured,
-    UNMAPPED_FLOOR_KEY,
-    UNMAPPED_FLOOR_LABEL,
-} from '../src/lib/floor-map';
+import { parseColorFloorMap, floorOf, floorsForCaregiver, floorOfPatient, hasUnmappedFloor, groupItemsByFloor, hasFloorsConfigured, UNMAPPED_FLOOR_KEY, UNMAPPED_FLOOR_LABEL, validarColorFloorMap } from '../src/lib/floor-map';
 
 let pass = 0;
 let fail = 0;
@@ -202,6 +193,72 @@ console.log('\n═══ Smoke 10: groupItemsByFloor con map vacío ═══');
     eq('una sola sección (sentinel) cuando map vacío', sections.length, 1);
     eq('todos en sentinel', sections[0].items.length, 2);
     eq('sentinel marcado isUnmapped', sections[0].isUnmapped, true);
+}
+
+console.log('\n═══ Smoke 11: validarColorFloorMap — la puerta de ESCRITURA ═══');
+{
+    // El parser es defensivo y ante basura devuelve vacio: correcto al LEER,
+    // y justo lo que NO se quiere al escribir. Guardar basura en silencio deja
+    // el hogar entero sin pisos y sin un solo error que lo diga.
+
+    const ok = (etq: string, raw: unknown, esperado: Record<string, string> | null) => {
+        const r = validarColorFloorMap(raw);
+        if (!r.ok) { eq(etq, `error: ${r.error}`, JSON.stringify(esperado)); return; }
+        eq(etq, JSON.stringify(r.mapa), JSON.stringify(esperado));
+    };
+    const rechaza = (etq: string, raw: unknown) => {
+        const r = validarColorFloorMap(raw);
+        eq(etq, r.ok ? 'ACEPTADO' : 'rechazado', 'rechazado');
+    };
+
+    ok('null → null (una sola planta)', null, null);
+    ok('{} → null (lo mismo, una sola representacion)', {}, null);
+    ok('todo vacio → null', { RED: '', BLUE: '   ' }, null);
+    ok('mapa normal', { RED: 'Piso 1', BLUE: 'Piso 2' }, { RED: 'Piso 1', BLUE: 'Piso 2' });
+    ok('recorta espacios', { RED: '  Piso 1  ' }, { RED: 'Piso 1' });
+    ok('la clave sube a mayusculas', { red: 'Piso 1' }, { RED: 'Piso 1' });
+    ok('el color nuevo entra solo', { PURPLE: 'Piso 2' }, { PURPLE: 'Piso 2' });
+    ok('omite los colores sin piso', { RED: 'Piso 1', BLUE: '' }, { RED: 'Piso 1' });
+
+    // Lo que de verdad importa: dos ortografias del MISMO piso parten el hogar
+    // en dos plantas que son la misma. Gana la primera que aparece.
+    ok('unifica «piso 2» con «Piso 2»',
+        { BLUE: 'Piso 2', PURPLE: 'piso 2', GREEN: 'PISO 2' },
+        { BLUE: 'Piso 2', PURPLE: 'Piso 2', GREEN: 'Piso 2' });
+
+    // Una clave inventada se queda para siempre sin corresponder a nadie.
+    rechaza('rechaza un color que no existe', { PURPEL: 'Piso 2' });
+    rechaza('rechaza ALL, que no es un color', { ALL: 'Piso 1' });
+    rechaza('rechaza UNASSIGNED, que es la ausencia de grupo', { UNASSIGNED: 'Piso 1' });
+    rechaza('rechaza un array', ['Piso 1']);
+    rechaza('rechaza un piso que no es texto', { RED: 2 });
+    rechaza('rechaza un piso absurdamente largo', { RED: 'x'.repeat(41) });
+
+    // El espacio INTERIOR tambien parte el hogar, y no se ve: HTML colapsa los
+    // espacios seguidos, asi que las dos cabeceras se leen «Piso 2» y el wall
+    // enseña la misma planta dos veces.
+    ok('colapsa el espacio interior',
+        { RED: 'Piso  2', BLUE: 'Piso 2' },
+        { RED: 'Piso 2', BLUE: 'Piso 2' });
+    ok('mata el salto de linea', { RED: 'Piso\n2' }, { RED: 'Piso 2' });
+    ok('solo espacios = sin piso', { RED: '   ', BLUE: 'Piso 1' }, { BLUE: 'Piso 1' });
+
+    // `String(v)` sobre un objeto llama a su toString, que puede lanzar: esta
+    // funcion existe para DECIR que algo esta mal, no para reventar.
+    {
+        const bomba = { toString() { throw new Error('boom'); } };
+        let exploto = false;
+        try { validarColorFloorMap({ RED: bomba }); } catch { exploto = true; }
+        eq('un valor con toString que lanza no revienta el validador', exploto, false);
+    }
+
+    // Y el lazo que cierra: lo que esto acepta, el parser lo lee igual.
+    const guardado = validarColorFloorMap({ red: '  piso 1 ', BLUE: 'Piso 1' });
+    if (guardado.ok) {
+        const releido = parseColorFloorMap(guardado.mapa);
+        eq('lo validado se relee identico (rojo)', floorOf('RED', releido), 'piso 1');
+        eq('lo validado se relee identico (azul, misma planta)', floorOf('BLUE', releido), 'piso 1');
+    }
 }
 
 console.log('\n═══════════════════════════════════════════════════════');

@@ -110,18 +110,38 @@ export default function CoveragePickerModal({
     // usuario debe DESELECCIONAR para liberar y poder cambiar de piso.
     // Decisión deliberada vs. el "wipe silencioso" — antiguamente trampa
     // en emergencia: "creí que añadía y borró lo anterior".
+    /**
+     * EL CANDADO SOLO ENTRE PLANTAS QUE SE CONOCEN.
+     *
+     * Antes era `floorOf(firstColor) ?? UNMAPPED_FLOOR_KEY`: el saco de los
+     * colores SIN planta entraba al candado como si fuera una planta más. Pero
+     * `__unmapped__` no significa «la planta de los huérfanos», significa **no
+     * sabemos en qué planta están** — y de ahí no se sigue que esa persona no
+     * pueda estar en la misma que otra.
+     *
+     * Lo que producía: con el mapa a medias —que desde el 03-oct-2026 es un
+     * estado alcanzable, porque el mapa ya se puede editar desde la pantalla de
+     * la sede— la cuidadora que llega y toca un color sin planta se encontraba
+     * TODOS los demás en gris y «Bloqueado». No podía absorber dos grupos
+     * descubiertos en un solo acto porque de uno de ellos no constaba la
+     * planta. Una restricción física deducida de una ignorancia.
+     *
+     * La restricción de verdad —nadie está en dos plantas a la vez— se mantiene
+     * entera entre colores cuya planta SÍ se conoce.
+     */
     const lockedFloorKey: string | null = useMemo(() => {
         if (!floorsConfigured || selectedColors.length === 0) return null;
-        const firstColor = selectedColors[0];
-        const f = floorOf(firstColor, parsedMap);
-        return f ?? UNMAPPED_FLOOR_KEY;
+        // Si de lo ya escogido no se sabe la planta, no se restringe nada.
+        return floorOf(selectedColors[0], parsedMap);
     }, [selectedColors, parsedMap, floorsConfigured]);
 
     if (!isOpen) return null;
 
     const isOptionLocked = (color: string): boolean => {
         if (!floorsConfigured || lockedFloorKey === null) return false;
-        const f = floorOf(color, parsedMap) ?? UNMAPPED_FLOOR_KEY;
+        const f = floorOf(color, parsedMap);
+        // Sin planta conocida no se bloquea: ver la nota de `lockedFloorKey`.
+        if (f === null) return false;
         return f !== lockedFloorKey;
     };
 
